@@ -1,0 +1,260 @@
+@component('layouts/app', {
+  title: 'ตั้งค่า HIS Database · HisReport',
+  showSidebar: true,
+  isAdmin: true,
+  fullname: auth?.user?.fullname || auth?.user?.username,
+  department: auth?.user?.department,
+  currentPage: '',
+})
+  @slot('main')
+    @let(connOk = status.connected)
+    @let(hasConfig = status.hasConfig)
+    @let(stateClr = connOk ? 'success' : (hasConfig ? 'danger' : 'warning'))
+    @let(stateLbl = connOk ? 'เชื่อมต่อได้' : (hasConfig ? 'เชื่อมต่อไม่ได้' : 'ยังไม่ได้ตั้งค่า'))
+    @let(stateIcon = connOk ? 'fa-circle-check' : (hasConfig ? 'fa-circle-xmark' : 'fa-triangle-exclamation'))
+    @let(hasSavedPwd = current && current.dbPassword)
+
+    <div class="max-w-4xl mx-auto">
+      <header class="mb-6">
+        <h1 class="text-2xl font-semibold text-gray-800 flex items-center gap-2">
+          <i class="fas fa-database text-primary"></i> ตั้งค่า HIS Database
+        </h1>
+        <p class="text-sm text-gray-500 mt-1">การตั้งค่าการเชื่อมต่อกับฐานข้อมูล HIS ของโรงพยาบาล</p>
+      </header>
+
+      @if(message)
+        <div class="mb-4 px-4 py-3 rounded-lg border text-sm flex items-center gap-2 {{ messageType === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700' }}">
+          <i class="fas {{ messageType === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation' }}"></i>
+          <span>{{ message }}</span>
+        </div>
+      @end
+
+      {{-- Status hero --}}
+      <div class="mb-4 rounded-xl border-l-4 border-{{ stateClr === 'success' ? 'green' : (stateClr === 'danger' ? 'red' : 'yellow') }}-500 bg-white border border-gray-200 p-4">
+        <div class="grid grid-cols-[auto_1fr_auto] gap-3 items-center">
+          <div class="w-11 h-11 rounded-lg flex items-center justify-center text-lg
+            {{ stateClr === 'success' ? 'bg-green-50 text-green-600' : (stateClr === 'danger' ? 'bg-red-50 text-red-600' : 'bg-yellow-50 text-yellow-600') }}">
+            <i class="fas {{ stateIcon }}"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="font-semibold text-gray-800">HIS Database Connection</div>
+            <div class="text-sm text-gray-500 break-words">{{ status.message }}</div>
+            @if(status.debug)
+              <details class="mt-1 text-xs text-gray-500">
+                <summary class="cursor-pointer">รายละเอียดทางเทคนิค</summary>
+                <pre class="mt-1 px-2 py-1 bg-gray-50 rounded text-[11px] overflow-x-auto">{{ status.debug }}</pre>
+              </details>
+            @end
+          </div>
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs whitespace-nowrap
+            {{ stateClr === 'success' ? 'bg-green-100 text-green-700' : (stateClr === 'danger' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700') }}">
+            <span class="w-1.5 h-1.5 rounded-full
+              {{ stateClr === 'success' ? 'bg-green-500' : (stateClr === 'danger' ? 'bg-red-500' : 'bg-yellow-500') }}"></span>
+            {{ stateLbl }}
+          </span>
+        </div>
+
+        @if(current)
+          <div class="mt-3 pt-3 border-t border-dashed border-gray-200 flex flex-wrap gap-1.5 text-xs">
+            <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-gray-50 border border-gray-200 text-gray-700">
+              <i class="fas fa-server text-[10px] text-gray-400"></i><strong class="font-medium text-gray-500">Host</strong> {{ current.dbHost }}
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-gray-50 border border-gray-200 text-gray-700">
+              <i class="fas fa-plug text-[10px] text-gray-400"></i><strong class="font-medium text-gray-500">Port</strong> {{ current.dbPort }}
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-gray-50 border border-gray-200 text-gray-700">
+              <i class="fas fa-database text-[10px] text-gray-400"></i><strong class="font-medium text-gray-500">DB</strong> {{ current.dbName }}
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-gray-50 border border-gray-200 text-gray-700">
+              <i class="fas fa-user text-[10px] text-gray-400"></i><strong class="font-medium text-gray-500">User</strong> {{ current.dbUsername }}
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-gray-700
+              {{ hasSavedPwd ? 'bg-gray-50 border border-gray-200' : 'bg-yellow-50 border border-yellow-200 text-yellow-700' }}">
+              <i class="fas fa-key text-[10px] text-gray-400"></i><strong class="font-medium text-gray-500">Password</strong>
+              {{ hasSavedPwd ? '••••••••' : '(ว่าง)' }}
+            </span>
+            @if(current.updatedAt)
+              <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-transparent border border-dashed border-gray-300 text-gray-500 ml-auto">
+                <i class="fas fa-clock text-[10px]"></i>
+                อัปเดต {{ current.updatedAt.toFormat('dd/MM/yyyy HH:mm') }}
+              </span>
+            @end
+          </div>
+        @end
+      </div>
+
+      {{-- Settings form --}}
+      <div class="bg-white rounded-xl border border-gray-200">
+        <div class="p-4 border-b border-gray-200">
+          <h2 class="text-base font-semibold text-gray-800 flex items-center gap-2">
+            <i class="fas fa-database text-primary"></i>การตั้งค่า HIS Database
+          </h2>
+          <p class="text-xs text-gray-500 mt-1">กรอกข้อมูลการเชื่อมต่อ → ทดสอบ → บันทึก</p>
+        </div>
+
+        <form id="hisForm" method="POST" action="/admin/his-settings" class="p-5 space-y-6">
+          {{ csrfField() }}
+
+          <section>
+            <div class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-1.5">
+              <i class="fas fa-network-wired text-primary"></i>ที่อยู่เซิร์ฟเวอร์
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-[1fr_12rem] gap-4">
+              <div>
+                <label for="hf_host" class="block text-sm font-medium text-gray-700 mb-1">โฮสต์ (Host) <span class="text-red-500">*</span></label>
+                <div class="relative">
+                  <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-gray-400"><i class="fas fa-server text-xs"></i></span>
+                  <input id="hf_host" name="db_host_his" type="text" required
+                    value="{{ (current && current.dbHost) || '30.23.2.1' }}"
+                    placeholder="localhost หรือ IP Address"
+                    autocomplete="off"
+                    class="w-full pl-8 pr-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+                </div>
+                <p class="text-xs text-gray-500 mt-1">เช่น <code class="bg-gray-100 px-1 rounded">localhost</code>, <code class="bg-gray-100 px-1 rounded">192.168.1.10</code></p>
+              </div>
+              <div>
+                <label for="hf_port" class="block text-sm font-medium text-gray-700 mb-1">พอร์ต (Port)</label>
+                <div class="relative">
+                  <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-gray-400"><i class="fas fa-plug text-xs"></i></span>
+                  <input id="hf_port" name="db_port_his" type="number" min="1" max="65535"
+                    value="{{ (current && current.dbPort) || '3306' }}"
+                    placeholder="3306"
+                    class="w-full pl-8 pr-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+                </div>
+                <p class="text-xs text-gray-500 mt-1">ค่าเริ่มต้น <code class="bg-gray-100 px-1 rounded">3306</code></p>
+              </div>
+            </div>
+          </section>
+
+          <section class="pt-5 border-t border-dashed border-gray-200">
+            <div class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-1.5">
+              <i class="fas fa-database text-primary"></i>ฐานข้อมูล
+            </div>
+            <div>
+              <label for="hf_db" class="block text-sm font-medium text-gray-700 mb-1">ชื่อฐานข้อมูล <span class="text-red-500">*</span></label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-gray-400"><i class="fas fa-database text-xs"></i></span>
+                <input id="hf_db" name="db_name_his" type="text" required
+                  value="{{ (current && current.dbName) || 'hos' }}"
+                  placeholder="ชื่อฐานข้อมูล HIS"
+                  autocomplete="off"
+                  class="w-full pl-8 pr-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+              </div>
+            </div>
+          </section>
+
+          <section class="pt-5 border-t border-dashed border-gray-200">
+            <div class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-1.5">
+              <i class="fas fa-user-shield text-primary"></i>ข้อมูลรับรอง
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label for="hf_user" class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้ใช้ <span class="text-red-500">*</span></label>
+                <div class="relative">
+                  <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-gray-400"><i class="fas fa-user text-xs"></i></span>
+                  <input id="hf_user" name="db_username_his" type="text" required
+                    value="{{ (current && current.dbUsername) || 'knh' }}"
+                    placeholder="ชื่อผู้ใช้ฐานข้อมูล"
+                    autocomplete="off"
+                    class="w-full pl-8 pr-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+                </div>
+              </div>
+              <div>
+                <label for="hf_pass" class="block text-sm font-medium text-gray-700 mb-1">
+                  รหัสผ่าน
+                  @if(!hasSavedPwd)
+                    <span class="text-red-500">*</span>
+                  @end
+                </label>
+                <div class="relative">
+                  <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-gray-400"><i class="fas fa-key text-xs"></i></span>
+                  <input id="hf_pass" name="db_password_his" type="password"
+                    placeholder="{{ hasSavedPwd ? 'ปล่อยว่างเพื่อใช้รหัสที่บันทึกไว้' : 'กรอกรหัสผ่านฐานข้อมูล' }}"
+                    autocomplete="new-password" {{ hasSavedPwd ? '' : 'required' }}
+                    class="w-full pl-8 pr-10 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+                  <button type="button" id="hisPwdToggle" aria-label="แสดง/ซ่อนรหัสผ่าน"
+                    class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600">
+                    <i id="hisPwdIcon" class="fas fa-eye text-xs"></i>
+                  </button>
+                </div>
+                <p class="text-xs mt-1 flex items-start gap-1.5
+                  {{ hasSavedPwd ? 'text-green-700' : 'text-yellow-700' }}">
+                  <i class="fas {{ hasSavedPwd ? 'fa-circle-check' : 'fa-triangle-exclamation' }} mt-0.5"></i>
+                  <span>
+                    @if(hasSavedPwd)
+                      มีรหัสผ่านบันทึกไว้แล้ว — ปล่อยช่องนี้ว่างจะใช้ของเดิม กรอกใหม่ถ้าต้องการเปลี่ยน
+                    @else
+                      จำเป็นต้องกรอกรหัสผ่าน
+                    @end
+                  </span>
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <div id="testResult" class="hidden"></div>
+
+          <div class="pt-5 border-t border-gray-200 flex flex-wrap gap-2">
+            <button type="button" id="testButton" onclick="testConnection()"
+              class="px-4 py-2 rounded-md text-sm bg-yellow-500 hover:bg-yellow-600 text-white flex items-center gap-1.5">
+              <i class="fas fa-vial"></i><span>ทดสอบการเชื่อมต่อ</span>
+            </button>
+            <button type="submit" id="saveButton"
+              class="px-4 py-2 rounded-md text-sm bg-green-600 hover:bg-green-700 text-white flex items-center gap-1.5">
+              <i class="fas fa-save"></i><span>บันทึกการตั้งค่า</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      // Password show/hide
+      document.getElementById('hisPwdToggle')?.addEventListener('click', () => {
+        const inp = document.getElementById('hf_pass')
+        const icon = document.getElementById('hisPwdIcon')
+        const isText = inp.type === 'text'
+        inp.type = isText ? 'password' : 'text'
+        icon.className = (isText ? 'fas fa-eye' : 'fas fa-eye-slash') + ' text-xs'
+      })
+
+      async function testConnection() {
+        const form = document.getElementById('hisForm')
+        const fd = new FormData(form)
+        const btn = document.getElementById('testButton')
+        const tr = document.getElementById('testResult')
+        const original = btn.innerHTML
+        btn.disabled = true
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>กำลังทดสอบ...</span>'
+        tr.className = 'mt-3 px-4 py-3 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-sm flex items-center gap-2'
+        tr.innerHTML = '<i class="fas fa-spinner fa-spin"></i>กำลังทดสอบการเชื่อมต่อ HIS Database...'
+        try {
+          const res = await fetch('/admin/his-settings/test', { method: 'POST', body: fd })
+          const result = await res.json()
+          if (result.success) {
+            tr.className = 'mt-3 px-4 py-3 rounded-md bg-green-50 border border-green-200 text-green-700 text-sm'
+            tr.innerHTML = '<div class="font-semibold flex items-center gap-2"><i class="fas fa-circle-check"></i>การทดสอบสำเร็จ</div>'
+              + '<div class="text-xs mt-2">' + (result.message || '') + '</div>'
+              + (result.database ? '<div class="text-xs mt-1 grid grid-cols-2 md:grid-cols-4 gap-1.5">'
+                  + '<div><b>ฐานข้อมูล:</b> ' + result.database + '</div>'
+                  + '<div><b>โฮสต์:</b> ' + result.host + ':' + result.port + '</div>'
+                  + '<div><b>ผู้ใช้:</b> ' + result.username + '</div>'
+                  + (result.mysql_version ? '<div><b>MySQL:</b> ' + result.mysql_version + '</div>' : '')
+                + '</div>' : '')
+          } else {
+            tr.className = 'mt-3 px-4 py-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm'
+            tr.innerHTML = '<div class="font-semibold flex items-center gap-2"><i class="fas fa-circle-exclamation"></i>การทดสอบล้มเหลว</div>'
+              + '<div class="text-xs mt-2">' + (result.message || '') + '</div>'
+              + (result.debug ? '<div class="text-[11px] mt-1 font-mono text-red-500/80">' + result.debug + '</div>' : '')
+          }
+        } catch (e) {
+          tr.className = 'mt-3 px-4 py-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm'
+          tr.innerHTML = '<i class="fas fa-circle-exclamation"></i> เกิดข้อผิดพลาด: ' + (e.message || e)
+        } finally {
+          btn.disabled = false
+          btn.innerHTML = original
+        }
+      }
+    </script>
+  @end
+@end

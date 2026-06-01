@@ -1,0 +1,99 @@
+@component('layouts/app', { title: 'HisReport — ระบบรายงาน HIS', showSidebar: false })
+  @slot('main')
+    <div class="max-w-5xl mx-auto">
+
+      {{-- Hero --}}
+      <div class="relative overflow-hidden bg-white rounded-2xl shadow-sm border border-gray-200 p-8 md:p-12 mt-6">
+        <div class="absolute -top-16 -right-16 w-64 h-64 bg-primary/5 rounded-full"></div>
+        <div class="absolute -bottom-20 -left-20 w-72 h-72 bg-secondary/5 rounded-full"></div>
+
+        <div class="relative">
+          <div class="flex items-center gap-4 mb-6">
+            <div class="w-16 h-16 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md">
+              <i class="fas fa-heart-pulse text-3xl"></i>
+            </div>
+            <div>
+              <h1 class="text-3xl md:text-4xl font-bold text-gray-800">HisReport</h1>
+              <p class="text-sm md:text-base text-gray-500">ระบบรายงานข้อมูลจากฐานข้อมูล HIS โรงพยาบาล</p>
+            </div>
+          </div>
+
+          <p class="text-gray-600 max-w-2xl leading-relaxed mb-8">
+            สร้าง เรียกใช้ และส่งออกรายงานจากฐานข้อมูล HIS ได้ในที่เดียว
+            พร้อมแดชบอร์ดสรุปตัวเลขสำคัญ และระบบจัดการสิทธิ์ผู้ใช้สำหรับผู้ดูแลระบบ
+          </p>
+
+          @if(user)
+            <div class="flex flex-wrap gap-3">
+              <a href="/dashboard"
+                 class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition shadow-sm">
+                <i class="fas fa-gauge-high"></i>
+                ไปยังแดชบอร์ด
+              </a>
+              <a href="/reports"
+                 class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition">
+                <i class="fas fa-file-lines"></i>
+                ดูรายงาน
+              </a>
+              <span class="inline-flex items-center gap-2 px-3 py-2.5 text-sm text-gray-500">
+                <i class="fas fa-circle-user"></i>
+                เข้าสู่ระบบในชื่อ <strong class="text-gray-700">{{ user.fullname || user.username }}</strong>
+              </span>
+            </div>
+          @else
+            <div class="flex flex-wrap gap-3">
+              <a href="/login"
+                 class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition shadow-sm">
+                <i class="fas fa-right-to-bracket"></i>
+                เข้าสู่ระบบ
+              </a>
+              <a href="/register"
+                 class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition">
+                <i class="fas fa-user-plus"></i>
+                สมัครสมาชิก
+              </a>
+            </div>
+          @end
+        </div>
+      </div>
+
+      {{-- Feature grid --}}
+      <div class="grid md:grid-cols-3 gap-4 mt-6">
+        <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-sm transition">
+          <div class="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-3">
+            <i class="fas fa-chart-line text-lg"></i>
+          </div>
+          <h3 class="font-semibold text-gray-800 mb-1">แดชบอร์ด</h3>
+          <p class="text-sm text-gray-500 leading-relaxed">
+            สรุปตัวเลขสำคัญแบบเรียลไทม์ พร้อมกราฟ Pie/Bar/Line ที่ปรับแต่งได้
+          </p>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-sm transition">
+          <div class="w-10 h-10 rounded-lg bg-success/10 text-success flex items-center justify-center mb-3">
+            <i class="fas fa-file-excel text-lg"></i>
+          </div>
+          <h3 class="font-semibold text-gray-800 mb-1">ส่งออก Excel</h3>
+          <p class="text-sm text-gray-500 leading-relaxed">
+            ดาวน์โหลดผลรายงานเป็น .xlsx ได้ทุกรายงาน รองรับข้อมูลปริมาณมาก
+          </p>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-sm transition">
+          <div class="w-10 h-10 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center mb-3">
+            <i class="fas fa-sliders text-lg"></i>
+          </div>
+          <h3 class="font-semibold text-gray-800 mb-1">จัดการรายงานเอง</h3>
+          <p class="text-sm text-gray-500 leading-relaxed">
+            ผู้ดูแลระบบสร้าง/แก้ไขรายงานและพารามิเตอร์ได้จากหน้าเว็บ ไม่ต้องแก้โค้ด
+          </p>
+        </div>
+      </div>
+
+      {{-- Footer line --}}
+      <p class="text-center text-xs text-gray-400 mt-8 mb-4">
+        HisReport · AdonisJS Edition
+      </p>
+    </div>
+  @end
+@end

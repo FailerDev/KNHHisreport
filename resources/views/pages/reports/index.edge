@@ -1,0 +1,209 @@
+@component('layouts/app', {
+  title: 'รายงานทั้งหมด · HisReport',
+  showSidebar: true,
+  isAdmin: auth.user.userLevel === 'admin',
+  fullname: auth.user.fullname || auth.user.username,
+  department: auth.user.department,
+  currentPage: 'mainreport',
+})
+  @slot('main')
+    <div class="max-w-6xl mx-auto">
+      <header class="mb-5">
+        <h1 class="text-2xl font-semibold text-gray-800 flex items-center gap-2">
+          <i class="fas fa-file-lines text-primary"></i> รายงานทั้งหมด
+        </h1>
+        <p class="text-sm text-gray-500 mt-1">รายการรายงานสถิติทั้งหมดในระบบ</p>
+      </header>
+
+      {{-- Stats --}}
+      <div class="grid grid-cols-3 gap-3 mb-5">
+        <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center"><i class="fas fa-folder-tree"></i></div>
+          <div><div class="text-xs text-gray-500">หมวดหมู่</div><div class="text-xl font-semibold">{{ stats.categories }}</div></div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center"><i class="fas fa-file-lines"></i></div>
+          <div><div class="text-xs text-gray-500">รายงานทั้งหมด</div><div class="text-xl font-semibold">{{ stats.total }}</div></div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-success/10 text-success flex items-center justify-center"><i class="fas fa-circle-check"></i></div>
+          <div><div class="text-xs text-gray-500">สถานะ</div><div class="text-base font-semibold text-success">พร้อมใช้งาน</div></div>
+        </div>
+      </div>
+
+      {{-- Toolbar --}}
+      <div class="bg-white rounded-xl border border-gray-200 p-3 mb-5">
+        <form method="GET" action="/reports" class="flex flex-wrap gap-2 items-center">
+          <div class="relative flex-1 min-w-[12rem]">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i class="fas fa-magnifying-glass text-sm"></i></span>
+            <input id="reportSearch" type="search" name="search" value="{{ search }}" placeholder="ค้นหารายงาน..."
+              class="w-full pl-10 pr-3 py-2 rounded-full border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm" />
+          </div>
+          <select name="dep" onchange="this.form.submit()"
+            class="px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none text-sm bg-white">
+            <option value="0">ทุกหมวดหมู่</option>
+            @each(h in allHeads)
+              <option value="{{ h.id }}" {{ dep === h.id ? 'selected' : '' }}>{{ stripTitleHtml(h.detail) }}</option>
+            @end
+          </select>
+          <button type="submit" class="px-3 py-2 rounded-md bg-primary hover:bg-primary/90 text-white text-sm flex items-center gap-1.5">
+            <i class="fas fa-filter text-xs"></i><span>กรอง</span>
+          </button>
+          @if(auth.user.userLevel === 'admin')
+            <a href="/admin/report-settings" class="px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm flex items-center gap-1.5">
+              <i class="fas fa-sliders text-xs"></i><span>จัดการ</span>
+            </a>
+          @end
+        </form>
+        <div id="hits" class="mt-2 px-3 py-1.5 rounded text-xs bg-primary/10 text-primary inline-flex items-center gap-1.5 hidden">
+          <i class="fas fa-circle-info"></i><span><span id="hitCount">0</span> รายงานที่ตรงกับการค้นหา</span>
+        </div>
+      </div>
+
+      {{-- Grid of category cards --}}
+      @if(heads.length === 0)
+        <div class="bg-white rounded-xl border border-gray-200 py-16 text-center text-gray-500">
+          <div class="text-3xl mb-2 text-gray-300"><i class="fas fa-folder-open"></i></div>
+          <div class="text-sm">ยังไม่มีรายงานในระบบ</div>
+        </div>
+      @else
+        <div class="flex justify-end mb-2 gap-1">
+          <button type="button" id="expandAll" class="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center gap-1">
+            <i class="fas fa-chevron-down text-[10px]"></i><span>เปิดทั้งหมด</span>
+          </button>
+          <button type="button" id="collapseAll" class="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center gap-1">
+            <i class="fas fa-chevron-up text-[10px]"></i><span>ปิดทั้งหมด</span>
+          </button>
+        </div>
+        <div id="reportGrid" class="space-y-3">
+          @each(h in heads)
+            @let(list = reportsByHead[h.id] || [])
+            <details open
+              class="bg-white rounded-xl border border-gray-200 overflow-hidden report-card transition hover:shadow-md group"
+              data-category="{{ stripTitleHtml(h.detail).toLowerCase() }}">
+              <summary class="list-none cursor-pointer p-3.5 border-b border-transparent group-open:border-gray-100 flex items-center gap-3 hover:bg-gray-50">
+                <div class="w-10 h-10 rounded-md bg-gradient-to-br from-primary/10 to-primary/20 text-primary flex items-center justify-center flex-shrink-0">
+                  <i class="fas fa-folder-open"></i>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <h2 class="text-base font-semibold text-gray-800 break-words">{{{ safeReportTitle(h.detail) }}}</h2>
+                  <div class="text-xs text-gray-500">
+                    <span class="inline-block min-w-[1.25rem] px-1.5 py-0.5 bg-primary/10 text-primary rounded-full font-medium text-[10px] mr-1">{{ list.length }}</span>
+                    รายงาน
+                  </div>
+                </div>
+                <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform group-open:rotate-180"></i>
+              </summary>
+
+              @if(list.length === 0)
+                <div class="py-6 text-center text-xs text-gray-400">
+                  <i class="fas fa-inbox text-xl text-gray-300 mb-1"></i>
+                  <div>ไม่มีรายงานในหมวดนี้</div>
+                </div>
+              @else
+                <ul class="p-2 grid grid-cols-1 md:grid-cols-2 gap-1">
+                  @each(r in list)
+                    @let(src = r.databaseSource || 'system')
+                    <li>
+                      <a href="/reports/{{ r.id }}"
+                        class="report-item flex items-center gap-3 px-3 py-2.5 rounded-md border border-transparent hover:border-primary/30 hover:bg-primary/5 transition text-gray-700"
+                        data-name="{{ stripTitleHtml(r.detail).toLowerCase() }}"
+                      >
+                        <span class="w-9 h-9 rounded bg-gray-100 text-gray-600 flex items-center justify-center text-sm flex-shrink-0">
+                          <i class="fas fa-chart-line"></i>
+                        </span>
+                        <div class="flex-1 min-w-0">
+                          <div class="font-medium text-gray-800 break-words text-sm">{{{ safeReportTitle(r.detail) }}}</div>
+                          <div class="mt-1 flex gap-1.5 flex-wrap">
+                            @if(src === 'his')
+                              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-secondary/15 text-secondary">
+                                <i class="fas fa-database text-[8px]"></i>HIS
+                              </span>
+                            @else
+                              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-primary/15 text-primary">
+                                <i class="fas fa-server text-[8px]"></i>ระบบ
+                              </span>
+                            @end
+                          </div>
+                        </div>
+                        <i class="fas fa-chevron-right text-xs text-gray-300"></i>
+                      </a>
+                    </li>
+                  @end
+                </ul>
+              @end
+            </details>
+          @end
+        </div>
+
+        <div id="noResults" class="hidden mt-4 bg-white rounded-xl border border-gray-200 py-12 text-center text-gray-500">
+          <i class="fas fa-circle-question text-2xl text-gray-300 mb-2"></i>
+          <div class="text-sm">ไม่พบรายงานที่ตรงกับการค้นหา</div>
+          <button type="button" id="clearSearch" class="mt-3 px-3 py-1.5 rounded-md bg-gray-100 text-sm hover:bg-gray-200">
+            <i class="fas fa-rotate-left"></i> ล้างคำค้นหา
+          </button>
+        </div>
+      @end
+    </div>
+
+    <style>
+      /* Hide native <summary> markers (triangle / disclosure arrow) */
+      .report-card > summary::-webkit-details-marker { display: none; }
+      .report-card > summary { list-style: none; }
+    </style>
+    <script>
+      (function () {
+        const search = document.getElementById('reportSearch')
+        const grid = document.getElementById('reportGrid')
+        const noResults = document.getElementById('noResults')
+        const hits = document.getElementById('hits')
+        const hitCount = document.getElementById('hitCount')
+        const clearBtn = document.getElementById('clearSearch')
+        const expandBtn = document.getElementById('expandAll')
+        const collapseBtn = document.getElementById('collapseAll')
+        if (!grid) return
+        let timer = null
+
+        function applyFilter() {
+          const q = (search?.value || '').trim().toLowerCase()
+          let visibleCards = 0
+          let visibleItems = 0
+          grid.querySelectorAll('.report-card').forEach(card => {
+            const items = card.querySelectorAll('.report-item')
+            let cardMatch = false
+            if (items.length === 0) {
+              const isMatch = !q || (card.dataset.category || '').includes(q)
+              card.style.display = isMatch ? '' : 'none'
+              if (isMatch) visibleCards++
+              return
+            }
+            items.forEach(item => {
+              const isMatch = !q || (item.dataset.name || '').includes(q) || (card.dataset.category || '').includes(q)
+              item.parentElement.style.display = isMatch ? '' : 'none'
+              if (isMatch) { cardMatch = true; visibleItems++ }
+            })
+            card.style.display = cardMatch ? '' : 'none'
+            // Auto-expand when searching so matched items are visible.
+            if (q && cardMatch && card.tagName === 'DETAILS') card.open = true
+            if (cardMatch) visibleCards++
+          })
+          if (noResults) noResults.classList.toggle('hidden', visibleCards > 0)
+          if (hits) {
+            if (q && visibleCards > 0) { hitCount.textContent = visibleItems; hits.classList.remove('hidden') }
+            else hits.classList.add('hidden')
+          }
+        }
+
+        search?.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(applyFilter, 80) })
+        clearBtn?.addEventListener('click', () => { if (search) { search.value = ''; applyFilter(); search.focus() } })
+        expandBtn?.addEventListener('click', () => {
+          grid.querySelectorAll('.report-card').forEach(c => { if (c.tagName === 'DETAILS') c.open = true })
+        })
+        collapseBtn?.addEventListener('click', () => {
+          grid.querySelectorAll('.report-card').forEach(c => { if (c.tagName === 'DETAILS') c.open = false })
+        })
+        applyFilter()
+      })()
+    </script>
+  @end
+@end
