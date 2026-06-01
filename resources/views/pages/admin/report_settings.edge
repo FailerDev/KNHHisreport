@@ -1,0 +1,353 @@
+@component('layouts/app', {
+  title: 'ตั้งค่ารายงาน · HisReport',
+  showSidebar: true,
+  isAdmin: true,
+  fullname: auth.user.fullname || auth.user.username,
+  department: auth.user.department,
+  currentPage: '',
+})
+  @slot('main')
+    <div class="max-w-6xl mx-auto">
+      <header class="mb-5 flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h1 class="text-2xl font-semibold text-gray-800 flex items-center gap-2">
+            <i class="fas fa-sliders text-primary"></i> ตั้งค่ารายงาน
+          </h1>
+          <p class="text-sm text-gray-500 mt-1">จัดการหมวดหมู่และรายงาน + ทดสอบ SQL</p>
+        </div>
+        <div class="flex gap-2">
+          <button type="button" onclick="openHeadModal()" class="px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-sm flex items-center gap-1.5">
+            <i class="fas fa-folder-plus text-xs"></i><span>เพิ่มหมวดหมู่</span>
+          </button>
+          <button type="button" onclick="openReportModal()" class="px-3 py-2 rounded-md bg-primary hover:bg-primary/90 text-white text-sm flex items-center gap-1.5">
+            <i class="fas fa-plus text-xs"></i><span>เพิ่มรายงาน</span>
+          </button>
+        </div>
+      </header>
+
+      @if(message)
+        <div class="mb-4 px-4 py-3 rounded-lg border text-sm flex items-center gap-2 {{ messageType === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700' }}">
+          <i class="fas {{ messageType === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation' }}"></i>
+          <span>{{ message }}</span>
+        </div>
+      @end
+
+      @if(heads.length === 0)
+        <div class="bg-white rounded-xl border border-gray-200 py-16 text-center text-gray-500">
+          <i class="fas fa-folder-open text-3xl text-gray-300 mb-2"></i>
+          <div class="text-sm">ยังไม่มีหมวดหมู่ในระบบ</div>
+        </div>
+      @end
+
+      @if(heads.length > 0)
+        <div class="flex justify-end mb-2 gap-1">
+          <button type="button" id="expandAllHeads" class="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center gap-1">
+            <i class="fas fa-chevron-down text-[10px]"></i><span>เปิดทั้งหมด</span>
+          </button>
+          <button type="button" id="collapseAllHeads" class="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center gap-1">
+            <i class="fas fa-chevron-up text-[10px]"></i><span>ปิดทั้งหมด</span>
+          </button>
+        </div>
+      @end
+      <div class="space-y-3">
+        @each(h in heads)
+          @let(list = reportsByHead[h.id] || [])
+          <details open class="bg-white rounded-xl border border-gray-200 overflow-hidden head-card relative group">
+            <summary class="list-none cursor-pointer p-4 border-b border-transparent group-open:border-gray-200 flex items-center gap-3 pr-32 hover:bg-gray-50">
+              <div class="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0"><i class="fas fa-folder-open"></i></div>
+              <div class="min-w-0 flex-1">
+                <h2 class="text-base font-semibold text-gray-800 break-words">{{{ safeReportTitle(h.detail) }}}</h2>
+                <div class="text-xs text-gray-500">
+                  <span class="inline-block px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium mr-1">{{ list.length }}</span>
+                  รายงาน · sort = {{ h.sort }}
+                </div>
+              </div>
+              <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform group-open:rotate-180"></i>
+            </summary>
+            {{-- Action buttons sit OUTSIDE <summary> so clicking them does not toggle the disclosure --}}
+            <div class="absolute top-3.5 right-12 flex gap-1 z-10">
+              <button type="button" title="แก้ไขหมวดหมู่"
+                onclick="openHeadModal({{ JSON.stringify({ id: h.id, detail: h.detail, sort: h.sort }) }})"
+                class="w-8 h-8 rounded hover:bg-gray-100 text-gray-600 bg-white"><i class="fas fa-pen text-sm"></i></button>
+              <button type="button" title="ลบหมวดหมู่"
+                onclick="confirmDeleteHead({{ h.id }}, {{ JSON.stringify(stripTitleHtml(h.detail)) }})"
+                class="w-8 h-8 rounded hover:bg-gray-100 text-danger bg-white"><i class="fas fa-trash text-sm"></i></button>
+            </div>
+
+            @if(list.length === 0)
+              <div class="py-6 text-center text-xs text-gray-400">
+                <i class="fas fa-inbox text-xl text-gray-300 mb-1"></i>
+                <div>ไม่มีรายงานในหมวดนี้</div>
+              </div>
+            @else
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-600 text-xs uppercase">
+                  <tr>
+                    <th class="text-left px-4 py-2">รายงาน</th>
+                    <th class="text-left px-4 py-2">DB</th>
+                    <th class="text-center px-4 py-2">Sort</th>
+                    <th class="text-right px-4 py-2">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                  @each(r in list)
+                    @let(src = r.databaseSource || 'system')
+                    <tr id="report-row-{{ r.id }}" data-report-id="{{ r.id }}">
+                      <td class="px-4 py-2.5">
+                        <div class="font-medium text-gray-800 break-words">{{{ safeReportTitle(r.detail) }}}</div>
+                        <div class="text-[11px] text-gray-500 font-mono mt-1 truncate max-w-md" title="{{ r.sql1 }}">
+                          {{ (r.sql1 || '').slice(0, 120) }}{{ (r.sql1 || '').length > 120 ? '…' : '' }}
+                        </div>
+                      </td>
+                      <td class="px-4 py-2.5">
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs {{ src === 'his' ? 'bg-secondary/15 text-secondary' : 'bg-primary/15 text-primary' }}">
+                          <i class="fas fa-database text-[10px]"></i>{{ src === 'his' ? 'HIS' : 'ระบบ' }}
+                        </span>
+                      </td>
+                      <td class="px-4 py-2.5 text-center text-gray-700">{{ r.sort }}</td>
+                      <td class="px-4 py-2.5">
+                        <div class="flex justify-end gap-1">
+                          <a href="/admin/reports/{{ r.id }}/parameters" title="พารามิเตอร์"
+                            class="w-8 h-8 rounded hover:bg-gray-100 text-warning flex items-center justify-center"><i class="fas fa-list-check text-sm"></i></a>
+                          <button type="button" title="แก้ไข" data-edit-report="{{ r.id }}"
+                            onclick="openReportModal({{ JSON.stringify({ id: r.id, head_id: r.headId, detail: r.detail, sql1: r.sql1, sql2: r.sql2, database_source: src, sort: r.sort }) }})"
+                            class="w-8 h-8 rounded hover:bg-gray-100 text-gray-600"><i class="fas fa-pen text-sm"></i></button>
+                          <button type="button" title="ลบ"
+                            onclick="confirmDeleteReport({{ r.id }}, {{ JSON.stringify(stripTitleHtml(r.detail)) }})"
+                            class="w-8 h-8 rounded hover:bg-gray-100 text-danger"><i class="fas fa-trash text-sm"></i></button>
+                        </div>
+                      </td>
+                    </tr>
+                  @end
+                </tbody>
+              </table>
+            @end
+          </details>
+        @end
+      </div>
+    </div>
+
+    <style>
+      .head-card > summary::-webkit-details-marker { display: none; }
+      .head-card > summary { list-style: none; }
+    </style>
+
+    {{-- Head modal --}}
+    <div id="headModal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-md">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 class="text-base font-semibold text-gray-800 flex items-center gap-2">
+            <i class="fas fa-folder text-primary"></i><span id="headModalTitle">เพิ่มหมวดหมู่</span>
+          </h3>
+          <button type="button" onclick="hide('headModal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-xmark"></i></button>
+        </div>
+        <form id="headForm" method="POST" action="/admin/report-settings/heads" class="p-5 space-y-4">
+          {{ csrfField() }}
+          <input type="hidden" name="id" id="head_id" />
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อหมวดหมู่ <span class="text-red-500">*</span></label>
+            <input name="detail" id="head_detail" required class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">ลำดับ</label>
+            <input type="number" name="sort" id="head_sort" value="1" min="1" class="w-32 px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
+          </div>
+          <div class="pt-3 border-t border-gray-200 flex justify-end gap-2">
+            <button type="button" onclick="hide('headModal')" class="px-3 py-2 rounded-md text-sm border border-gray-300 hover:bg-gray-100">ยกเลิก</button>
+            <button type="submit" class="px-3 py-2 rounded-md text-sm bg-primary text-white hover:bg-primary/90"><i class="fas fa-save text-xs"></i> บันทึก</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {{-- Report modal --}}
+    <div id="reportModal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 class="text-base font-semibold text-gray-800 flex items-center gap-2">
+            <i class="fas fa-file-lines text-primary"></i><span id="reportModalTitle">เพิ่มรายงาน</span>
+          </h3>
+          <button type="button" onclick="hide('reportModal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-xmark"></i></button>
+        </div>
+        <form id="reportForm" method="POST" action="/admin/report-settings/reports" class="p-5 space-y-4 overflow-y-auto">
+          {{ csrfField() }}
+          <input type="hidden" name="id" id="report_id" />
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อรายงาน <span class="text-red-500">*</span></label>
+              <input name="detail" id="report_detail" required class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">หมวดหมู่ <span class="text-red-500">*</span></label>
+              <select name="head_id" id="report_head_id" required class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none bg-white">
+                @each(h in heads)
+                  <option value="{{ h.id }}">{{ stripTitleHtml(h.detail) }}</option>
+                @end
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">ฐานข้อมูล <span class="text-red-500">*</span></label>
+              <select name="database_source" id="report_db" required class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none bg-white">
+                <option value="system">ระบบ (system)</option>
+                <option value="his">HIS</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">ลำดับ</label>
+              <input type="number" name="sort" id="report_sort" value="1" min="1" class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
+            </div>
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-sm font-medium text-gray-700">SQL หลัก <span class="text-red-500">*</span></label>
+              <button type="button" onclick="testSql()" class="text-xs px-2.5 py-1 rounded bg-yellow-100 hover:bg-yellow-200 text-yellow-800 flex items-center gap-1"><i class="fas fa-vial"></i>ทดสอบ SQL</button>
+            </div>
+            <textarea name="sql1" id="report_sql1" rows="6" required placeholder="SELECT … FROM …"
+              class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none font-mono text-sm"></textarea>
+          </div>
+          <details class="rounded-md border border-gray-200">
+            <summary class="px-3 py-2 text-sm text-gray-600 cursor-pointer">SQL สำรอง (sql2) — ใช้สำหรับ count/aggregate (optional)</summary>
+            <textarea name="sql2" id="report_sql2" rows="3" class="w-full px-3 py-2 border-t border-gray-200 outline-none font-mono text-sm"></textarea>
+          </details>
+          <div id="testResult" class="hidden text-sm rounded-md"></div>
+          <div class="pt-3 border-t border-gray-200 flex justify-end gap-2">
+            <button type="button" onclick="hide('reportModal')" class="px-3 py-2 rounded-md text-sm border border-gray-300 hover:bg-gray-100">ยกเลิก</button>
+            <button type="submit" class="px-3 py-2 rounded-md text-sm bg-primary text-white hover:bg-primary/90"><i class="fas fa-save text-xs"></i> บันทึก</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {{-- Hidden delete forms --}}
+    <form id="deleteHeadForm" method="POST" action="/admin/report-settings/heads/delete" class="hidden">
+      {{ csrfField() }}
+      <input type="hidden" name="id" id="deleteHeadId" />
+    </form>
+    <form id="deleteReportForm" method="POST" action="/admin/report-settings/reports/delete" class="hidden">
+      {{ csrfField() }}
+      <input type="hidden" name="id" id="deleteReportId" />
+    </form>
+
+    <script>
+      function show(id) { const m = document.getElementById(id); m.classList.remove('hidden'); m.classList.add('flex'); document.body.style.overflow = 'hidden' }
+      function hide(id) { const m = document.getElementById(id); m.classList.add('hidden'); m.classList.remove('flex'); document.body.style.overflow = '' }
+
+      function openHeadModal(h) {
+        const f = document.getElementById('headForm')
+        f.reset()
+        if (h && h.id) {
+          f.action = '/admin/report-settings/heads/update'
+          document.getElementById('headModalTitle').textContent = 'แก้ไขหมวดหมู่'
+          document.getElementById('head_id').value = h.id
+          document.getElementById('head_detail').value = h.detail || ''
+          document.getElementById('head_sort').value = h.sort || 1
+        } else {
+          f.action = '/admin/report-settings/heads'
+          document.getElementById('headModalTitle').textContent = 'เพิ่มหมวดหมู่'
+          document.getElementById('head_id').value = ''
+          document.getElementById('head_sort').value = 1
+        }
+        show('headModal')
+      }
+
+      function openReportModal(r) {
+        const f = document.getElementById('reportForm')
+        f.reset()
+        document.getElementById('testResult').classList.add('hidden')
+        if (r && r.id) {
+          f.action = '/admin/report-settings/reports/update'
+          document.getElementById('reportModalTitle').textContent = 'แก้ไขรายงาน'
+          document.getElementById('report_id').value = r.id
+          document.getElementById('report_detail').value = r.detail || ''
+          document.getElementById('report_head_id').value = String(r.head_id)
+          document.getElementById('report_db').value = r.database_source || 'system'
+          document.getElementById('report_sort').value = r.sort || 1
+          document.getElementById('report_sql1').value = r.sql1 || ''
+          document.getElementById('report_sql2').value = r.sql2 || ''
+        } else {
+          f.action = '/admin/report-settings/reports'
+          document.getElementById('reportModalTitle').textContent = 'เพิ่มรายงาน'
+          document.getElementById('report_id').value = ''
+          document.getElementById('report_sort').value = 1
+        }
+        show('reportModal')
+      }
+
+      function confirmDeleteHead(id, name) {
+        if (!confirm('ยืนยันลบหมวดหมู่ "' + name + '"?')) return
+        document.getElementById('deleteHeadId').value = id
+        document.getElementById('deleteHeadForm').submit()
+      }
+      function confirmDeleteReport(id, name) {
+        if (!confirm('ยืนยันลบรายงาน "' + name + '"?')) return
+        document.getElementById('deleteReportId').value = id
+        document.getElementById('deleteReportForm').submit()
+      }
+
+      async function testSql() {
+        const sql = document.getElementById('report_sql1').value
+        const src = document.getElementById('report_db').value
+        const tr = document.getElementById('testResult')
+        const csrf = document.querySelector('#reportForm input[name="_csrf"]').value
+        tr.classList.remove('hidden')
+        tr.className = 'mt-2 px-3 py-2 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-sm'
+        tr.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังทดสอบ...'
+        const fd = new FormData()
+        fd.append('_csrf', csrf)
+        fd.append('sql1', sql)
+        fd.append('database_source', src)
+        try {
+          const res = await fetch('/admin/report-settings/test-sql', { method: 'POST', body: fd })
+          const result = await res.json()
+          if (result.success) {
+            tr.className = 'mt-2 px-3 py-2 rounded-md bg-green-50 border border-green-200 text-green-700 text-sm'
+            tr.innerHTML = '<div class="font-semibold flex items-center gap-2"><i class="fas fa-circle-check"></i>' + result.message + '</div>'
+              + '<div class="text-xs mt-1">เวลา: ' + result.execution_time + 's · คอลัมน์: ' + (result.columns || []).slice(0, 6).join(', ') + ((result.columns || []).length > 6 ? '…' : '') + '</div>'
+          } else {
+            tr.className = 'mt-2 px-3 py-2 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm'
+            tr.innerHTML = '<i class="fas fa-circle-exclamation"></i> ' + result.message
+          }
+        } catch (e) {
+          tr.className = 'mt-2 px-3 py-2 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm'
+          tr.innerHTML = '<i class="fas fa-circle-exclamation"></i> ' + (e.message || e)
+        }
+      }
+
+      document.getElementById('headModal').addEventListener('click', e => { if (e.target.id === 'headModal') hide('headModal') })
+      document.getElementById('reportModal').addEventListener('click', e => { if (e.target.id === 'reportModal') hide('reportModal') })
+
+      document.getElementById('expandAllHeads')?.addEventListener('click', () => {
+        document.querySelectorAll('.head-card').forEach(d => { d.open = true })
+      })
+      document.getElementById('collapseAllHeads')?.addEventListener('click', () => {
+        document.querySelectorAll('.head-card').forEach(d => { d.open = false })
+      })
+
+      // Auto-open the edit modal when arriving via /admin/report-settings?edit=<id>
+      ;(function () {
+        const params = new URLSearchParams(window.location.search)
+        const editId = params.get('edit')
+        if (!editId) return
+        const row = document.getElementById('report-row-' + editId)
+        const btn = document.querySelector('[data-edit-report="' + editId + '"]')
+        if (row) {
+          // expand the parent <details> if the user had it collapsed
+          const parentDetails = row.closest('details')
+          if (parentDetails) parentDetails.open = true
+          // instant scroll — smooth scroll gets aborted when the modal sets body.overflow=hidden
+          row.scrollIntoView({ block: 'center' })
+          row.style.transition = 'background-color 0.4s'
+          row.style.backgroundColor = '#fef3c7'
+          setTimeout(() => { row.style.backgroundColor = '' }, 2500)
+        }
+        if (btn) btn.click()
+        // strip ?edit from the URL so that form-submit redirect().back() doesn't re-open the modal
+        const url = new URL(window.location.href)
+        url.searchParams.delete('edit')
+        history.replaceState(null, '', url.toString())
+      })()
+    </script>
+  @end
+@end

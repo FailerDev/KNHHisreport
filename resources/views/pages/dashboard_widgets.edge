@@ -1,0 +1,215 @@
+@component('layouts/app', {
+  title: 'แดชบอร์ดรายงาน · HisReport',
+  showSidebar: true,
+  isAdmin: isAdmin,
+  fullname: auth.user.fullname || auth.user.username,
+  department: auth.user.department,
+  currentPage: 'index_dashboard',
+})
+  @slot('main')
+    <div class="max-w-7xl mx-auto">
+      <header class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-semibold text-gray-800 flex items-center gap-2">
+            <i class="fas fa-chart-pie text-primary"></i> แดชบอร์ดรายงาน
+          </h1>
+          <p class="text-sm text-gray-500 mt-1">สถิติแบบเรียลไทม์จากระบบ HIS</p>
+        </div>
+        <div class="flex gap-2">
+          <button id="refreshBtn" type="button"
+            class="px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm flex items-center gap-1.5">
+            <i class="fas fa-rotate-right text-xs"></i><span>รีเฟรช</span>
+          </button>
+          @if(isAdmin)
+            <a href="/admin/report-settings"
+              class="px-3 py-2 rounded-md bg-primary hover:bg-primary/90 text-white text-sm flex items-center gap-1.5">
+              <i class="fas fa-sliders text-xs"></i><span>จัดการ</span>
+            </a>
+          @end
+        </div>
+      </header>
+
+      {{-- Status bar --}}
+      <div class="bg-white border border-gray-200 rounded-xl px-4 py-3 mb-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+        <div class="flex items-center gap-3">
+          <span id="hisBadge" class="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-gray-100 text-gray-600 text-xs">
+            <span id="hisBadgeDot" class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+            <span id="hisBadgeText">กำลังตรวจสอบ HIS…</span>
+          </span>
+        </div>
+        <div class="text-xs text-gray-500 flex items-center gap-1.5">
+          <i class="fas fa-clock"></i>
+          <span>อัพเดทล่าสุด</span>
+          <span id="lastUpdatedTime" class="font-medium text-gray-700">—</span>
+          <span id="cacheTag" class="hidden ml-1 px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 text-[10px]">
+            <i class="fas fa-bolt"></i> cached
+          </span>
+        </div>
+      </div>
+
+      {{-- HIS disconnected alert --}}
+      <div id="hisDisconnectedAlert" class="hidden mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-2">
+        <i class="fas fa-circle-exclamation mt-0.5"></i>
+        <div class="flex-1">
+          <strong class="block">ไม่สามารถเชื่อมต่อกับฐานข้อมูล HIS</strong>
+          <span id="hisDisconnectedMsg" class="block text-xs mt-1"></span>
+          @if(isAdmin)
+            <a href="/admin/his-settings" class="inline-flex items-center gap-1 mt-2 text-xs font-medium text-red-700 hover:underline">
+              <i class="fas fa-gear text-[10px]"></i>ไปที่ตั้งค่า HIS
+            </a>
+          @end
+        </div>
+      </div>
+
+      @if(items.length === 0)
+        <div class="bg-white rounded-xl border border-gray-200 py-16 text-center text-gray-500">
+          <i class="fas fa-inbox text-3xl text-gray-300 mb-2"></i>
+          <div class="text-sm font-medium text-gray-700">ยังไม่มีรายการแดชบอร์ด</div>
+          <div class="text-xs text-gray-500 mt-1">โปรดติดต่อผู้ดูแลระบบเพื่อเพิ่มรายการ</div>
+        </div>
+      @else
+        {{-- Summary --}}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+          <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center"><i class="fas fa-users"></i></div>
+            <div><div class="text-xs text-gray-500">บริการทั้งหมดวันนี้</div><div class="text-xl font-semibold" id="sumServices">—</div></div>
+          </div>
+          <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-success/10 text-success flex items-center justify-center"><i class="fas fa-list"></i></div>
+            <div><div class="text-xs text-gray-500">รายการที่ทำงาน</div><div class="text-xl font-semibold" id="sumItems">{{ items.length }}</div></div>
+          </div>
+          <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-warning/10 text-warning flex items-center justify-center"><i class="fas fa-chart-line"></i></div>
+            <div><div class="text-xs text-gray-500">กราฟทั้งหมด</div><div class="text-xl font-semibold" id="sumCharts">0</div></div>
+          </div>
+        </div>
+
+        {{-- Tiles --}}
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          @each(item in items)
+            <div class="dash-tile bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition" data-id="{{ item.id }}">
+              <div class="flex items-start justify-between mb-2">
+                <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white"
+                  style="background:{{ item.color === 'icon-success' ? '#10b981' : (item.color === 'icon-warning' ? '#f59e0b' : (item.color === 'icon-danger' ? '#ef4444' : '#3b82f6')) }}">
+                  <i class="fas {{ item.icon.startsWith('ti-') ? 'fa-chart-bar' : item.icon }}"></i>
+                </div>
+                @if(item.link_id)
+                  <a href="/reports/{{ item.link_id }}" class="text-xs text-gray-400 hover:text-primary"><i class="fas fa-arrow-right"></i></a>
+                @end
+              </div>
+              <div class="text-xs text-gray-500 mb-1 line-clamp-2 min-h-[2.5em]">{{{ safeReportTitle(item.title) }}}</div>
+              <div class="text-2xl font-bold text-gray-800 dash-count" data-id="{{ item.id }}">
+                <span class="inline-block w-8 h-6 bg-gray-100 rounded animate-pulse"></span>
+              </div>
+            </div>
+          @end
+        </div>
+
+        {{-- Charts section (populated by JS) --}}
+        <div id="chartsArea" class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5"></div>
+      @end
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
+    <script>
+      const chartInstances = new Map()
+
+      async function loadData(forceFresh = false) {
+        const refreshBtn = document.getElementById('refreshBtn')
+        const origLabel = refreshBtn.innerHTML
+        refreshBtn.disabled = true
+        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i><span>กำลังโหลด…</span>'
+        try {
+          const res = await fetch('/dashboard/data' + (forceFresh ? '?nocache=1' : ''))
+          const data = await res.json()
+          if (data.error) throw new Error(data.message || data.error)
+          render(data)
+        } catch (e) {
+          alert('โหลดข้อมูลล้มเหลว: ' + (e.message || e))
+        } finally {
+          refreshBtn.disabled = false
+          refreshBtn.innerHTML = origLabel
+        }
+      }
+
+      function render(data) {
+        // HIS status
+        const badge = document.getElementById('hisBadge')
+        const dot = document.getElementById('hisBadgeDot')
+        const text = document.getElementById('hisBadgeText')
+        const alertEl = document.getElementById('hisDisconnectedAlert')
+        const alertMsg = document.getElementById('hisDisconnectedMsg')
+        if (data.his_status?.connected) {
+          badge.className = 'inline-flex items-center gap-2 px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs'
+          dot.className = 'w-1.5 h-1.5 rounded-full bg-green-500'
+          text.textContent = 'HIS เชื่อมต่อได้'
+          alertEl.classList.add('hidden')
+        } else {
+          badge.className = 'inline-flex items-center gap-2 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs'
+          dot.className = 'w-1.5 h-1.5 rounded-full bg-red-500'
+          text.textContent = 'HIS เชื่อมต่อไม่ได้'
+          alertEl.classList.remove('hidden')
+          alertMsg.textContent = data.his_status?.message || ''
+        }
+
+        // Summary
+        document.getElementById('sumServices').textContent =
+          (data.summary?.total_services ?? 0).toLocaleString('th-TH')
+        document.getElementById('sumItems').textContent = data.summary?.active_items ?? 0
+        document.getElementById('sumCharts').textContent = data.summary?.chart_count ?? 0
+
+        // Counts
+        document.querySelectorAll('.dash-count').forEach(el => {
+          const id = el.dataset.id
+          const v = data.counts?.[id]
+          el.innerHTML = v === null || v === undefined
+            ? '<span class="text-gray-300 text-sm">—</span>'
+            : Number(v).toLocaleString('th-TH')
+        })
+
+        // Updated time + cache
+        document.getElementById('lastUpdatedTime').textContent = data.generated_at || '—'
+        document.getElementById('cacheTag').classList.toggle('hidden', !data.from_cache)
+
+        // Charts
+        const area = document.getElementById('chartsArea')
+        area.innerHTML = ''
+        chartInstances.forEach(c => c.destroy())
+        chartInstances.clear()
+        for (const ch of (data.charts || [])) {
+          const wrap = document.createElement('div')
+          wrap.className = 'bg-white rounded-xl border border-gray-200 p-4'
+          wrap.innerHTML = '<h3 class="text-sm font-semibold text-gray-800 mb-3">' + escapeHtml(ch.title) + '</h3>'
+            + '<div class="relative h-64"><canvas id="chart-' + ch.id + '"></canvas></div>'
+          area.appendChild(wrap)
+          if (ch.status === 'ok' && ch.labels.length > 0) {
+            const ctx = document.getElementById('chart-' + ch.id).getContext('2d')
+            const chartObj = new Chart(ctx, {
+              type: ch.type === 'pie' || ch.type === 'doughnut' ? ch.type : 'bar',
+              data: {
+                labels: ch.labels,
+                datasets: [{ label: ch.title, data: ch.values, backgroundColor: ch.colors, borderWidth: 0 }],
+              },
+              options: { responsive: true, maintainAspectRatio: false },
+            })
+            chartInstances.set(ch.id, chartObj)
+          } else {
+            const empty = document.createElement('div')
+            empty.className = 'text-center text-xs text-gray-500 py-12'
+            empty.innerHTML = '<i class="fas fa-circle-info text-xl text-gray-300 mb-2"></i><div>' + escapeHtml(ch.message || 'ไม่มีข้อมูล') + '</div>'
+            wrap.querySelector('.relative').replaceWith(empty)
+          }
+        }
+      }
+
+      function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[c])
+      }
+
+      document.getElementById('refreshBtn').addEventListener('click', () => loadData(true))
+      loadData(false)
+    </script>
+  @end
+@end

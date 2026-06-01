@@ -1,0 +1,242 @@
+@component('layouts/app', {
+  title: 'พารามิเตอร์รายงาน · HisReport',
+  showSidebar: true,
+  isAdmin: true,
+  fullname: auth.user.fullname || auth.user.username,
+  department: auth.user.department,
+  currentPage: '',
+})
+  @slot('main')
+    <div class="max-w-5xl mx-auto">
+      <div class="mb-3">
+        <a href="/admin/report-settings" class="text-sm text-primary hover:underline inline-flex items-center gap-1">
+          <i class="fas fa-arrow-left text-xs"></i> กลับไปตั้งค่ารายงาน
+        </a>
+      </div>
+      <header class="mb-5">
+        <h1 class="text-2xl font-semibold text-gray-800 flex items-center gap-2">
+          <i class="fas fa-list-check text-primary"></i> พารามิเตอร์ของรายงาน
+        </h1>
+        <p class="text-sm text-gray-500 mt-1">รายงาน: <strong>{{{ safeReportTitle(report.detail) }}}</strong></p>
+      </header>
+
+      @if(message)
+        <div class="mb-4 px-4 py-3 rounded-lg border text-sm flex items-center gap-2 {{ messageType === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700' }}">
+          <i class="fas {{ messageType === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation' }}"></i>
+          <span>{{ message }}</span>
+        </div>
+      @end
+
+      {{-- Detected from SQL --}}
+      <section class="bg-white rounded-xl border border-gray-200 mb-4 p-4">
+        <h2 class="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
+          <i class="fas fa-magnifying-glass text-primary"></i>พารามิเตอร์ที่ตรวจพบใน SQL
+        </h2>
+        @if(detected.length === 0)
+          <p class="text-sm text-gray-500">ไม่พบ <code>@@token</code> ใน SQL ของรายงานนี้</p>
+        @else
+          <div class="flex flex-wrap gap-1.5 mb-3">
+            @each(name in detected)
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700 font-mono">{{ '@' + name }}</span>
+            @end
+          </div>
+          @if(undefinedDetected.length > 0)
+            <div class="flex flex-wrap gap-3 items-center pt-3 border-t border-gray-100">
+              <div class="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 px-2.5 py-1.5 rounded">
+                <i class="fas fa-triangle-exclamation"></i>
+                ยังไม่ได้กำหนด: {{ undefinedDetected.length }} ตัว ({{ undefinedDetected.map(d => '@' + d).join(', ') }})
+              </div>
+              <form method="POST" action="/admin/reports/{{ report.id }}/parameters/auto-detect">
+                {{ csrfField() }}
+                <button type="submit" class="px-3 py-1.5 text-xs rounded-md bg-secondary text-white hover:bg-secondary/90 flex items-center gap-1">
+                  <i class="fas fa-wand-magic-sparkles"></i>สร้างพารามิเตอร์อัตโนมัติ
+                </button>
+              </form>
+            </div>
+          @end
+        @end
+      </section>
+
+      {{-- Existing params list --}}
+      <section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4">
+        <header class="p-4 border-b border-gray-200 flex justify-between items-center">
+          <div>
+            <h2 class="text-sm font-semibold text-gray-800">พารามิเตอร์ที่กำหนด</h2>
+            <p class="text-xs text-gray-500">{{ parameters.length }} รายการ</p>
+          </div>
+          <button type="button" onclick="openParamModal()" class="px-3 py-1.5 rounded-md bg-primary hover:bg-primary/90 text-white text-sm flex items-center gap-1.5">
+            <i class="fas fa-plus text-xs"></i><span>เพิ่ม</span>
+          </button>
+        </header>
+        @if(parameters.length === 0)
+          <div class="py-12 text-center text-sm text-gray-500">
+            <i class="fas fa-inbox text-2xl text-gray-300 mb-2"></i>
+            <div>ยังไม่มีพารามิเตอร์</div>
+          </div>
+        @else
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-600 text-xs uppercase">
+              <tr>
+                <th class="text-left px-4 py-2">ชื่อ</th>
+                <th class="text-left px-4 py-2">คำอธิบาย</th>
+                <th class="text-left px-4 py-2">ชนิด</th>
+                <th class="text-left px-4 py-2">Default</th>
+                <th class="text-center px-4 py-2">บังคับ</th>
+                <th class="text-center px-4 py-2">Sort</th>
+                <th class="text-right px-4 py-2">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              @each(p in parameters)
+                <tr>
+                  <td class="px-4 py-2.5 font-mono text-primary">{{ '@' + p.paramName }}</td>
+                  <td class="px-4 py-2.5">{{ p.paramLabel }}</td>
+                  <td class="px-4 py-2.5"><span class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs">{{ p.paramType }}</span></td>
+                  <td class="px-4 py-2.5 text-gray-700">{{ p.paramDefault || '—' }}</td>
+                  <td class="px-4 py-2.5 text-center">
+                    @if(p.paramRequired)
+                      <i class="fas fa-check text-success"></i>
+                    @else
+                      <span class="text-gray-300">—</span>
+                    @end
+                  </td>
+                  <td class="px-4 py-2.5 text-center">{{ p.sortOrder }}</td>
+                  <td class="px-4 py-2.5">
+                    <div class="flex justify-end gap-1">
+                      <button type="button" title="แก้ไข"
+                        onclick="openParamModal({{ JSON.stringify({ id: p.id, param_name: p.paramName, param_label: p.paramLabel, param_type: p.paramType, param_default: p.paramDefault, param_required: p.paramRequired, options: p.options, sort_order: p.sortOrder }) }})"
+                        class="w-8 h-8 rounded hover:bg-gray-100 text-gray-600"><i class="fas fa-pen text-sm"></i></button>
+                      <button type="button" title="ลบ" onclick="confirmDeleteParam({{ p.id }}, {{ JSON.stringify(p.paramName) }})"
+                        class="w-8 h-8 rounded hover:bg-gray-100 text-danger"><i class="fas fa-trash text-sm"></i></button>
+                    </div>
+                  </td>
+                </tr>
+              @end
+            </tbody>
+          </table>
+        @end
+      </section>
+    </div>
+
+    {{-- Param modal --}}
+    <div id="paramModal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-xl">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 class="text-base font-semibold text-gray-800 flex items-center gap-2">
+            <i class="fas fa-list-check text-primary"></i><span id="paramModalTitle">เพิ่มพารามิเตอร์</span>
+          </h3>
+          <button type="button" onclick="hide('paramModal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-xmark"></i></button>
+        </div>
+        <form id="paramForm" method="POST" action="/admin/reports/{{ report.id }}/parameters" class="p-5 space-y-4">
+          {{ csrfField() }}
+          <input type="hidden" name="id" id="param_id" />
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อ (param_name) <span class="text-red-500">*</span></label>
+              <input name="param_name" id="param_name" required pattern="[a-zA-Z_][a-zA-Z0-9_]*"
+                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none font-mono" />
+              <p class="text-xs text-gray-500 mt-1">ต้องตรงกับ <code>@@token</code> ใน SQL</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">คำอธิบาย (label) <span class="text-red-500">*</span></label>
+              <input name="param_label" id="param_label" required
+                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">ชนิด <span class="text-red-500">*</span></label>
+              <select name="param_type" id="param_type" required
+                onchange="document.getElementById('options_wrap').style.display = this.value === 'select' ? '' : 'none'"
+                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none bg-white">
+                <option value="text">text</option>
+                <option value="number">number</option>
+                <option value="date">date</option>
+                <option value="datetime">datetime</option>
+                <option value="select">select</option>
+                <option value="textarea">textarea</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">ค่าเริ่มต้น</label>
+              <input name="param_default" id="param_default"
+                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">ลำดับ</label>
+              <input type="number" name="sort_order" id="sort_order" min="1" value="1"
+                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
+            </div>
+          </div>
+
+          <div id="options_wrap" style="display:none">
+            <label class="block text-sm font-medium text-gray-700 mb-1">ตัวเลือก (สำหรับ select)</label>
+            <input name="options" id="options" placeholder="comma,separated หรือ JSON array"
+              class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
+            <p class="text-xs text-gray-500 mt-1">เช่น <code>option1, option2, option3</code></p>
+          </div>
+
+          <label class="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" name="param_required" id="param_required" value="1" class="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary" />
+            <span>จำเป็นต้องกรอก</span>
+          </label>
+
+          <div class="pt-3 border-t border-gray-200 flex justify-end gap-2">
+            <button type="button" onclick="hide('paramModal')" class="px-3 py-2 rounded-md text-sm border border-gray-300 hover:bg-gray-100">ยกเลิก</button>
+            <button type="submit" class="px-3 py-2 rounded-md text-sm bg-primary text-white hover:bg-primary/90"><i class="fas fa-save text-xs"></i> บันทึก</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <form id="deleteParamForm" method="POST" action="/admin/parameters/delete" class="hidden">
+      {{ csrfField() }}
+      <input type="hidden" name="id" id="deleteParamId" />
+    </form>
+
+    <script>
+      function show(id) { const m = document.getElementById(id); m.classList.remove('hidden'); m.classList.add('flex'); document.body.style.overflow = 'hidden' }
+      function hide(id) { const m = document.getElementById(id); m.classList.add('hidden'); m.classList.remove('flex'); document.body.style.overflow = '' }
+
+      function openParamModal(p) {
+        const f = document.getElementById('paramForm')
+        f.reset()
+        if (p && p.id) {
+          f.action = '/admin/parameters/update'
+          document.getElementById('paramModalTitle').textContent = 'แก้ไขพารามิเตอร์'
+          document.getElementById('param_id').value = p.id
+          document.getElementById('param_name').value = p.param_name || ''
+          document.getElementById('param_label').value = p.param_label || ''
+          document.getElementById('param_type').value = p.param_type || 'text'
+          document.getElementById('param_default').value = p.param_default || ''
+          document.getElementById('sort_order').value = p.sort_order || 1
+          document.getElementById('param_required').checked = !!p.param_required
+          let optsStr = ''
+          try {
+            const arr = p.options ? JSON.parse(p.options) : null
+            if (Array.isArray(arr)) optsStr = arr.join(', ')
+            else optsStr = p.options || ''
+          } catch { optsStr = p.options || '' }
+          document.getElementById('options').value = optsStr
+          document.getElementById('options_wrap').style.display = p.param_type === 'select' ? '' : 'none'
+        } else {
+          f.action = '/admin/reports/{{ report.id }}/parameters'
+          document.getElementById('paramModalTitle').textContent = 'เพิ่มพารามิเตอร์'
+          document.getElementById('param_id').value = ''
+          document.getElementById('sort_order').value = 1
+          document.getElementById('options_wrap').style.display = 'none'
+        }
+        show('paramModal')
+      }
+
+      function confirmDeleteParam(id, name) {
+        if (!confirm('ยืนยันลบพารามิเตอร์ "' + name + '"?')) return
+        document.getElementById('deleteParamId').value = id
+        document.getElementById('deleteParamForm').submit()
+      }
+      document.getElementById('paramModal').addEventListener('click', e => { if (e.target.id === 'paramModal') hide('paramModal') })
+    </script>
+  @end
+@end

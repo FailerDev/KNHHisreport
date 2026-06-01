@@ -1,0 +1,246 @@
+@component('layouts/app', {
+  title: (stripTitleHtml(report.detail) || 'รายงาน') + ' · HisReport',
+  showSidebar: true,
+  isAdmin: auth.user.userLevel === 'admin',
+  fullname: auth.user.fullname || auth.user.username,
+  department: auth.user.department,
+  currentPage: 'mainreport',
+})
+  @slot('main')
+    @let(src = report.databaseSource || 'system')
+    @let(srcLabel = src === 'his' ? 'HIS Database' : 'System Database')
+    @let(srcClr = src === 'his' ? 'bg-secondary/15 text-secondary' : 'bg-primary/15 text-primary')
+
+    <div class="max-w-6xl mx-auto">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <div class="flex items-center gap-2">
+          <a href="/reports" class="px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm flex items-center gap-1.5">
+            <i class="fas fa-arrow-left text-xs"></i><span>กลับ</span>
+          </a>
+          <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs {{ srcClr }}">
+            <i class="fas fa-database text-[10px]"></i>{{ srcLabel }}
+          </span>
+        </div>
+        <div class="flex gap-2">
+          @if(auth.user.userLevel === 'admin')
+            <a href="/admin/reports/{{ report.id }}/parameters" title="พารามิเตอร์"
+              class="px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm flex items-center gap-1.5">
+              <i class="fas fa-list-check text-xs"></i><span>พารามิเตอร์</span>
+            </a>
+            <a href="/admin/report-settings?edit={{ report.id }}" title="แก้ไขรายงาน"
+              class="px-3 py-2 rounded-md bg-warning/15 hover:bg-warning/25 text-warning text-sm flex items-center gap-1.5">
+              <i class="fas fa-pen text-xs"></i><span>แก้ไขรายงาน</span>
+            </a>
+          @end
+          @if(runResult && runResult.rows.length > 0)
+            <form method="POST" action="/reports/{{ report.id }}/export" class="inline">
+              {{ csrfField() }}
+              {{-- re-submit the same param values that produced these results --}}
+              @if(useDynamic)
+                @each(p in configured)
+                  <input type="hidden" name="{{ 'param_' + p.paramName }}" value="{{ values[p.paramName] || '' }}" />
+                @end
+              @end
+              <button type="submit"
+                class="px-3 py-2 rounded-md bg-success hover:bg-success/90 text-white text-sm flex items-center gap-1.5">
+                <i class="fas fa-file-excel text-xs"></i><span>ส่งออก Excel</span>
+              </button>
+            </form>
+            <button type="button" onclick="window.print()" class="px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm flex items-center gap-1.5">
+              <i class="fas fa-print text-xs"></i><span>พิมพ์</span>
+            </button>
+          @end
+        </div>
+      </div>
+
+      <header class="mb-4">
+        <h1 class="text-xl font-semibold text-gray-800">{{{ safeReportTitle(report.detail) }}}</h1>
+        @if(head)
+          <div class="text-xs text-gray-500 mt-1"><i class="fas fa-folder-open"></i> {{{ safeReportTitle(head.detail) }}}</div>
+        @end
+      </header>
+
+      @if(error)
+        <div class="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-2">
+          <i class="fas fa-circle-exclamation mt-0.5"></i>
+          <div><strong class="block">เกิดข้อผิดพลาด</strong><span class="block mt-1">{{ error }}</span></div>
+        </div>
+      @end
+
+      @if(validationErrors.length > 0)
+        <div class="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-2">
+          <i class="fas fa-circle-exclamation mt-0.5"></i>
+          <div>
+            <strong>กรุณาตรวจสอบข้อมูล</strong>
+            <ul class="list-disc list-inside mt-1 space-y-0.5">
+              @each(err in validationErrors)
+                <li>{{ err }}</li>
+              @end
+            </ul>
+          </div>
+        </div>
+      @end
+
+      @if(hasPlaceholders)
+        <div class="bg-white rounded-xl border border-gray-200 mb-4">
+          <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+            <div>
+              <h2 class="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-filter text-primary"></i>เงื่อนไขการค้นหา
+              </h2>
+              <p class="text-xs text-gray-500 mt-0.5">กรอกค่าพารามิเตอร์เพื่อประมวลผลรายงาน</p>
+            </div>
+            @if(useDynamic)
+              <span class="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">{{ configured.length }} พารามิเตอร์</span>
+            @end
+          </div>
+
+          <form id="reportForm" method="POST" action="/reports/{{ report.id }}" class="p-4">
+            {{ csrfField() }}
+
+            @if(useDynamic)
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                @each(p in configured)
+                  @let(fieldId = 'param_' + p.paramName)
+                  @let(fieldNm = 'param_' + p.paramName)
+                  @let(value = values[p.paramName] || '')
+                  <div>
+                    <label for="{{ fieldId }}" class="block text-sm font-medium text-gray-700 mb-1">
+                      {{ p.paramLabel }}
+                      @if(p.paramRequired)
+                        <span class="text-red-500">*</span>
+                      @end
+                      <span class="text-xs text-gray-400 ml-1">({{ '@' + p.paramName }})</span>
+                    </label>
+                    @if(p.paramType === 'select')
+                      <select id="{{ fieldId }}" name="{{ fieldNm }}" {{ p.paramRequired ? 'required' : '' }}
+                        class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white">
+                        <option value="">-- เลือก {{ p.paramLabel }} --</option>
+                        @each(opt in p.parsedOptions)
+                          <option value="{{ opt }}" {{ String(value) === String(opt) ? 'selected' : '' }}>{{ opt }}</option>
+                        @end
+                      </select>
+                    @elseif(p.paramType === 'date')
+                      <input type="date" id="{{ fieldId }}" name="{{ fieldNm }}" value="{{ value }}" {{ p.paramRequired ? 'required' : '' }}
+                        class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+                    @elseif(p.paramType === 'datetime')
+                      <input type="datetime-local" id="{{ fieldId }}" name="{{ fieldNm }}" value="{{ value }}" {{ p.paramRequired ? 'required' : '' }}
+                        class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+                    @elseif(p.paramType === 'textarea')
+                      <textarea id="{{ fieldId }}" name="{{ fieldNm }}" {{ p.paramRequired ? 'required' : '' }}
+                        placeholder="กรอก {{ p.paramLabel }}"
+                        class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none">{{ value }}</textarea>
+                    @else
+                      <input type="{{ p.paramType }}" id="{{ fieldId }}" name="{{ fieldNm }}" value="{{ value }}" {{ p.paramRequired ? 'required' : '' }}
+                        placeholder="กรอก {{ p.paramLabel }}"
+                        class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+                    @end
+                  </div>
+                @end
+              </div>
+            @else
+              {{-- Legacy non-dynamic fields. Show all common params; the backend
+                  will only consume the ones whose @tokens appear in the SQL. --}}
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">จากวันที่</label>
+                  <input type="date" name="datepick1" class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">ถึงวันที่</label>
+                  <input type="date" name="datepick2" class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">จากเวลา</label>
+                  <input type="text" name="start_t" value="08.00" placeholder="HH.MM" class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">ถึงเวลา</label>
+                  <input type="text" name="end_t" value="16.00" placeholder="HH.MM" class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">AN</label>
+                  <input type="text" name="an" class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">แผนก (main_dep)</label>
+                  <input type="text" name="main_dep" class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
+                </div>
+              </div>
+            @end
+
+            <div class="mt-4 pt-4 border-t border-gray-200 flex justify-end">
+              <button type="submit" id="runBtn"
+                class="px-4 py-2 rounded-md bg-primary hover:bg-primary/90 text-white text-sm flex items-center gap-1.5">
+                <i class="fas fa-play text-xs"></i><span>ประมวลผลรายงาน</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      @end
+
+      {{-- Results --}}
+      @if(runResult && runResult.rows.length > 0)
+        <div class="bg-white rounded-xl border border-gray-200">
+          <div class="p-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="text-sm font-semibold text-gray-800">ผลการค้นหา</h2>
+              <p class="text-xs text-gray-500 mt-0.5">{{ runResult.count }} รายการ · {{ runResult.columns.length }} คอลัมน์</p>
+            </div>
+            <input type="text" id="resultSearch" placeholder="ค้นหาในตาราง..."
+              class="px-3 py-1.5 text-sm rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none w-56" />
+          </div>
+          <div class="overflow-x-auto">
+            <table id="resultsTable" class="w-full text-sm">
+              <thead class="bg-gray-50 text-gray-600 text-xs uppercase">
+                <tr>
+                  <th class="px-3 py-2 text-center w-14">#</th>
+                  @each(col in runResult.columns)
+                    <th class="px-3 py-2 text-left">{{ col }}</th>
+                  @end
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                @each((row, idx) in runResult.rows)
+                  <tr>
+                    <td class="px-3 py-2 text-center text-gray-500">{{ idx + 1 }}</td>
+                    @each(col in runResult.columns)
+                      <td class="px-3 py-2 text-gray-700">{{ row[col] === null ? '' : row[col] }}</td>
+                    @end
+                  </tr>
+                @end
+              </tbody>
+            </table>
+          </div>
+        </div>
+      @elseif(runResult && runResult.rows.length === 0)
+        <div class="bg-white rounded-xl border border-gray-200 py-12 text-center text-gray-500">
+          <i class="fas fa-folder-open text-3xl text-gray-300 mb-2"></i>
+          <div class="text-sm">ไม่พบข้อมูล</div>
+        </div>
+      @elseif(hasPlaceholders && !runResult && !error)
+        <div class="bg-white rounded-xl border border-gray-200 py-12 text-center text-gray-500">
+          <i class="fas fa-magnifying-glass text-3xl text-gray-300 mb-2"></i>
+          <div class="text-sm font-medium text-gray-700">กรุณาระบุเงื่อนไขการค้นหา</div>
+          <div class="text-xs text-gray-500 mt-1">เลือกค่าจากฟอร์มด้านบนแล้วกด "ประมวลผลรายงาน"</div>
+        </div>
+      @end
+    </div>
+
+    <script>
+      document.getElementById('reportForm')?.addEventListener('submit', () => {
+        const btn = document.getElementById('runBtn')
+        if (btn) {
+          btn.disabled = true
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i><span>กำลังประมวลผล...</span>'
+        }
+      })
+      document.getElementById('resultSearch')?.addEventListener('input', e => {
+        const q = e.target.value.toLowerCase()
+        document.querySelectorAll('#resultsTable tbody tr').forEach(tr => {
+          tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none'
+        })
+      })
+    </script>
+  @end
+@end
