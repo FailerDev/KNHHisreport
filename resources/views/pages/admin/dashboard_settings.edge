@@ -7,225 +7,230 @@
   currentPage: 'dashboard-settings',
 })
   @slot('main')
-    <div class="max-w-6xl mx-auto">
-      <header class="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 class="text-2xl font-semibold text-gray-800 flex items-center gap-2">
-            <i class="fas fa-chart-line text-primary"></i> ตั้งค่าแดชบอร์ด
-          </h1>
-          <p class="text-sm text-gray-500 mt-1">จัดการรายการสถิติและกราฟบนแดชบอร์ด</p>
+    <div class="flex flex-col gap-6">
+      <div class="hic-pagehead" style="margin-bottom:0">
+        <div class="hic-pagehead-title hic-tone-teal">
+          <span class="hic-pagehead-icon"><i class="fas fa-chart-line"></i></span>
+          <div>
+            <h1>ตั้งค่าแดชบอร์ด</h1>
+            <p>จัดการตัวชี้วัดและกราฟที่แสดงบนแดชบอร์ด</p>
+          </div>
         </div>
-        <button type="button" onclick="openItemModal()" class="px-3 py-2 rounded-md bg-primary hover:bg-primary/90 text-white text-sm flex items-center gap-1.5">
-          <i class="fas fa-plus text-xs"></i><span>เพิ่มรายการ</span>
-        </button>
-      </header>
-
-      @if(message)
-        <div class="mb-4 px-4 py-3 rounded-lg border text-sm flex items-center gap-2 {{ messageType === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700' }}">
-          <i class="fas {{ messageType === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation' }}"></i>
-          <span>{{ message }}</span>
-        </div>
-      @end
-
-      <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5">
-        <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center"><i class="fas fa-list"></i></div>
-          <div><div class="text-xs text-gray-500">รายการทั้งหมด</div><div class="text-xl font-semibold">{{ stats.total }}</div></div>
-        </div>
-        <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-warning/10 text-warning flex items-center justify-center"><i class="fas fa-chart-pie"></i></div>
-          <div><div class="text-xs text-gray-500">มีกราฟ</div><div class="text-xl font-semibold">{{ stats.withChart }}</div></div>
-        </div>
-        <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-success/10 text-success flex items-center justify-center"><i class="fas fa-link"></i></div>
-          <div><div class="text-xs text-gray-500">เปิดดูที่</div><a href="/dashboard" class="text-base font-semibold text-primary hover:underline">/dashboard</a></div>
+        <div class="flex gap-2 flex-wrap">
+          <a href="/dashboard" class="hic-btn hic-btn-secondary"><i class="fas fa-eye"></i><span>ดูแดชบอร์ด</span></a>
+          <button type="button" onclick="openItemModal()" class="hic-btn hic-btn-primary">
+            <i class="fas fa-plus"></i><span>เพิ่มรายการ</span>
+          </button>
         </div>
       </div>
 
-      <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      @include('partials/flash')
+
+      <div class="hic-metrics">
+        <div class="hic-metric hic-tone-blue hic-rise" style="--i:0">
+          <span class="hic-metric-icon"><i class="fas fa-list"></i></span>
+          <div><div class="hic-metric-label">รายการทั้งหมด</div><div class="hic-metric-value">{{ stats.total }}</div></div>
+        </div>
+        <div class="hic-metric hic-tone-yellow hic-rise" style="--i:1">
+          <span class="hic-metric-icon"><i class="fas fa-chart-pie"></i></span>
+          <div><div class="hic-metric-label">มีกราฟ</div><div class="hic-metric-value">{{ stats.withChart }}</div></div>
+        </div>
+        <div class="hic-metric hic-tone-green hic-rise" style="--i:2">
+          <span class="hic-metric-icon"><i class="fas fa-link"></i></span>
+          <div><div class="hic-metric-label">เปิดดูที่</div><a href="/dashboard" class="hic-metric-value hover:underline" style="font-size:18px;color:var(--ok)">/dashboard</a></div>
+        </div>
+      </div>
+
+      <div class="hic-panel overflow-hidden">
+        <div class="hic-panel-head">
+          <h2><i class="fas fa-gauge-high" style="color:var(--heading)"></i>รายการแดชบอร์ด <span class="hic-pill">{{ items.length }}</span></h2>
+        </div>
         @if(items.length === 0)
-          <div class="py-16 text-center text-gray-500">
-            <i class="fas fa-inbox text-3xl text-gray-300 mb-2"></i>
-            <div class="text-sm">ยังไม่มีรายการแดชบอร์ด</div>
+          <div class="hic-empty">
+            <span class="hic-empty-icon"><i class="fas fa-inbox"></i></span>
+            <b>ยังไม่มีรายการแดชบอร์ด</b>
+            <button type="button" onclick="openItemModal()" class="hic-btn hic-btn-secondary hic-btn-sm mt-3"><i class="fas fa-plus"></i>เพิ่มรายการแรก</button>
           </div>
         @else
-          <table class="w-full text-sm">
-            <thead class="bg-gray-50 text-gray-600 text-xs uppercase">
-              <tr>
-                <th class="text-left px-4 py-2">รายการ</th>
-                <th class="text-left px-4 py-2">SQL หลัก</th>
-                <th class="text-center px-4 py-2">Chart</th>
-                <th class="text-center px-4 py-2">Sort</th>
-                <th class="text-right px-4 py-2">จัดการ</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-              @each(it in items)
-                @let(colorHex = (it.color1 === 'icon-success' ? '#10b981' : (it.color1 === 'icon-warning' ? '#f59e0b' : (it.color1 === 'icon-danger' ? '#ef4444' : '#3b82f6'))))
+          <div class="overflow-x-auto">
+            <table class="hic-table">
+              <thead>
                 <tr>
-                  <td class="px-4 py-2.5">
-                    <div class="flex items-center gap-2.5">
-                      <div class="w-8 h-8 rounded text-white flex items-center justify-center text-sm" style="background:{{ colorHex }}">
-                        <i class="fas {{ (it.icons || '').startsWith('ti-') ? 'fa-chart-bar' : (it.icons || 'fa-chart-bar') }}"></i>
-                      </div>
-                      <div class="min-w-0">
-                        <div class="font-medium text-gray-800 break-words">{{{ safeReportTitle(it.detail) }}}</div>
-                        <div class="text-[11px] text-gray-500 flex gap-2 mt-0.5">
-                          <span>icon: <code>{{ it.icons || '—' }}</code></span>
-                          <span>color: <code>{{ it.color1 }}</code></span>
-                          @if(it.linkId)
-                            <span>link: /reports/{{ it.linkId }}</span>
-                          @end
+                  <th>รายการ</th>
+                  <th>SQL หลัก</th>
+                  <th style="text-align:center">กราฟ</th>
+                  <th style="text-align:center">ลำดับ</th>
+                  <th style="text-align:right">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                @each(it in items)
+                  @let(tone = it.color1 === 'icon-success' ? 'green' : (it.color1 === 'icon-warning' ? 'yellow' : (it.color1 === 'icon-danger' ? 'red' : (it.color1 === 'icon-info' ? 'sky' : 'blue'))))
+                  @let(icon = (it.icons || '').startsWith('ti-') ? 'fa-chart-bar' : (it.icons || 'fa-chart-bar'))
+                  <tr>
+                    <td>
+                      <div class="flex items-center gap-3 hic-tone-{{ tone }}">
+                        <span class="hic-metric-icon" style="width:38px;height:38px;border-radius:12px;font-size:15px"><i class="fas {{ icon }}"></i></span>
+                        <div class="min-w-0">
+                          <div class="font-semibold break-words" style="color:var(--ink-strong)">{{{ safeReportTitle(it.detail) }}}</div>
+                          <div class="flex flex-wrap gap-1.5 mt-1">
+                            <span class="hic-badge hic-badge-muted hic-mono">{{ it.icons || '—' }}</span>
+                            @if(it.linkId)
+                              <a href="/reports/{{ it.linkId }}" class="hic-badge hic-badge-brand"><i class="fas fa-link"></i>/reports/{{ it.linkId }}</a>
+                            @end
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td class="px-4 py-2.5">
-                    <code class="text-[11px] text-gray-700 font-mono block max-w-md truncate" title="{{ it.sql1 }}">{{ (it.sql1 || '').slice(0, 100) }}{{ (it.sql1 || '').length > 100 ? '…' : '' }}</code>
-                  </td>
-                  <td class="px-4 py-2.5 text-center">
-                    @if(it.chartType && it.chartType !== 'none')
-                      <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-warning/15 text-warning text-xs">
-                        <i class="fas fa-chart-pie text-[10px]"></i>{{ it.chartType }}
-                      </span>
-                    @else
-                      <span class="text-gray-300 text-xs">—</span>
-                    @end
-                  </td>
-                  <td class="px-4 py-2.5 text-center text-gray-700">{{ it.sort ?? '—' }}</td>
-                  <td class="px-4 py-2.5">
-                    <div class="flex justify-end gap-1">
-                      <button type="button" title="แก้ไข"
-                        onclick="openItemModal({{ JSON.stringify({ id: it.id, detail: it.detail, sql1: it.sql1, sort: it.sort, link_id: it.linkId, icons: it.icons, color1: it.color1, chart_type: it.chartType || 'none', chart_name: it.pieName, chart_sql: it.chartSql, chart_color: it.chartColor || 'default' }) }})"
-                        class="w-8 h-8 rounded hover:bg-gray-100 text-gray-600"><i class="fas fa-pen text-sm"></i></button>
-                      <button type="button" title="ลบ" onclick="confirmDelete({{ it.id }}, {{ JSON.stringify(stripTitleHtml(it.detail)) }})"
-                        class="w-8 h-8 rounded hover:bg-gray-100 text-danger"><i class="fas fa-trash text-sm"></i></button>
-                    </div>
-                  </td>
-                </tr>
-              @end
-            </tbody>
-          </table>
+                    </td>
+                    <td>
+                      <code class="hic-mono block max-w-md truncate" style="color:var(--ink-subtle)" title="{{ it.sql1 }}">{{ (it.sql1 || '').slice(0, 100) }}{{ (it.sql1 || '').length > 100 ? '…' : '' }}</code>
+                    </td>
+                    <td style="text-align:center">
+                      @if(it.chartType && it.chartType !== 'none')
+                        <span class="hic-badge hic-badge-warn"><i class="fas fa-chart-pie"></i>{{ it.chartType }}</span>
+                      @else
+                        <span style="color:var(--ink-muted)">—</span>
+                      @end
+                    </td>
+                    <td style="text-align:center">{{ it.sort ?? '—' }}</td>
+                    <td>
+                      <div class="flex justify-end gap-1">
+                        <button type="button" title="แก้ไข" class="hic-act is-brand"
+                          onclick="openItemModal({{ JSON.stringify({ id: it.id, detail: it.detail, sql1: it.sql1, sort: it.sort, link_id: it.linkId, icons: it.icons, color1: it.color1, chart_type: it.chartType || 'none', chart_name: it.pieName, chart_sql: it.chartSql, chart_color: it.chartColor || 'default' }) }})"><i class="fas fa-pen"></i></button>
+                        <button type="button" title="ลบ" class="hic-act is-bad"
+                          onclick="confirmDelete({{ it.id }}, {{ JSON.stringify(stripTitleHtml(it.detail)) }})"><i class="fas fa-trash"></i></button>
+                      </div>
+                    </td>
+                  </tr>
+                @end
+              </tbody>
+            </table>
+          </div>
         @end
       </div>
     </div>
 
     {{-- Item modal --}}
-    <div id="itemModal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-4">
-      <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[92vh] overflow-hidden flex flex-col">
-        <div class="flex items-center justify-between p-4 border-b border-gray-200">
-          <h3 class="text-base font-semibold text-gray-800 flex items-center gap-2">
-            <i class="fas fa-chart-line text-primary"></i><span id="itemModalTitle">เพิ่มรายการแดชบอร์ด</span>
-          </h3>
-          <button type="button" onclick="hide('itemModal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-xmark"></i></button>
+    <div id="itemModal" class="hic-modal hidden" role="dialog" aria-modal="true">
+      <div class="hic-modal-box is-lg hic-tone-teal">
+        <div class="hic-modal-head">
+          <span class="hic-modal-icon"><i class="fas fa-chart-line"></i></span>
+          <h3 id="itemModalTitle">เพิ่มรายการแดชบอร์ด</h3>
+          <button type="button" onclick="hide('itemModal')" class="hic-iconbtn" aria-label="ปิด"><i class="fas fa-xmark"></i></button>
         </div>
-        <form id="itemForm" method="POST" action="/admin/dashboard-settings" class="p-5 space-y-4 overflow-y-auto">
+        <form id="itemForm" method="POST" action="/admin/dashboard-settings" class="contents">
           {{ csrfField() }}
           <input type="hidden" name="id" id="item_id" />
+          <div class="hic-modal-body">
+            <div class="grid grid-cols-1 md:grid-cols-[1fr_8rem] gap-4">
+              <div>
+                <label class="hic-label" for="item_detail">ชื่อรายการ <span class="hic-req">*</span></label>
+                <input name="detail" id="item_detail" required class="hic-input" />
+              </div>
+              <div>
+                <label class="hic-label" for="item_sort">ลำดับ</label>
+                <input type="number" name="sort" id="item_sort" value="1" min="1" class="hic-input" />
+              </div>
+            </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-[1fr_8rem] gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อรายการ <span class="text-red-500">*</span></label>
-              <input name="detail" id="item_detail" required
-                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+              <div class="flex items-center justify-between mb-1.5 gap-2">
+                <label class="hic-label" for="item_sql1" style="margin:0">SQL หลัก (HIS) <span class="hic-req">*</span></label>
+                <button type="button" onclick="testSql('main')" class="hic-btn hic-btn-warn hic-btn-sm"><i class="fas fa-vial"></i>ทดสอบ</button>
+              </div>
+              <textarea name="sql1" id="item_sql1" rows="4" required placeholder="SELECT COUNT(*) FROM ovst WHERE vstdate = CURDATE()" class="hic-code" style="min-height:120px" spellcheck="false"></textarea>
+              <div class="hic-help">คืนค่าตัวเลข 1 ค่า (คอลัมน์แรกของแถวแรก)</div>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">ลำดับ</label>
-              <input type="number" name="sort" id="item_sort" value="1" min="1"
-                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
-            </div>
-          </div>
 
-          <div>
-            <div class="flex items-center justify-between mb-1">
-              <label class="block text-sm font-medium text-gray-700">SQL หลัก (HIS) <span class="text-red-500">*</span></label>
-              <button type="button" onclick="testSql('main')" class="text-xs px-2.5 py-1 rounded bg-yellow-100 hover:bg-yellow-200 text-yellow-800 flex items-center gap-1"><i class="fas fa-vial"></i>ทดสอบ</button>
-            </div>
-            <textarea name="sql1" id="item_sql1" rows="4" required placeholder="SELECT COUNT(*) FROM ovst WHERE vstdate = CURDATE()"
-              class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none font-mono text-sm"></textarea>
-            <p class="text-xs text-gray-500 mt-1">คืนค่าตัวเลข 1 ค่า (คอลัมน์แรกของแถวแรก)</p>
-          </div>
+            <div id="sqlTestResult" class="hidden"></div>
 
-          <div id="sqlTestResult" class="hidden text-sm rounded-md"></div>
-
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">ไอคอน</label>
-              <input name="icons" id="item_icons" value="ti-bar-chart" placeholder="fa-users หรือ ti-bar-chart"
-                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none font-mono text-xs" />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">สี</label>
-              <select name="color1" id="item_color1"
-                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none bg-white">
-                <option value="icon-info">น้ำเงิน</option>
-                <option value="icon-success">เขียว</option>
-                <option value="icon-warning">เหลือง</option>
-                <option value="icon-danger">แดง</option>
-              </select>
-            </div>
-            <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-gray-700 mb-1">ลิงก์ไปรายงาน (optional)</label>
-              <select name="link_id" id="item_link_id"
-                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none bg-white">
-                <option value="">— ไม่ลิงก์ —</option>
-                @each(r in availableReports)
-                  <option value="{{ r.id }}">{{ stripTitleHtml(r.detail) }}</option>
-                @end
-              </select>
-            </div>
-          </div>
-
-          <details class="rounded-md border border-gray-200" id="chartSection">
-            <summary class="px-3 py-2 text-sm font-medium text-gray-700 cursor-pointer bg-gray-50 flex items-center gap-2">
-              <i class="fas fa-chart-pie text-primary"></i><span>การตั้งค่ากราฟ (optional)</span>
-            </summary>
-            <div class="p-3 space-y-3 border-t border-gray-200">
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5 items-start">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-xs font-medium text-gray-700 mb-1">ชนิดกราฟ</label>
-                  <select name="chart_type" id="item_chart_type"
-                    onchange="document.getElementById('chartConfig').style.display = this.value === 'none' ? 'none' : ''"
-                    class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none bg-white text-sm">
-                    <option value="none">ไม่แสดง Chart</option>
-                    <option value="pie">Pie Chart</option>
-                    <option value="bar">Bar Chart</option>
-                    <option value="line">Line Chart</option>
-                    <option value="doughnut">Doughnut Chart</option>
+                  <label class="hic-label" for="item_icons">ไอคอน <small>(Font Awesome)</small></label>
+                  <input name="icons" id="item_icons" value="ti-bar-chart" placeholder="fa-users" class="hic-input hic-mono" />
+                </div>
+                <div>
+                  <label class="hic-label" for="item_color1">สี</label>
+                  <select name="color1" id="item_color1" class="hic-input">
+                    <option value="icon-info">น้ำเงิน</option>
+                    <option value="icon-success">เขียว</option>
+                    <option value="icon-warning">เหลือง</option>
+                    <option value="icon-danger">แดง</option>
                   </select>
                 </div>
-                <div>
-                  <label class="block text-xs font-medium text-gray-700 mb-1">ชื่อกราฟ</label>
-                  <input name="chart_name" id="item_chart_name"
-                    class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none text-sm" />
-                </div>
-                <div>
-                  <label class="block text-xs font-medium text-gray-700 mb-1">โทนสี</label>
-                  <select name="chart_color" id="item_chart_color"
-                    class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none bg-white text-sm">
-                    <option value="default">default</option>
-                    <option value="blue">blue</option>
-                    <option value="green">green</option>
-                    <option value="red">red</option>
-                    <option value="purple">purple</option>
-                    <option value="orange">orange</option>
+                <div class="md:col-span-2">
+                  <label class="hic-label" for="item_link_id">ลิงก์ไปรายงาน <small>(ไม่บังคับ)</small></label>
+                  <select name="link_id" id="item_link_id" class="hic-input">
+                    <option value="">— ไม่ลิงก์ —</option>
+                    @each(r in availableReports)
+                      <option value="{{ r.id }}">{{ stripTitleHtml(r.detail) }}</option>
+                    @end
                   </select>
                 </div>
               </div>
-              <div id="chartConfig" style="display:none">
-                <div class="flex items-center justify-between mb-1">
-                  <label class="block text-xs font-medium text-gray-700">SQL กราฟ (HIS) — ต้องคืน 2 คอลัมน์ (label, value)</label>
-                  <button type="button" onclick="testSql('chart')" class="text-xs px-2.5 py-1 rounded bg-yellow-100 hover:bg-yellow-200 text-yellow-800 flex items-center gap-1"><i class="fas fa-vial"></i>ทดสอบ</button>
+              {{-- Live preview of the dashboard tile --}}
+              <div>
+                <div class="hic-label">ตัวอย่าง</div>
+                <div id="tilePreview" class="hic-card hic-tone-sky" style="width:220px;min-height:150px;cursor:default;animation:none">
+                  <div class="hic-card-top">
+                    <span class="hic-tile" style="width:44px;height:44px;font-size:17px"><i id="tilePreviewIcon" class="fas fa-chart-bar"></i></span>
+                  </div>
+                  <div class="hic-card-text">
+                    <span id="tilePreviewTitle" class="hic-card-desc">ชื่อรายการ</span>
+                    <span style="font:700 26px/32px var(--font-sans);color:var(--ink-strong)">1,234</span>
+                  </div>
                 </div>
-                <textarea name="chart_sql" id="item_chart_sql" rows="4" placeholder="SELECT label_col, COUNT(*) AS value FROM ... GROUP BY label_col"
-                  class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none font-mono text-xs"></textarea>
               </div>
             </div>
-          </details>
 
-          <div class="pt-3 border-t border-gray-200 flex justify-end gap-2">
-            <button type="button" onclick="hide('itemModal')" class="px-3 py-2 rounded-md text-sm border border-gray-300 hover:bg-gray-100">ยกเลิก</button>
-            <button type="submit" class="px-3 py-2 rounded-md text-sm bg-primary text-white hover:bg-primary/90"><i class="fas fa-save text-xs"></i> บันทึก</button>
+            <details class="rounded-2xl" style="border:1px solid var(--border)" id="chartSection">
+              <summary class="px-4 py-3 text-sm font-semibold cursor-pointer flex items-center gap-2" style="color:var(--ink)">
+                <i class="fas fa-chart-pie" style="color:var(--heading)"></i><span>การตั้งค่ากราฟ</span><small style="color:var(--ink-muted);font-weight:400">(ไม่บังคับ)</small>
+              </summary>
+              <div class="px-4 pb-4 flex flex-col gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label class="hic-label" for="item_chart_type">ชนิดกราฟ</label>
+                    <select name="chart_type" id="item_chart_type"
+                      onchange="document.getElementById('chartConfig').style.display = this.value === 'none' ? 'none' : ''"
+                      class="hic-input">
+                      <option value="none">ไม่แสดง Chart</option>
+                      <option value="pie">Pie Chart</option>
+                      <option value="bar">Bar Chart</option>
+                      <option value="line">Line Chart</option>
+                      <option value="doughnut">Doughnut Chart</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="hic-label" for="item_chart_name">ชื่อกราฟ</label>
+                    <input name="chart_name" id="item_chart_name" class="hic-input" />
+                  </div>
+                  <div>
+                    <label class="hic-label" for="item_chart_color">โทนสี</label>
+                    <select name="chart_color" id="item_chart_color" class="hic-input">
+                      <option value="default">default</option>
+                      <option value="blue">blue</option>
+                      <option value="green">green</option>
+                      <option value="red">red</option>
+                      <option value="purple">purple</option>
+                      <option value="orange">orange</option>
+                    </select>
+                  </div>
+                </div>
+                <div id="chartConfig" style="display:none">
+                  <div class="flex items-center justify-between mb-1.5 gap-2">
+                    <label class="hic-label" for="item_chart_sql" style="margin:0">SQL กราฟ (HIS) <small>— ต้องคืน 2 คอลัมน์ (label, value)</small></label>
+                    <button type="button" onclick="testSql('chart')" class="hic-btn hic-btn-warn hic-btn-sm"><i class="fas fa-vial"></i>ทดสอบ</button>
+                  </div>
+                  <textarea name="chart_sql" id="item_chart_sql" rows="4" placeholder="SELECT label_col, COUNT(*) AS value FROM ... GROUP BY label_col" class="hic-code" style="min-height:120px" spellcheck="false"></textarea>
+                </div>
+              </div>
+            </details>
+          </div>
+          <div class="hic-modal-foot">
+            <button type="button" onclick="hide('itemModal')" class="hic-btn hic-btn-ghost">ยกเลิก</button>
+            <button type="submit" class="hic-btn hic-btn-primary"><i class="fas fa-floppy-disk"></i>บันทึก</button>
           </div>
         </form>
       </div>
@@ -239,6 +244,23 @@
     <script>
       function show(id) { const m = document.getElementById(id); m.classList.remove('hidden'); m.classList.add('flex'); document.body.style.overflow = 'hidden' }
       function hide(id) { const m = document.getElementById(id); m.classList.add('hidden'); m.classList.remove('flex'); document.body.style.overflow = '' }
+      function esc(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+      }
+
+      const TONES = { 'icon-success': 'green', 'icon-warning': 'yellow', 'icon-danger': 'red', 'icon-info': 'sky' }
+      function updatePreview() {
+        const icon = document.getElementById('item_icons').value.trim()
+        const color = document.getElementById('item_color1').value
+        const title = document.getElementById('item_detail').value.trim()
+        document.getElementById('tilePreview').className = 'hic-card hic-tone-' + (TONES[color] || 'blue')
+        document.getElementById('tilePreviewIcon').className = 'fas ' + (icon && !icon.startsWith('ti-') ? icon : 'fa-chart-bar')
+        document.getElementById('tilePreviewTitle').textContent = title.replace(/<[^>]+>/g, '') || 'ชื่อรายการ'
+      }
+      ;['item_icons', 'item_color1', 'item_detail'].forEach(id => {
+        document.getElementById(id).addEventListener('input', updatePreview)
+        document.getElementById(id).addEventListener('change', updatePreview)
+      })
 
       function openItemModal(it) {
         const f = document.getElementById('itemForm')
@@ -267,6 +289,7 @@
           document.getElementById('item_chart_type').value = 'none'
           document.getElementById('chartConfig').style.display = 'none'
         }
+        updatePreview()
         show('itemModal')
       }
 
@@ -280,9 +303,8 @@
         const sql = (kind === 'chart' ? document.getElementById('item_chart_sql') : document.getElementById('item_sql1')).value
         const tr = document.getElementById('sqlTestResult')
         const csrf = document.querySelector('#itemForm input[name="_csrf"]').value
-        tr.classList.remove('hidden')
-        tr.className = 'mt-2 px-3 py-2 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-sm'
-        tr.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังทดสอบ...'
+        tr.className = 'hic-alert hic-alert-info'
+        tr.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>กำลังทดสอบ…</span>'
         const fd = new FormData()
         fd.append('_csrf', csrf)
         fd.append('sql_to_test', sql)
@@ -291,23 +313,26 @@
           const res = await fetch('/admin/dashboard-settings/test-sql', { method: 'POST', body: fd })
           const r = await res.json()
           if (r.success) {
-            tr.className = 'mt-2 px-3 py-2 rounded-md bg-green-50 border border-green-200 text-green-700 text-sm'
             const cols = (r.columns || []).slice(0, 6).join(', ') + ((r.columns || []).length > 6 ? '…' : '')
-            tr.innerHTML = '<div class="font-semibold flex items-center gap-2"><i class="fas fa-circle-check"></i>ทดสอบสำเร็จ ' + r.rows + ' แถว · ' + r.exec_ms + 'ms</div>'
-              + '<div class="text-xs mt-1">คอลัมน์: ' + cols + '</div>'
-              + (r.warning ? '<div class="text-xs mt-1 text-yellow-700"><i class="fas fa-triangle-exclamation"></i> ' + r.warning + '</div>' : '')
-              + (r.detected_value ? '<div class="text-xs mt-1">ใช้คอลัมน์ <code>' + r.detected_label + '</code> เป็น label, <code>' + r.detected_value + '</code> เป็น value</div>' : '')
+            tr.className = 'hic-alert hic-alert-ok'
+            tr.innerHTML = '<i class="fas fa-circle-check"></i><div>'
+              + '<div class="font-bold">ทดสอบสำเร็จ ' + esc(r.rows) + ' แถว · ' + esc(r.exec_ms) + 'ms</div>'
+              + '<div class="text-xs mt-1">คอลัมน์: ' + esc(cols) + '</div>'
+              + (r.warning ? '<div class="text-xs mt-1" style="color:var(--warn)"><i class="fas fa-triangle-exclamation"></i> ' + esc(r.warning) + '</div>' : '')
+              + (r.detected_value ? '<div class="text-xs mt-1">ใช้คอลัมน์ <code>' + esc(r.detected_label) + '</code> เป็น label, <code>' + esc(r.detected_value) + '</code> เป็น value</div>' : '')
+              + '</div>'
           } else {
-            tr.className = 'mt-2 px-3 py-2 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm'
-            tr.innerHTML = '<i class="fas fa-circle-exclamation"></i> ' + r.message
+            tr.className = 'hic-alert hic-alert-bad'
+            tr.innerHTML = '<i class="fas fa-circle-exclamation"></i><span class="break-all">' + esc(r.message) + '</span>'
           }
         } catch (e) {
-          tr.className = 'mt-2 px-3 py-2 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm'
-          tr.innerHTML = '<i class="fas fa-circle-exclamation"></i> ' + (e.message || e)
+          tr.className = 'hic-alert hic-alert-bad'
+          tr.innerHTML = '<i class="fas fa-circle-exclamation"></i><span>' + esc(e.message || e) + '</span>'
         }
       }
 
       document.getElementById('itemModal').addEventListener('click', e => { if (e.target.id === 'itemModal') hide('itemModal') })
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') hide('itemModal') })
     </script>
   @end
 @end

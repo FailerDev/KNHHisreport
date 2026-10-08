@@ -1,0 +1,25 @@
+{{-- Standalone error page. Expects locals: errCode, errTitle, errMessage, errIcon --}}
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ errCode }} · HisReport</title>
+  @include('partials/head')
+</head>
+<body class="hic-body font-thai">
+  <main class="min-h-screen flex items-center justify-center p-6">
+    <div class="hic-panel hic-rise w-full max-w-lg text-center px-8 py-12 relative overflow-hidden">
+      <i class="fas {{ errIcon }} absolute -right-8 -bottom-10 text-[180px] opacity-[.05] -rotate-12" aria-hidden="true"></i>
+      <span class="hic-logo mx-auto" style="width:64px;height:64px;border-radius:20px;font-size:26px"><i class="fas {{ errIcon }}"></i></span>
+      <div class="mt-6 font-bold" style="font-size:64px;line-height:1;letter-spacing:-.03em;background:linear-gradient(90deg,var(--brand-from),var(--brand-to));-webkit-background-clip:text;background-clip:text;color:transparent">{{ errCode }}</div>
+      <h1 class="mt-3 text-xl font-bold" style="color:var(--ink-strong)">{{ errTitle }}</h1>
+      <p class="mt-2 text-[15px]" style="color:var(--ink-subtle)">{{ errMessage }}</p>
+      <div class="mt-8 flex justify-center gap-2 flex-wrap">
+        <a href="/" class="hic-btn hic-btn-primary"><i class="fas fa-house"></i>กลับหน้าหลัก</a>
+        <button type="button" onclick="history.back()" class="hic-btn hic-btn-secondary"><i class="fas fa-arrow-left"></i>ย้อนกลับ</button>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

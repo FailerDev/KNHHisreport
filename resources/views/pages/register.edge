@@ -4,43 +4,25 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>สมัครสมาชิก · HisReport</title>
-
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-    rel="stylesheet"
-  />
-
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: { primary: { 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1' } },
-          fontFamily: { thai: ['Segoe UI', 'Tahoma', 'Geneva', 'Verdana', 'sans-serif'] },
-        },
-      },
-    }
-  </script>
+  @include('partials/head')
 </head>
-<body class="font-thai min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
-  <div class="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
-    <div class="text-center mb-6">
-      <div class="inline-flex w-14 h-14 rounded-xl bg-primary-500/10 text-primary-600 items-center justify-center text-2xl">
-        <i class="fas fa-user-plus"></i>
-      </div>
-      <h1 class="mt-3 text-2xl font-bold text-slate-800">สมัครสมาชิก</h1>
-      <p class="text-sm text-slate-500">ระบบรายงานสถิติโรงพยาบาล</p>
+<body class="hic-body font-thai">
+  @include('partials/auth_shell_start')
+
+    <div class="mb-7">
+      <h2 class="text-[28px] leading-10 font-bold" style="color:var(--ink-strong)">สมัครสมาชิก</h2>
+      <p class="text-[15px] mt-1" style="color:var(--ink-subtle)">สร้างบัญชีเพื่อเข้าใช้งานระบบรายงานสถิติโรงพยาบาล</p>
     </div>
 
     @if(typeof success !== 'undefined' && success)
-      <div class="mb-4 px-4 py-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm flex items-center gap-2">
+      <div class="hic-alert hic-alert-ok mb-5" role="status">
         <i class="fas fa-circle-check"></i>
         <span>{{ success }}</span>
       </div>
     @end
 
     @if(typeof error !== 'undefined' && error)
-      <div class="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2">
+      <div class="hic-alert hic-alert-bad mb-5" role="alert">
         <i class="fas fa-circle-exclamation"></i>
         <span>{{ error }}</span>
       </div>
@@ -50,57 +32,52 @@
       {{ csrfField() }}
 
       <div>
-        <label class="block text-sm font-medium text-slate-700 mb-1">ชื่อ-นามสกุล</label>
-        <input
-          type="text"
-          name="fullname"
-          value="{{ (old && old.fullname) || '' }}"
-          required
-          class="w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
-        />
+        <label for="fullname" class="hic-label">ชื่อ-นามสกุล</label>
+        <div class="hic-field-icon">
+          <i class="fas fa-id-card"></i>
+          <input type="text" id="fullname" name="fullname" value="{{ (old && old.fullname) || '' }}" required
+            placeholder="เช่น สมชาย ใจดี" class="hic-input" />
+        </div>
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-slate-700 mb-1">ชื่อผู้ใช้</label>
-        <input
-          type="text"
-          name="username"
-          value="{{ (old && old.username) || '' }}"
-          required
-          class="w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
-        />
+        <label for="username" class="hic-label">ชื่อผู้ใช้</label>
+        <div class="hic-field-icon">
+          <i class="fas fa-user"></i>
+          <input type="text" id="username" name="username" value="{{ (old && old.username) || '' }}" required
+            autocomplete="username" placeholder="ใช้สำหรับเข้าสู่ระบบ" class="hic-input" />
+        </div>
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-slate-700 mb-1">รหัสผ่าน <span class="text-xs text-slate-400">(อย่างน้อย 6 ตัวอักษร)</span></label>
-        <input
-          type="password"
-          name="password"
-          required
-          minlength="6"
-          class="w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
-        />
+        <label for="password" class="hic-label">รหัสผ่าน <small>(อย่างน้อย 6 ตัวอักษร)</small></label>
+        <div class="hic-field-icon">
+          <i class="fas fa-lock"></i>
+          <input type="password" id="password" name="password" required minlength="6"
+            autocomplete="new-password" placeholder="ตั้งรหัสผ่าน" class="hic-input" />
+        </div>
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-slate-700 mb-1">แผนก</label>
-        <input
-          type="text"
-          name="department"
-          value="{{ (old && old.department) || '' }}"
-          class="w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
-        />
+        <label for="department" class="hic-label">แผนก <small>(ไม่บังคับ)</small></label>
+        <div class="hic-field-icon">
+          <i class="fas fa-building"></i>
+          <input type="text" id="department" name="department" value="{{ (old && old.department) || '' }}"
+            placeholder="เช่น งานเทคโนโลยีสารสนเทศ" class="hic-input" />
+        </div>
       </div>
 
-      <button type="submit"
-        class="w-full py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition flex items-center justify-center gap-2">
-        <i class="fas fa-user-plus"></i> สมัครสมาชิก
+      <button type="submit" class="hic-btn hic-btn-primary hic-btn-lg hic-btn-block" style="margin-top:24px">
+        <i class="fas fa-user-plus"></i><span>สมัครสมาชิก</span>
       </button>
     </form>
 
-    <div class="mt-5 text-center text-sm">
-      <a href="/login" class="text-primary-600 hover:underline">มีบัญชีอยู่แล้ว? เข้าสู่ระบบ</a>
+    <div class="mt-7 pt-5 text-center text-sm" style="border-top:1px solid var(--border);color:var(--ink-subtle)">
+      มีบัญชีอยู่แล้ว? <a href="/login" class="font-semibold hover:underline" style="color:var(--brand-from)">เข้าสู่ระบบ</a>
     </div>
-  </div>
+
+  @include('partials/auth_shell_end')
+
+  <script src="/ui/hic.js" defer></script>
 </body>
 </html>

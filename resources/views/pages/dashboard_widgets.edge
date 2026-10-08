@@ -7,122 +7,157 @@
   currentPage: 'index_dashboard',
 })
   @slot('main')
-    <div class="max-w-7xl mx-auto">
-      <header class="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 class="text-2xl font-semibold text-gray-800 flex items-center gap-2">
-            <i class="fas fa-chart-pie text-primary"></i> แดชบอร์ดรายงาน
-          </h1>
-          <p class="text-sm text-gray-500 mt-1">สถิติแบบเรียลไทม์จากระบบ HIS</p>
+    <div class="flex flex-col gap-6">
+      <div class="hic-pagehead" style="margin-bottom:0">
+        <div class="hic-pagehead-title hic-tone-blue">
+          <span class="hic-pagehead-icon"><i class="fas fa-chart-pie"></i></span>
+          <div>
+            <h1>แดชบอร์ดรายงาน</h1>
+            <p>สถิติแบบเรียลไทม์จากระบบ HIS · <span data-today></span></p>
+          </div>
         </div>
-        <div class="flex gap-2">
-          <button id="refreshBtn" type="button"
-            class="px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm flex items-center gap-1.5">
-            <i class="fas fa-rotate-right text-xs"></i><span>รีเฟรช</span>
+        <div class="flex gap-2 flex-wrap">
+          <button id="refreshBtn" type="button" class="hic-btn hic-btn-secondary">
+            <i class="fas fa-rotate-right"></i><span>รีเฟรช</span>
           </button>
           @if(isAdmin)
-            <a href="/admin/report-settings"
-              class="px-3 py-2 rounded-md bg-primary hover:bg-primary/90 text-white text-sm flex items-center gap-1.5">
-              <i class="fas fa-sliders text-xs"></i><span>จัดการ</span>
+            <a href="/admin/dashboard-settings" class="hic-btn hic-btn-primary">
+              <i class="fas fa-sliders"></i><span>จัดการแดชบอร์ด</span>
             </a>
           @end
         </div>
-      </header>
+      </div>
 
       {{-- Status bar --}}
-      <div class="bg-white border border-gray-200 rounded-xl px-4 py-3 mb-4 flex flex-wrap items-center justify-between gap-3 text-sm">
-        <div class="flex items-center gap-3">
-          <span id="hisBadge" class="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-gray-100 text-gray-600 text-xs">
-            <span id="hisBadgeDot" class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
-            <span id="hisBadgeText">กำลังตรวจสอบ HIS…</span>
-          </span>
-        </div>
-        <div class="text-xs text-gray-500 flex items-center gap-1.5">
+      <div class="hic-panel flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
+        <span id="hisBadge" class="hic-badge hic-badge-muted">
+          <span id="hisBadgeDot" class="hic-dot"></span>
+          <span id="hisBadgeText">กำลังตรวจสอบ HIS…</span>
+        </span>
+        <div class="flex items-center gap-2" style="color:var(--ink-subtle);font-size:13px">
           <i class="fas fa-clock"></i>
-          <span>อัพเดทล่าสุด</span>
-          <span id="lastUpdatedTime" class="font-medium text-gray-700">—</span>
-          <span id="cacheTag" class="hidden ml-1 px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 text-[10px]">
-            <i class="fas fa-bolt"></i> cached
-          </span>
+          <span>อัปเดตล่าสุด</span>
+          <span id="lastUpdatedTime" class="font-semibold" style="color:var(--ink-strong)">—</span>
+          <span id="cacheTag" class="hic-badge hic-badge-warn hidden"><i class="fas fa-bolt"></i>cached</span>
         </div>
       </div>
 
       {{-- HIS disconnected alert --}}
-      <div id="hisDisconnectedAlert" class="hidden mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-2">
-        <i class="fas fa-circle-exclamation mt-0.5"></i>
+      <div id="hisDisconnectedAlert" class="hic-alert hic-alert-bad hidden" role="alert">
+        <i class="fas fa-plug-circle-xmark"></i>
         <div class="flex-1">
           <strong class="block">ไม่สามารถเชื่อมต่อกับฐานข้อมูล HIS</strong>
-          <span id="hisDisconnectedMsg" class="block text-xs mt-1"></span>
+          <span id="hisDisconnectedMsg" class="block text-xs mt-1 opacity-90"></span>
           @if(isAdmin)
-            <a href="/admin/his-settings" class="inline-flex items-center gap-1 mt-2 text-xs font-medium text-red-700 hover:underline">
-              <i class="fas fa-gear text-[10px]"></i>ไปที่ตั้งค่า HIS
+            <a href="/admin/his-settings" class="inline-flex items-center gap-1.5 mt-2 text-xs font-bold hover:underline">
+              <i class="fas fa-gear"></i>ไปที่ตั้งค่า HIS
             </a>
           @end
         </div>
       </div>
 
       @if(items.length === 0)
-        <div class="bg-white rounded-xl border border-gray-200 py-16 text-center text-gray-500">
-          <i class="fas fa-inbox text-3xl text-gray-300 mb-2"></i>
-          <div class="text-sm font-medium text-gray-700">ยังไม่มีรายการแดชบอร์ด</div>
-          <div class="text-xs text-gray-500 mt-1">โปรดติดต่อผู้ดูแลระบบเพื่อเพิ่มรายการ</div>
+        <div class="hic-panel">
+          <div class="hic-empty">
+            <span class="hic-empty-icon"><i class="fas fa-inbox"></i></span>
+            <b>ยังไม่มีรายการแดชบอร์ด</b>
+            <span>โปรดติดต่อผู้ดูแลระบบเพื่อเพิ่มรายการ</span>
+          </div>
         </div>
       @else
         {{-- Summary --}}
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
-          <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center"><i class="fas fa-users"></i></div>
-            <div><div class="text-xs text-gray-500">บริการทั้งหมดวันนี้</div><div class="text-xl font-semibold" id="sumServices">—</div></div>
+        <section class="hic-banner hic-rise" style="padding:24px 28px">
+          <div class="hic-banner-text">
+            <span class="hic-banner-eyebrow"><i class="fas fa-hospital-user"></i>ภาพรวมวันนี้</span>
+            <div class="flex items-end gap-3 mt-3">
+              <b id="sumServices" style="font:700 44px/48px var(--font-sans)">—</b>
+              <span class="pb-1.5 opacity-90">บริการทั้งหมดวันนี้</span>
+            </div>
           </div>
-          <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-success/10 text-success flex items-center justify-center"><i class="fas fa-list"></i></div>
-            <div><div class="text-xs text-gray-500">รายการที่ทำงาน</div><div class="text-xl font-semibold" id="sumItems">{{ items.length }}</div></div>
+          <div class="hic-stats">
+            <div class="hic-stat"><span class="hic-stat-icon"><i class="fas fa-list-check"></i></span><span class="hic-stat-body"><b id="sumItems">{{ items.length }}</b><span>รายการที่ทำงาน</span></span></div>
+            <div class="hic-stat"><span class="hic-stat-icon"><i class="fas fa-chart-column"></i></span><span class="hic-stat-body"><b id="sumCharts">0</b><span>กราฟทั้งหมด</span></span></div>
           </div>
-          <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-warning/10 text-warning flex items-center justify-center"><i class="fas fa-chart-line"></i></div>
-            <div><div class="text-xs text-gray-500">กราฟทั้งหมด</div><div class="text-xl font-semibold" id="sumCharts">0</div></div>
-          </div>
-        </div>
+          <span class="hic-banner-mark" aria-hidden="true"><i class="fas fa-chart-pie"></i></span>
+        </section>
 
         {{-- Tiles --}}
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          @each(item in items)
-            <div class="dash-tile bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition" data-id="{{ item.id }}">
-              <div class="flex items-start justify-between mb-2">
-                <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white"
-                  style="background:{{ item.color === 'icon-success' ? '#10b981' : (item.color === 'icon-warning' ? '#f59e0b' : (item.color === 'icon-danger' ? '#ef4444' : '#3b82f6')) }}">
-                  <i class="fas {{ item.icon.startsWith('ti-') ? 'fa-chart-bar' : item.icon }}"></i>
-                </div>
-                @if(item.link_id)
-                  <a href="/reports/{{ item.link_id }}" class="text-xs text-gray-400 hover:text-primary"><i class="fas fa-arrow-right"></i></a>
-                @end
-              </div>
-              <div class="text-xs text-gray-500 mb-1 line-clamp-2 min-h-[2.5em]">{{{ safeReportTitle(item.title) }}}</div>
-              <div class="text-2xl font-bold text-gray-800 dash-count" data-id="{{ item.id }}">
-                <span class="inline-block w-8 h-6 bg-gray-100 rounded animate-pulse"></span>
-              </div>
+        <section>
+          <div class="hic-section-head">
+            <div class="hic-section-title">
+              <span class="hic-section-icon"><i class="fas fa-gauge-high"></i></span>
+              <h2>ตัวชี้วัด</h2>
+              <span class="hic-pill">{{ items.length }}</span>
             </div>
-          @end
-        </div>
+          </div>
+          <div class="hic-grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">
+            @each((item, idx) in items)
+              @let(tone = item.color === 'icon-success' ? 'green' : (item.color === 'icon-warning' ? 'yellow' : (item.color === 'icon-danger' ? 'red' : (item.color === 'icon-info' ? 'sky' : 'blue'))))
+              @let(icon = item.icon && !item.icon.startsWith('ti-') ? item.icon : 'fa-chart-bar')
+              @if(item.link_id)
+                <a href="/reports/{{ item.link_id }}" class="hic-card hic-tone-{{ tone }} dash-tile" data-id="{{ item.id }}" style="--i:{{ idx }};min-height:160px">
+              @else
+                <div class="hic-card hic-tone-{{ tone }} dash-tile" data-id="{{ item.id }}" style="--i:{{ idx }};min-height:160px;cursor:default">
+              @end
+                  <div class="hic-card-top">
+                    <span class="hic-tile" style="width:46px;height:46px;font-size:18px"><i class="fas {{ icon }}"></i></span>
+                    @if(item.link_id)
+                      <span class="hic-go"><i class="fas fa-arrow-right"></i></span>
+                    @end
+                  </div>
+                  <div class="hic-card-text">
+                    <span class="hic-card-desc" style="-webkit-line-clamp:2;min-height:40px">{{{ safeReportTitle(item.title) }}}</span>
+                    <span class="dash-count" data-id="{{ item.id }}" style="font:700 30px/36px var(--font-sans);color:var(--ink-strong);font-variant-numeric:tabular-nums">
+                      <span class="hic-skel" style="width:72px;height:30px"></span>
+                    </span>
+                  </div>
+                  <span class="hic-watermark" aria-hidden="true"><i class="fas {{ icon }}"></i></span>
+              @if(item.link_id)
+                </a>
+              @else
+                </div>
+              @end
+            @end
+          </div>
+        </section>
 
         {{-- Charts section (populated by JS) --}}
-        <div id="chartsArea" class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5"></div>
+        <section id="chartsSection" class="hidden">
+          <div class="hic-section-head">
+            <div class="hic-section-title">
+              <span class="hic-section-icon"><i class="fas fa-chart-column"></i></span>
+              <h2>กราฟสรุป</h2>
+            </div>
+          </div>
+          <div id="chartsArea" class="grid grid-cols-1 lg:grid-cols-2 gap-5"></div>
+        </section>
       @end
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
     <script>
       const chartInstances = new Map()
+      let lastData = null
+
+      function applyChartTheme() {
+        if (!window.Chart) return
+        const css = getComputedStyle(document.documentElement)
+        Chart.defaults.font.family = "'Sarabun', 'Leelawadee UI', Tahoma, sans-serif"
+        Chart.defaults.font.size = 13
+        Chart.defaults.color = css.getPropertyValue('--ink-subtle').trim() || '#62748e'
+        Chart.defaults.borderColor = css.getPropertyValue('--border').trim() || '#e8edf4'
+      }
 
       async function loadData(forceFresh = false) {
         const refreshBtn = document.getElementById('refreshBtn')
         const origLabel = refreshBtn.innerHTML
         refreshBtn.disabled = true
-        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i><span>กำลังโหลด…</span>'
+        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>กำลังโหลด…</span>'
         try {
           const res = await fetch('/dashboard/data' + (forceFresh ? '?nocache=1' : ''))
           const data = await res.json()
           if (data.error) throw new Error(data.message || data.error)
+          lastData = data
           render(data)
         } catch (e) {
           alert('โหลดข้อมูลล้มเหลว: ' + (e.message || e))
@@ -140,21 +175,23 @@
         const alertEl = document.getElementById('hisDisconnectedAlert')
         const alertMsg = document.getElementById('hisDisconnectedMsg')
         if (data.his_status?.connected) {
-          badge.className = 'inline-flex items-center gap-2 px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs'
-          dot.className = 'w-1.5 h-1.5 rounded-full bg-green-500'
+          badge.className = 'hic-badge hic-badge-ok'
+          dot.className = 'hic-dot pulse'
           text.textContent = 'HIS เชื่อมต่อได้'
           alertEl.classList.add('hidden')
         } else {
-          badge.className = 'inline-flex items-center gap-2 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs'
-          dot.className = 'w-1.5 h-1.5 rounded-full bg-red-500'
+          badge.className = 'hic-badge hic-badge-bad'
+          dot.className = 'hic-dot'
           text.textContent = 'HIS เชื่อมต่อไม่ได้'
           alertEl.classList.remove('hidden')
           alertMsg.textContent = data.his_status?.message || ''
         }
 
+        const sumServices = document.getElementById('sumServices')
+        if (!sumServices) return
+
         // Summary
-        document.getElementById('sumServices').textContent =
-          (data.summary?.total_services ?? 0).toLocaleString('th-TH')
+        sumServices.textContent = (data.summary?.total_services ?? 0).toLocaleString('th-TH')
         document.getElementById('sumItems').textContent = data.summary?.active_items ?? 0
         document.getElementById('sumCharts').textContent = data.summary?.chart_count ?? 0
 
@@ -163,7 +200,7 @@
           const id = el.dataset.id
           const v = data.counts?.[id]
           el.innerHTML = v === null || v === undefined
-            ? '<span class="text-gray-300 text-sm">—</span>'
+            ? '<span style="color:var(--ink-muted);font-size:18px">—</span>'
             : Number(v).toLocaleString('th-TH')
         })
 
@@ -172,34 +209,59 @@
         document.getElementById('cacheTag').classList.toggle('hidden', !data.from_cache)
 
         // Charts
+        applyChartTheme()
+        const section = document.getElementById('chartsSection')
         const area = document.getElementById('chartsArea')
         area.innerHTML = ''
         chartInstances.forEach(c => c.destroy())
         chartInstances.clear()
-        for (const ch of (data.charts || [])) {
+        const charts = data.charts || []
+        section.classList.toggle('hidden', charts.length === 0)
+        charts.forEach((ch, i) => {
           const wrap = document.createElement('div')
-          wrap.className = 'bg-white rounded-xl border border-gray-200 p-4'
-          wrap.innerHTML = '<h3 class="text-sm font-semibold text-gray-800 mb-3">' + escapeHtml(ch.title) + '</h3>'
-            + '<div class="relative h-64"><canvas id="chart-' + ch.id + '"></canvas></div>'
+          wrap.className = 'hic-panel hic-rise'
+          wrap.style.setProperty('--i', i)
+          wrap.innerHTML = '<div class="hic-panel-head"><h3><i class="fas fa-chart-' + (ch.type === 'pie' || ch.type === 'doughnut' ? 'pie' : 'column') + '" style="color:var(--heading)"></i>' + escapeHtml(ch.title) + '</h3></div>'
+            + '<div class="hic-panel-body"><div class="relative h-72"><canvas id="chart-' + ch.id + '"></canvas></div></div>'
           area.appendChild(wrap)
           if (ch.status === 'ok' && ch.labels.length > 0) {
+            const isRound = ch.type === 'pie' || ch.type === 'doughnut'
             const ctx = document.getElementById('chart-' + ch.id).getContext('2d')
             const chartObj = new Chart(ctx, {
-              type: ch.type === 'pie' || ch.type === 'doughnut' ? ch.type : 'bar',
+              type: isRound ? ch.type : 'bar',
               data: {
                 labels: ch.labels,
-                datasets: [{ label: ch.title, data: ch.values, backgroundColor: ch.colors, borderWidth: 0 }],
+                datasets: [{
+                  label: ch.title,
+                  data: ch.values,
+                  backgroundColor: ch.colors,
+                  borderWidth: isRound ? 2 : 0,
+                  borderColor: getComputedStyle(document.documentElement).getPropertyValue('--surface').trim(),
+                  borderRadius: isRound ? 0 : 8,
+                  maxBarThickness: 48,
+                }],
               },
-              options: { responsive: true, maintainAspectRatio: false },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { display: isRound, position: 'bottom', labels: { usePointStyle: true, padding: 16 } },
+                  tooltip: { padding: 10, cornerRadius: 10 },
+                },
+                scales: isRound ? {} : {
+                  x: { grid: { display: false } },
+                  y: { beginAtZero: true, ticks: { precision: 0 } },
+                },
+              },
             })
             chartInstances.set(ch.id, chartObj)
           } else {
             const empty = document.createElement('div')
-            empty.className = 'text-center text-xs text-gray-500 py-12'
-            empty.innerHTML = '<i class="fas fa-circle-info text-xl text-gray-300 mb-2"></i><div>' + escapeHtml(ch.message || 'ไม่มีข้อมูล') + '</div>'
-            wrap.querySelector('.relative').replaceWith(empty)
+            empty.className = 'hic-empty'
+            empty.innerHTML = '<span class="hic-empty-icon"><i class="fas fa-circle-info"></i></span><div>' + escapeHtml(ch.message || 'ไม่มีข้อมูล') + '</div>'
+            wrap.querySelector('.hic-panel-body').replaceWith(empty)
           }
-        }
+        })
       }
 
       function escapeHtml(s) {
@@ -209,6 +271,7 @@
       }
 
       document.getElementById('refreshBtn').addEventListener('click', () => loadData(true))
+      document.addEventListener('hic:theme', () => { if (lastData) render(lastData) })
       loadData(false)
     </script>
   @end

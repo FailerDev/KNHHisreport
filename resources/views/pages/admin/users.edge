@@ -4,140 +4,129 @@
   isAdmin: true,
   fullname: auth?.user?.fullname || auth?.user?.username,
   department: auth?.user?.department,
-  currentPage: '',
+  currentPage: 'users',
 })
   @slot('main')
-    <div class="max-w-7xl mx-auto">
-      <header class="mb-6">
-        <h1 class="text-2xl font-semibold text-gray-800 flex items-center gap-2">
-          <i class="fas fa-users-gear text-primary"></i> จัดการผู้ใช้
-        </h1>
-        <p class="text-sm text-gray-500 mt-1">เพิ่ม แก้ไข และจัดการสิทธิ์การเข้าถึงระบบ</p>
-      </header>
-
-      @if(message)
-        <div class="mb-4 px-4 py-3 rounded-lg border text-sm flex items-center gap-2 {{ messageType === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700' }}">
-          <i class="fas {{ messageType === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation' }}"></i>
-          <span>{{ message }}</span>
+    <div class="flex flex-col gap-6">
+      <div class="hic-pagehead" style="margin-bottom:0">
+        <div class="hic-pagehead-title hic-tone-pink">
+          <span class="hic-pagehead-icon"><i class="fas fa-users-gear"></i></span>
+          <div>
+            <h1>จัดการผู้ใช้</h1>
+            <p>เพิ่ม แก้ไข และจัดการสิทธิ์การเข้าถึงระบบ</p>
+          </div>
         </div>
-      @end
+        <button type="button" onclick="openAddModal()" class="hic-btn hic-btn-primary">
+          <i class="fas fa-user-plus"></i><span>เพิ่มผู้ใช้</span>
+        </button>
+      </div>
+
+      @include('partials/flash')
 
       {{-- Stats --}}
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center"><i class="fas fa-users"></i></div>
-          <div><div class="text-xs text-gray-500">ผู้ใช้ทั้งหมด</div><div class="text-xl font-semibold">{{ stats.total }}</div></div>
+      <div class="hic-metrics">
+        <div class="hic-metric hic-tone-blue hic-rise" style="--i:0">
+          <span class="hic-metric-icon"><i class="fas fa-users"></i></span>
+          <div><div class="hic-metric-label">ผู้ใช้ทั้งหมด</div><div class="hic-metric-value">{{ stats.total }}</div></div>
         </div>
-        <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-success/10 text-success flex items-center justify-center"><i class="fas fa-circle-check"></i></div>
-          <div><div class="text-xs text-gray-500">ใช้งานอยู่</div><div class="text-xl font-semibold">{{ stats.active }}</div></div>
+        <div class="hic-metric hic-tone-green hic-rise" style="--i:1">
+          <span class="hic-metric-icon"><i class="fas fa-circle-check"></i></span>
+          <div><div class="hic-metric-label">ใช้งานอยู่</div><div class="hic-metric-value">{{ stats.active }}</div></div>
         </div>
-        <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-warning/10 text-warning flex items-center justify-center"><i class="fas fa-user-shield"></i></div>
-          <div><div class="text-xs text-gray-500">ผู้ดูแลระบบ</div><div class="text-xl font-semibold">{{ stats.admins }}</div></div>
+        <div class="hic-metric hic-tone-yellow hic-rise" style="--i:2">
+          <span class="hic-metric-icon"><i class="fas fa-user-shield"></i></span>
+          <div><div class="hic-metric-label">ผู้ดูแลระบบ</div><div class="hic-metric-value">{{ stats.admins }}</div></div>
         </div>
-        <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-danger/10 text-danger flex items-center justify-center"><i class="fas fa-user-slash"></i></div>
-          <div><div class="text-xs text-gray-500">ปิดใช้งาน</div><div class="text-xl font-semibold">{{ stats.inactive }}</div></div>
+        <div class="hic-metric hic-tone-red hic-rise" style="--i:3">
+          <span class="hic-metric-icon"><i class="fas fa-user-slash"></i></span>
+          <div><div class="hic-metric-label">ปิดใช้งาน</div><div class="hic-metric-value">{{ stats.inactive }}</div></div>
         </div>
       </div>
 
       {{-- Users table --}}
-      <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div class="p-4 border-b border-gray-200 flex flex-wrap items-center gap-3 justify-between">
-          <div class="flex items-center gap-2">
-            <h2 class="text-base font-semibold text-gray-800">รายชื่อผู้ใช้</h2>
-            <span class="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">{{ stats.total }} คน</span>
-          </div>
-          <div class="flex flex-wrap gap-2 items-center">
-            <div class="relative">
-              <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-gray-400"><i class="fas fa-magnifying-glass text-xs"></i></span>
-              <input id="userSearch" type="text" placeholder="ค้นหาผู้ใช้..."
-                class="pl-8 pr-3 py-1.5 text-sm rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none w-64" />
-            </div>
-            <select id="userLevelFilter" class="px-2 py-1.5 text-sm rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none">
+      <div class="hic-panel overflow-hidden">
+        <div class="hic-panel-head">
+          <h2><i class="fas fa-address-book" style="color:var(--heading)"></i>รายชื่อผู้ใช้ <span class="hic-pill">{{ stats.total }} คน</span></h2>
+          <div class="hic-toolbar">
+            <label class="hic-search" style="width:260px">
+              <i class="fas fa-magnifying-glass" style="font-size:13px"></i>
+              <input id="userSearch" type="text" placeholder="ค้นหาชื่อ แผนก อีเมล…" style="font-size:14px" />
+            </label>
+            <select id="userLevelFilter" class="hic-input" style="border-radius:9999px;font-size:14px">
               <option value="">ทุกสิทธิ์</option>
               <option value="admin">ผู้ดูแลระบบ</option>
               <option value="user">ผู้ใช้ทั่วไป</option>
             </select>
-            <button type="button" onclick="openAddModal()"
-              class="px-3 py-1.5 rounded-md bg-primary hover:bg-primary/90 text-white text-sm flex items-center gap-1.5">
-              <i class="fas fa-plus text-xs"></i>เพิ่มผู้ใช้
-            </button>
           </div>
         </div>
 
         @if(users.length === 0)
-          <div class="py-16 text-center text-gray-500">
-            <div class="w-14 h-14 rounded-full bg-gray-100 mx-auto flex items-center justify-center text-gray-400 text-2xl mb-3"><i class="fas fa-users-slash"></i></div>
-            <div class="text-sm">ยังไม่มีผู้ใช้ในระบบ</div>
+          <div class="hic-empty">
+            <span class="hic-empty-icon"><i class="fas fa-users-slash"></i></span>
+            <b>ยังไม่มีผู้ใช้ในระบบ</b>
+            <button type="button" onclick="openAddModal()" class="hic-btn hic-btn-secondary hic-btn-sm mt-3"><i class="fas fa-plus"></i>เพิ่มผู้ใช้คนแรก</button>
           </div>
         @else
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm" id="usersTable">
-              <thead class="bg-gray-50 text-gray-600 text-xs uppercase">
+          <div class="hic-table-wrap" style="max-height:none">
+            <table class="hic-table" id="usersTable">
+              <thead>
                 <tr>
-                  <th class="text-left px-4 py-2">ผู้ใช้</th>
-                  <th class="text-left px-4 py-2">อีเมล</th>
-                  <th class="text-left px-4 py-2">แผนก</th>
-                  <th class="text-left px-4 py-2">สิทธิ์</th>
-                  <th class="text-left px-4 py-2">สถานะ</th>
-                  <th class="text-left px-4 py-2">เข้าระบบล่าสุด</th>
-                  <th class="text-right px-4 py-2">จัดการ</th>
+                  <th>ผู้ใช้</th>
+                  <th>อีเมล</th>
+                  <th>แผนก</th>
+                  <th>สิทธิ์</th>
+                  <th>สถานะ</th>
+                  <th>เข้าระบบล่าสุด</th>
+                  <th style="text-align:right">จัดการ</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-gray-100">
+              <tbody>
                 @each(u in users)
                   @let(rowIsAdmin = u.userLevel === 'admin')
                   @let(rowIsActive = u.status === 1)
-                  @let(rowInitial = (u.fullname || u.username || '?').substring(0, 1).toUpperCase())
+                  @let(rowInitial = (u.fullname || u.username || '?').substring(0, 2))
                   <tr
                     data-search="{{ ((u.username || '') + ' ' + (u.fullname || '') + ' ' + (u.email || '') + ' ' + (u.department || '')).toLowerCase() }}"
                     data-level="{{ rowIsAdmin ? 'admin' : 'user' }}"
                   >
-                    <td class="px-4 py-2.5">
-                      <div class="flex items-center gap-2.5">
-                        <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-xs font-semibold">{{ rowInitial }}</div>
+                    <td>
+                      <div class="flex items-center gap-3">
+                        <span class="hic-avatar-sm" style="{{ rowIsActive ? '' : 'filter:grayscale(1);opacity:.6' }}">{{ rowInitial }}</span>
                         <div>
-                          <div class="font-medium text-gray-800">{{ u.fullname || '—' }}</div>
-                          <div class="text-xs text-gray-500">{{ '@' + u.username }}</div>
+                          <div class="font-semibold" style="color:var(--ink-strong)">{{ u.fullname || '—' }}</div>
+                          <div class="hic-mono" style="color:var(--ink-subtle)">{{ '@' + u.username }}</div>
                         </div>
                       </div>
                     </td>
-                    <td class="px-4 py-2.5 text-gray-700">{{ u.email || '—' }}</td>
-                    <td class="px-4 py-2.5 text-gray-700">{{ u.department || '—' }}</td>
-                    <td class="px-4 py-2.5">
-                      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs {{ rowIsAdmin ? 'bg-warning/15 text-warning' : 'bg-primary/15 text-primary' }}">
-                        <i class="fas fa-{{ rowIsAdmin ? 'crown' : 'user' }}" style="font-size:0.625rem;"></i>
-                        {{ rowIsAdmin ? 'ผู้ดูแล' : 'ผู้ใช้' }}
+                    <td>{{ u.email || '—' }}</td>
+                    <td>{{ u.department || '—' }}</td>
+                    <td>
+                      <span class="hic-badge {{ rowIsAdmin ? 'hic-badge-warn' : 'hic-badge-brand' }}">
+                        <i class="fas fa-{{ rowIsAdmin ? 'crown' : 'user' }}"></i>{{ rowIsAdmin ? 'ผู้ดูแล' : 'ผู้ใช้' }}
                       </span>
                     </td>
-                    <td class="px-4 py-2.5">
-                      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs {{ rowIsActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' }}">
-                        <span class="w-1.5 h-1.5 rounded-full {{ rowIsActive ? 'bg-green-500' : 'bg-gray-400' }}"></span>
-                        {{ rowIsActive ? 'ใช้งาน' : 'ปิดใช้งาน' }}
+                    <td>
+                      <span class="hic-badge {{ rowIsActive ? 'hic-badge-ok' : 'hic-badge-muted' }}">
+                        <span class="hic-dot"></span>{{ rowIsActive ? 'ใช้งาน' : 'ปิดใช้งาน' }}
                       </span>
                     </td>
-                    <td class="px-4 py-2.5 text-xs text-gray-500">
+                    <td style="color:var(--ink-subtle);font-size:13px;white-space:nowrap">
                       {{ u.lastLogin ? u.lastLogin.toFormat('dd/MM/yyyy HH:mm') : '—' }}
                     </td>
-                    <td class="px-4 py-2.5">
+                    <td>
                       <div class="flex justify-end gap-1">
-                        <button type="button" title="แก้ไข"
-                          onclick="openEditModal({{ JSON.stringify({ id: u.id, username: u.username, fullname: u.fullname, email: u.email, department: u.department, user_level: u.userLevel, status: u.status }) }})"
-                          class="w-8 h-8 rounded hover:bg-gray-100 text-gray-600">
-                          <i class="fas fa-pen text-sm"></i>
+                        <button type="button" title="แก้ไข" class="hic-act is-brand"
+                          onclick="openEditModal({{ JSON.stringify({ id: u.id, username: u.username, fullname: u.fullname, email: u.email, department: u.department, user_level: u.userLevel, status: u.status }) }})">
+                          <i class="fas fa-pen"></i>
                         </button>
-                        <button type="button" title="รีเซ็ตรหัสผ่าน"
-                          onclick="openResetModal({{ u.id }}, '{{ u.username }}')"
-                          class="w-8 h-8 rounded hover:bg-gray-100 text-warning">
-                          <i class="fas fa-key text-sm"></i>
+                        <button type="button" title="รีเซ็ตรหัสผ่าน" class="hic-act is-warn"
+                          onclick="openResetModal({{ u.id }}, '{{ u.username }}')">
+                          <i class="fas fa-key"></i>
                         </button>
                         @if(u.id !== auth.user.id)
-                          <button type="button" title="ลบ"
-                            onclick="confirmDelete({{ u.id }}, '{{ u.username }}')"
-                            class="w-8 h-8 rounded hover:bg-gray-100 text-danger">
-                            <i class="fas fa-trash text-sm"></i>
+                          <button type="button" title="ลบ" class="hic-act is-bad"
+                            onclick="confirmDelete({{ u.id }}, '{{ u.username }}')">
+                            <i class="fas fa-trash"></i>
                           </button>
                         @end
                       </div>
@@ -147,121 +136,104 @@
               </tbody>
             </table>
           </div>
-          <div id="emptyResult" class="py-12 text-center text-gray-500 hidden">
-            <i class="fas fa-magnifying-glass text-2xl mb-2 text-gray-300"></i>
-            <div class="text-sm">ไม่พบผู้ใช้ตรงตามเงื่อนไข</div>
+          <div id="emptyResult" class="hic-empty hidden">
+            <span class="hic-empty-icon"><i class="fas fa-magnifying-glass"></i></span>
+            <b>ไม่พบผู้ใช้ตรงตามเงื่อนไข</b>
           </div>
         @end
       </div>
     </div>
 
     {{-- Add / Edit modal --}}
-    <div id="userModal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-4">
-      <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl">
-        <div class="flex items-center justify-between p-4 border-b border-gray-200">
-          <h3 class="text-base font-semibold text-gray-800 flex items-center gap-2">
-            <i id="userModalIcon" class="fas fa-user-plus text-primary"></i>
-            <span id="userModalTitle">เพิ่มผู้ใช้ใหม่</span>
-          </h3>
-          <button type="button" onclick="closeUserModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-xmark"></i></button>
+    <div id="userModal" class="hic-modal hidden" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+      <div class="hic-modal-box hic-tone-blue">
+        <div class="hic-modal-head">
+          <span class="hic-modal-icon"><i id="userModalIcon" class="fas fa-user-plus"></i></span>
+          <h3 id="userModalTitle">เพิ่มผู้ใช้ใหม่</h3>
+          <button type="button" onclick="closeUserModal()" class="hic-iconbtn" aria-label="ปิด"><i class="fas fa-xmark"></i></button>
         </div>
-        <form id="userForm" method="POST" action="/admin/users">
+        <form id="userForm" method="POST" action="/admin/users" class="contents">
           {{ csrfField() }}
           <input type="hidden" name="_method" id="userMethod" value="">
-          <div class="p-5 space-y-4">
-            <input type="hidden" name="user_id" id="userId" />
+          <input type="hidden" name="user_id" id="userId" />
+          <div class="hic-modal-body">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div id="usernameGroup">
-                <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้ใช้ <span class="text-red-500">*</span></label>
-                <input type="text" name="username" id="username" required
-                  class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+                <label class="hic-label" for="username">ชื่อผู้ใช้ <span class="hic-req">*</span></label>
+                <input type="text" name="username" id="username" required class="hic-input" autocomplete="off" />
               </div>
               <div id="passwordGroup">
-                <label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน <span class="text-red-500">*</span></label>
-                <input type="password" name="password" id="password" required minlength="6"
-                  placeholder="อย่างน้อย 6 ตัวอักษร"
-                  class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+                <label class="hic-label" for="password">รหัสผ่าน <span class="hic-req">*</span></label>
+                <input type="password" name="password" id="password" required minlength="6" placeholder="อย่างน้อย 6 ตัวอักษร" class="hic-input" autocomplete="new-password" />
               </div>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อ-นามสกุล <span class="text-red-500">*</span></label>
-              <input type="text" name="fullname" id="fullname" required
-                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+              <label class="hic-label" for="fullname">ชื่อ-นามสกุล <span class="hic-req">*</span></label>
+              <input type="text" name="fullname" id="fullname" required class="hic-input" />
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">อีเมล</label>
-                <input type="email" name="email" id="email"
-                  class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+                <label class="hic-label" for="email">อีเมล</label>
+                <input type="email" name="email" id="email" class="hic-input" />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">แผนก</label>
-                <input type="text" name="department" id="department"
-                  class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+                <label class="hic-label" for="department">แผนก</label>
+                <input type="text" name="department" id="department" class="hic-input" />
               </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">สิทธิ์ <span class="text-red-500">*</span></label>
-                <select name="user_level" id="user_level" required
-                  class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white">
+                <label class="hic-label" for="user_level">สิทธิ์ <span class="hic-req">*</span></label>
+                <select name="user_level" id="user_level" required class="hic-input">
                   <option value="user">ผู้ใช้ทั่วไป</option>
                   <option value="admin">ผู้ดูแลระบบ</option>
                 </select>
               </div>
               <div id="statusGroup" class="hidden">
-                <label class="block text-sm font-medium text-gray-700 mb-1">สถานะ <span class="text-red-500">*</span></label>
-                <select name="status" id="status"
-                  class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white">
+                <label class="hic-label" for="status">สถานะ <span class="hic-req">*</span></label>
+                <select name="status" id="status" class="hic-input">
                   <option value="1">ใช้งาน</option>
                   <option value="0">ปิดใช้งาน</option>
                 </select>
               </div>
             </div>
           </div>
-          <div class="px-5 py-3 border-t border-gray-200 flex justify-end gap-2 bg-gray-50">
-            <button type="button" onclick="closeUserModal()" class="px-3 py-2 rounded-md text-sm border border-gray-300 hover:bg-gray-100">ยกเลิก</button>
-            <button type="submit" class="px-3 py-2 rounded-md text-sm bg-primary text-white hover:bg-primary/90 flex items-center gap-1.5">
-              <i class="fas fa-save text-xs"></i>บันทึก
-            </button>
+          <div class="hic-modal-foot">
+            <button type="button" onclick="closeUserModal()" class="hic-btn hic-btn-ghost">ยกเลิก</button>
+            <button type="submit" class="hic-btn hic-btn-primary"><i class="fas fa-floppy-disk"></i>บันทึก</button>
           </div>
         </form>
       </div>
     </div>
 
     {{-- Reset password modal --}}
-    <div id="resetModal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-4">
-      <div class="bg-white rounded-xl shadow-xl w-full max-w-md">
-        <div class="flex items-center justify-between p-4 border-b border-gray-200">
-          <h3 class="text-base font-semibold text-gray-800 flex items-center gap-2">
-            <i class="fas fa-key text-warning"></i>รีเซ็ตรหัสผ่าน
-          </h3>
-          <button type="button" onclick="closeResetModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-xmark"></i></button>
+    <div id="resetModal" class="hic-modal hidden" role="dialog" aria-modal="true">
+      <div class="hic-modal-box is-sm hic-tone-yellow">
+        <div class="hic-modal-head">
+          <span class="hic-modal-icon"><i class="fas fa-key"></i></span>
+          <h3>รีเซ็ตรหัสผ่าน</h3>
+          <button type="button" onclick="closeResetModal()" class="hic-iconbtn" aria-label="ปิด"><i class="fas fa-xmark"></i></button>
         </div>
-        <form method="POST" action="/admin/users/reset-password">
+        <form method="POST" action="/admin/users/reset-password" class="contents">
           {{ csrfField() }}
-          <div class="p-5 space-y-4">
-            <input type="hidden" name="user_id" id="resetUserId" />
-            <div class="px-3 py-2 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-sm flex items-center gap-2">
+          <input type="hidden" name="user_id" id="resetUserId" />
+          <div class="hic-modal-body">
+            <div class="hic-alert hic-alert-info">
               <i class="fas fa-circle-info"></i>
               <span>กำลังรีเซ็ตรหัสผ่านของ <b id="resetUsername"></b></span>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่านใหม่ <span class="text-red-500">*</span></label>
-              <input type="password" name="new_password" required minlength="6"
-                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+              <label class="hic-label">รหัสผ่านใหม่ <span class="hic-req">*</span></label>
+              <input type="password" name="new_password" required minlength="6" class="hic-input" autocomplete="new-password" />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">ยืนยันรหัสผ่านใหม่ <span class="text-red-500">*</span></label>
-              <input type="password" name="confirm_password" required minlength="6"
-                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+              <label class="hic-label">ยืนยันรหัสผ่านใหม่ <span class="hic-req">*</span></label>
+              <input type="password" name="confirm_password" required minlength="6" class="hic-input" autocomplete="new-password" />
             </div>
           </div>
-          <div class="px-5 py-3 border-t border-gray-200 flex justify-end gap-2 bg-gray-50">
-            <button type="button" onclick="closeResetModal()" class="px-3 py-2 rounded-md text-sm border border-gray-300 hover:bg-gray-100">ยกเลิก</button>
-            <button type="submit" class="px-3 py-2 rounded-md text-sm bg-warning text-white hover:bg-warning/90 flex items-center gap-1.5">
-              <i class="fas fa-rotate text-xs"></i>รีเซ็ต
-            </button>
+          <div class="hic-modal-foot">
+            <button type="button" onclick="closeResetModal()" class="hic-btn hic-btn-ghost">ยกเลิก</button>
+            <button type="submit" class="hic-btn hic-btn-primary"><i class="fas fa-rotate"></i>รีเซ็ต</button>
           </div>
         </form>
       </div>
@@ -281,6 +253,7 @@
         document.getElementById('userForm').action = '/admin/users'
         document.getElementById('userForm').reset()
         document.getElementById('userModalTitle').textContent = 'เพิ่มผู้ใช้ใหม่'
+        document.getElementById('userModalIcon').className = 'fas fa-user-plus'
         document.getElementById('usernameGroup').classList.remove('hidden')
         document.getElementById('passwordGroup').classList.remove('hidden')
         document.getElementById('username').required = true
@@ -288,11 +261,13 @@
         document.getElementById('statusGroup').classList.add('hidden')
         document.getElementById('userId').value = ''
         showModal('userModal')
+        setTimeout(() => document.getElementById('username').focus(), 50)
       }
 
       function openEditModal(user) {
         document.getElementById('userForm').action = '/admin/users/update'
         document.getElementById('userModalTitle').textContent = 'แก้ไขข้อมูลผู้ใช้'
+        document.getElementById('userModalIcon').className = 'fas fa-user-pen'
         document.getElementById('userId').value = user.id
         document.getElementById('username').value = user.username || ''
         document.getElementById('fullname').value = user.fullname || ''
@@ -324,12 +299,15 @@
         document.getElementById('deleteForm').submit()
       }
 
-      // Close modal on backdrop click
+      // Close modal on backdrop click / Escape
       document.getElementById('userModal').addEventListener('click', e => {
         if (e.target.id === 'userModal') closeUserModal()
       })
       document.getElementById('resetModal').addEventListener('click', e => {
         if (e.target.id === 'resetModal') closeResetModal()
+      })
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { closeUserModal(); closeResetModal() }
       })
 
       // Search + filter
