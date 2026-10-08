@@ -1,8 +1,6 @@
-<h1>
-  {{ error.code }} - Server error
-</h1>
-<p>
-  This template is rendered by the
-  <a href="http://docs.adonisjs.com/guides/exception-handling#status-pages">status pages feature</a>
-  of the global exception handler.
-</p>
+@!component('partials/error_page', {
+  errCode: String((error && (error.status || error.code)) || 500),
+  errTitle: 'ระบบขัดข้องชั่วคราว',
+  errMessage: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์ กรุณาลองใหม่อีกครั้ง หรือแจ้งผู้ดูแลระบบ',
+  errIcon: 'fa-triangle-exclamation',
+})

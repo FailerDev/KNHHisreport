@@ -4,188 +4,201 @@
   isAdmin: true,
   fullname: auth.user.fullname || auth.user.username,
   department: auth.user.department,
-  currentPage: '',
+  currentPage: 'report-settings',
 })
   @slot('main')
-    <div class="max-w-5xl mx-auto">
-      <div class="mb-3">
-        <a href="/admin/report-settings" class="text-sm text-primary hover:underline inline-flex items-center gap-1">
-          <i class="fas fa-arrow-left text-xs"></i> กลับไปตั้งค่ารายงาน
-        </a>
-      </div>
-      <header class="mb-5">
-        <h1 class="text-2xl font-semibold text-gray-800 flex items-center gap-2">
-          <i class="fas fa-list-check text-primary"></i> พารามิเตอร์ของรายงาน
-        </h1>
-        <p class="text-sm text-gray-500 mt-1">รายงาน: <strong>{{{ safeReportTitle(report.detail) }}}</strong></p>
-      </header>
-
-      @if(message)
-        <div class="mb-4 px-4 py-3 rounded-lg border text-sm flex items-center gap-2 {{ messageType === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700' }}">
-          <i class="fas {{ messageType === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation' }}"></i>
-          <span>{{ message }}</span>
+    @let(typeIcons = { text: 'fa-font', number: 'fa-hashtag', date: 'fa-calendar-day', datetime: 'fa-clock', select: 'fa-list', textarea: 'fa-align-left' })
+    <div class="max-w-6xl mx-auto flex flex-col gap-6">
+      <div>
+        <nav class="hic-crumb" aria-label="breadcrumb">
+          <a href="/admin/report-settings"><i class="fas fa-sliders"></i> ตั้งค่ารายงาน</a>
+          <i class="fas fa-chevron-right"></i>
+          <span>พารามิเตอร์</span>
+        </nav>
+        <div class="hic-pagehead" style="margin-bottom:0">
+          <div class="hic-pagehead-title hic-tone-yellow">
+            <span class="hic-pagehead-icon"><i class="fas fa-list-check"></i></span>
+            <div class="min-w-0">
+              <h1>พารามิเตอร์ของรายงาน</h1>
+              <p class="break-words">รายงาน: <b style="color:var(--ink-strong)">{{{ safeReportTitle(report.detail) }}}</b></p>
+            </div>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <a href="/reports/{{ report.id }}" class="hic-btn hic-btn-secondary"><i class="fas fa-eye"></i><span>เปิดรายงาน</span></a>
+            <button type="button" onclick="openParamModal()" class="hic-btn hic-btn-primary"><i class="fas fa-plus"></i><span>เพิ่มพารามิเตอร์</span></button>
+          </div>
         </div>
-      @end
+      </div>
+
+      @include('partials/flash')
 
       {{-- Detected from SQL --}}
-      <section class="bg-white rounded-xl border border-gray-200 mb-4 p-4">
-        <h2 class="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
-          <i class="fas fa-magnifying-glass text-primary"></i>พารามิเตอร์ที่ตรวจพบใน SQL
-        </h2>
-        @if(detected.length === 0)
-          <p class="text-sm text-gray-500">ไม่พบ <code>@@token</code> ใน SQL ของรายงานนี้</p>
-        @else
-          <div class="flex flex-wrap gap-1.5 mb-3">
-            @each(name in detected)
-              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700 font-mono">{{ '@' + name }}</span>
-            @end
+      <section class="hic-panel hic-rise">
+        <div class="hic-panel-head">
+          <div>
+            <h2><i class="fas fa-magnifying-glass-chart" style="color:var(--heading)"></i>พารามิเตอร์ที่ตรวจพบใน SQL</h2>
+            <p>token ในรูปแบบ <code class="hic-mono">{{ '@' }}name</code> ที่พบใน SQL ของรายงานนี้</p>
           </div>
-          @if(undefinedDetected.length > 0)
-            <div class="flex flex-wrap gap-3 items-center pt-3 border-t border-gray-100">
-              <div class="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 px-2.5 py-1.5 rounded">
-                <i class="fas fa-triangle-exclamation"></i>
-                ยังไม่ได้กำหนด: {{ undefinedDetected.length }} ตัว ({{ undefinedDetected.map(d => '@' + d).join(', ') }})
-              </div>
-              <form method="POST" action="/admin/reports/{{ report.id }}/parameters/auto-detect">
-                {{ csrfField() }}
-                <button type="submit" class="px-3 py-1.5 text-xs rounded-md bg-secondary text-white hover:bg-secondary/90 flex items-center gap-1">
-                  <i class="fas fa-wand-magic-sparkles"></i>สร้างพารามิเตอร์อัตโนมัติ
-                </button>
-              </form>
-            </div>
+          @if(detected.length > 0)
+            <span class="hic-pill">{{ detected.length }}</span>
           @end
-        @end
+        </div>
+        <div class="hic-panel-body">
+          @if(detected.length === 0)
+            <p class="text-sm" style="color:var(--ink-subtle)"><i class="fas fa-circle-info mr-1"></i>ไม่พบ <code class="hic-mono">{{ '@' }}token</code> ใน SQL ของรายงานนี้</p>
+          @else
+            <div class="flex flex-wrap gap-2">
+              @each(name in detected)
+                @let(isUndef = undefinedDetected.includes(name))
+                <span class="hic-badge {{ isUndef ? 'hic-badge-warn' : 'hic-badge-ok' }} hic-mono" style="font-size:12.5px;padding:4px 10px">
+                  <i class="fas {{ isUndef ? 'fa-circle-exclamation' : 'fa-circle-check' }}"></i>{{ '@' + name }}
+                </span>
+              @end
+            </div>
+            @if(undefinedDetected.length > 0)
+              <div class="mt-4 pt-4 flex flex-wrap gap-3 items-center justify-between" style="border-top:1px dashed var(--border-strong)">
+                <div class="text-sm" style="color:var(--warn)">
+                  <i class="fas fa-triangle-exclamation"></i>
+                  ยังไม่ได้กำหนด {{ undefinedDetected.length }} ตัว: <span class="hic-mono">{{ undefinedDetected.map(d => '@' + d).join(', ') }}</span>
+                </div>
+                <form method="POST" action="/admin/reports/{{ report.id }}/parameters/auto-detect">
+                  {{ csrfField() }}
+                  <button type="submit" class="hic-btn hic-btn-primary hic-btn-sm">
+                    <i class="fas fa-wand-magic-sparkles"></i>สร้างพารามิเตอร์อัตโนมัติ
+                  </button>
+                </form>
+              </div>
+            @end
+          @end
+        </div>
       </section>
 
       {{-- Existing params list --}}
-      <section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4">
-        <header class="p-4 border-b border-gray-200 flex justify-between items-center">
+      <section class="hic-panel overflow-hidden hic-rise" style="--i:1">
+        <div class="hic-panel-head">
           <div>
-            <h2 class="text-sm font-semibold text-gray-800">พารามิเตอร์ที่กำหนด</h2>
-            <p class="text-xs text-gray-500">{{ parameters.length }} รายการ</p>
+            <h2><i class="fas fa-sliders" style="color:var(--heading)"></i>พารามิเตอร์ที่กำหนด <span class="hic-pill">{{ parameters.length }}</span></h2>
+            <p>ฟิลด์เหล่านี้จะแสดงในฟอร์มเงื่อนไขของหน้ารายงาน ตามลำดับ</p>
           </div>
-          <button type="button" onclick="openParamModal()" class="px-3 py-1.5 rounded-md bg-primary hover:bg-primary/90 text-white text-sm flex items-center gap-1.5">
-            <i class="fas fa-plus text-xs"></i><span>เพิ่ม</span>
-          </button>
-        </header>
+        </div>
         @if(parameters.length === 0)
-          <div class="py-12 text-center text-sm text-gray-500">
-            <i class="fas fa-inbox text-2xl text-gray-300 mb-2"></i>
-            <div>ยังไม่มีพารามิเตอร์</div>
+          <div class="hic-empty">
+            <span class="hic-empty-icon"><i class="fas fa-inbox"></i></span>
+            <b>ยังไม่มีพารามิเตอร์</b>
+            <span>เพิ่มเองหรือกด "สร้างพารามิเตอร์อัตโนมัติ" จาก token ที่ตรวจพบ</span>
           </div>
         @else
-          <table class="w-full text-sm">
-            <thead class="bg-gray-50 text-gray-600 text-xs uppercase">
-              <tr>
-                <th class="text-left px-4 py-2">ชื่อ</th>
-                <th class="text-left px-4 py-2">คำอธิบาย</th>
-                <th class="text-left px-4 py-2">ชนิด</th>
-                <th class="text-left px-4 py-2">Default</th>
-                <th class="text-center px-4 py-2">บังคับ</th>
-                <th class="text-center px-4 py-2">Sort</th>
-                <th class="text-right px-4 py-2">จัดการ</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-              @each(p in parameters)
+          <div class="overflow-x-auto">
+            <table class="hic-table">
+              <thead>
                 <tr>
-                  <td class="px-4 py-2.5 font-mono text-primary">{{ '@' + p.paramName }}</td>
-                  <td class="px-4 py-2.5">{{ p.paramLabel }}</td>
-                  <td class="px-4 py-2.5"><span class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs">{{ p.paramType }}</span></td>
-                  <td class="px-4 py-2.5 text-gray-700">{{ p.paramDefault || '—' }}</td>
-                  <td class="px-4 py-2.5 text-center">
-                    @if(p.paramRequired)
-                      <i class="fas fa-check text-success"></i>
-                    @else
-                      <span class="text-gray-300">—</span>
-                    @end
-                  </td>
-                  <td class="px-4 py-2.5 text-center">{{ p.sortOrder }}</td>
-                  <td class="px-4 py-2.5">
-                    <div class="flex justify-end gap-1">
-                      <button type="button" title="แก้ไข"
-                        onclick="openParamModal({{ JSON.stringify({ id: p.id, param_name: p.paramName, param_label: p.paramLabel, param_type: p.paramType, param_default: p.paramDefault, param_required: p.paramRequired, options: p.options, sort_order: p.sortOrder }) }})"
-                        class="w-8 h-8 rounded hover:bg-gray-100 text-gray-600"><i class="fas fa-pen text-sm"></i></button>
-                      <button type="button" title="ลบ" onclick="confirmDeleteParam({{ p.id }}, {{ JSON.stringify(p.paramName) }})"
-                        class="w-8 h-8 rounded hover:bg-gray-100 text-danger"><i class="fas fa-trash text-sm"></i></button>
-                    </div>
-                  </td>
+                  <th style="width:60px;text-align:center">ลำดับ</th>
+                  <th>ชื่อ</th>
+                  <th>คำอธิบาย</th>
+                  <th>ชนิด</th>
+                  <th>ค่าเริ่มต้น</th>
+                  <th style="text-align:center">บังคับ</th>
+                  <th style="text-align:right">จัดการ</th>
                 </tr>
-              @end
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                @each(p in parameters)
+                  <tr>
+                    <td style="text-align:center;color:var(--ink-muted)">{{ p.sortOrder }}</td>
+                    <td><span class="hic-mono font-semibold" style="color:var(--brand-from)">{{ '@' + p.paramName }}</span></td>
+                    <td style="color:var(--ink-strong)">{{ p.paramLabel }}</td>
+                    <td><span class="hic-badge hic-badge-muted"><i class="fas {{ typeIcons[p.paramType] || 'fa-font' }}"></i>{{ p.paramType }}</span></td>
+                    <td>{{ p.paramDefault || '—' }}</td>
+                    <td style="text-align:center">
+                      @if(p.paramRequired)
+                        <span class="hic-badge hic-badge-ok"><i class="fas fa-check"></i>ใช่</span>
+                      @else
+                        <span style="color:var(--ink-muted)">—</span>
+                      @end
+                    </td>
+                    <td>
+                      <div class="flex justify-end gap-1">
+                        <button type="button" title="แก้ไข" class="hic-act is-brand"
+                          onclick="openParamModal({{ JSON.stringify({ id: p.id, param_name: p.paramName, param_label: p.paramLabel, param_type: p.paramType, param_default: p.paramDefault, param_required: p.paramRequired, options: p.options, sort_order: p.sortOrder }) }})"><i class="fas fa-pen"></i></button>
+                        <button type="button" title="ลบ" class="hic-act is-bad"
+                          onclick="confirmDeleteParam({{ p.id }}, {{ JSON.stringify(p.paramName) }})"><i class="fas fa-trash"></i></button>
+                      </div>
+                    </td>
+                  </tr>
+                @end
+              </tbody>
+            </table>
+          </div>
         @end
       </section>
     </div>
 
     {{-- Param modal --}}
-    <div id="paramModal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-4">
-      <div class="bg-white rounded-xl shadow-xl w-full max-w-xl">
-        <div class="flex items-center justify-between p-4 border-b border-gray-200">
-          <h3 class="text-base font-semibold text-gray-800 flex items-center gap-2">
-            <i class="fas fa-list-check text-primary"></i><span id="paramModalTitle">เพิ่มพารามิเตอร์</span>
-          </h3>
-          <button type="button" onclick="hide('paramModal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-xmark"></i></button>
+    <div id="paramModal" class="hic-modal hidden" role="dialog" aria-modal="true">
+      <div class="hic-modal-box hic-tone-yellow">
+        <div class="hic-modal-head">
+          <span class="hic-modal-icon"><i class="fas fa-list-check"></i></span>
+          <h3 id="paramModalTitle">เพิ่มพารามิเตอร์</h3>
+          <button type="button" onclick="hide('paramModal')" class="hic-iconbtn" aria-label="ปิด"><i class="fas fa-xmark"></i></button>
         </div>
-        <form id="paramForm" method="POST" action="/admin/reports/{{ report.id }}/parameters" class="p-5 space-y-4">
+        <form id="paramForm" method="POST" action="/admin/reports/{{ report.id }}/parameters" class="contents">
           {{ csrfField() }}
           <input type="hidden" name="id" id="param_id" />
+          <div class="hic-modal-body">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="hic-label" for="param_name">ชื่อ (param_name) <span class="hic-req">*</span></label>
+                <div class="hic-field-icon">
+                  <i class="fas fa-at"></i>
+                  <input name="param_name" id="param_name" required pattern="[a-zA-Z_][a-zA-Z0-9_]*" class="hic-input hic-mono" style="font-size:14px" />
+                </div>
+                <div class="hic-help">ต้องตรงกับ <code class="hic-mono">{{ '@' }}token</code> ใน SQL</div>
+              </div>
+              <div>
+                <label class="hic-label" for="param_label">คำอธิบาย (label) <span class="hic-req">*</span></label>
+                <input name="param_label" id="param_label" required class="hic-input" placeholder="เช่น วันที่เริ่มต้น" />
+              </div>
+            </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อ (param_name) <span class="text-red-500">*</span></label>
-              <input name="param_name" id="param_name" required pattern="[a-zA-Z_][a-zA-Z0-9_]*"
-                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none font-mono" />
-              <p class="text-xs text-gray-500 mt-1">ต้องตรงกับ <code>@@token</code> ใน SQL</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="hic-label" for="param_type">ชนิด <span class="hic-req">*</span></label>
+                <select name="param_type" id="param_type" required
+                  onchange="document.getElementById('options_wrap').style.display = this.value === 'select' ? '' : 'none'"
+                  class="hic-input">
+                  <option value="text">text</option>
+                  <option value="number">number</option>
+                  <option value="date">date</option>
+                  <option value="datetime">datetime</option>
+                  <option value="select">select</option>
+                  <option value="textarea">textarea</option>
+                </select>
+              </div>
+              <div>
+                <label class="hic-label" for="param_default">ค่าเริ่มต้น</label>
+                <input name="param_default" id="param_default" class="hic-input" />
+              </div>
+              <div>
+                <label class="hic-label" for="sort_order">ลำดับ</label>
+                <input type="number" name="sort_order" id="sort_order" min="1" value="1" class="hic-input" />
+              </div>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">คำอธิบาย (label) <span class="text-red-500">*</span></label>
-              <input name="param_label" id="param_label" required
-                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+
+            <div id="options_wrap" style="display:none">
+              <label class="hic-label" for="options">ตัวเลือก <small>(สำหรับ select)</small></label>
+              <input name="options" id="options" placeholder="comma,separated หรือ JSON array" class="hic-input" />
+              <div class="hic-help">เช่น <code class="hic-mono">option1, option2, option3</code></div>
             </div>
+
+            <label class="hic-switch">
+              <input type="checkbox" name="param_required" id="param_required" value="1" />
+              <span class="track"></span>
+              <span>จำเป็นต้องกรอก</span>
+            </label>
           </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">ชนิด <span class="text-red-500">*</span></label>
-              <select name="param_type" id="param_type" required
-                onchange="document.getElementById('options_wrap').style.display = this.value === 'select' ? '' : 'none'"
-                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none bg-white">
-                <option value="text">text</option>
-                <option value="number">number</option>
-                <option value="date">date</option>
-                <option value="datetime">datetime</option>
-                <option value="select">select</option>
-                <option value="textarea">textarea</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">ค่าเริ่มต้น</label>
-              <input name="param_default" id="param_default"
-                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">ลำดับ</label>
-              <input type="number" name="sort_order" id="sort_order" min="1" value="1"
-                class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
-            </div>
-          </div>
-
-          <div id="options_wrap" style="display:none">
-            <label class="block text-sm font-medium text-gray-700 mb-1">ตัวเลือก (สำหรับ select)</label>
-            <input name="options" id="options" placeholder="comma,separated หรือ JSON array"
-              class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
-            <p class="text-xs text-gray-500 mt-1">เช่น <code>option1, option2, option3</code></p>
-          </div>
-
-          <label class="inline-flex items-center gap-2 text-sm">
-            <input type="checkbox" name="param_required" id="param_required" value="1" class="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary" />
-            <span>จำเป็นต้องกรอก</span>
-          </label>
-
-          <div class="pt-3 border-t border-gray-200 flex justify-end gap-2">
-            <button type="button" onclick="hide('paramModal')" class="px-3 py-2 rounded-md text-sm border border-gray-300 hover:bg-gray-100">ยกเลิก</button>
-            <button type="submit" class="px-3 py-2 rounded-md text-sm bg-primary text-white hover:bg-primary/90"><i class="fas fa-save text-xs"></i> บันทึก</button>
+          <div class="hic-modal-foot">
+            <button type="button" onclick="hide('paramModal')" class="hic-btn hic-btn-ghost">ยกเลิก</button>
+            <button type="submit" class="hic-btn hic-btn-primary"><i class="fas fa-floppy-disk"></i>บันทึก</button>
           </div>
         </form>
       </div>
@@ -237,6 +250,7 @@
         document.getElementById('deleteParamForm').submit()
       }
       document.getElementById('paramModal').addEventListener('click', e => { if (e.target.id === 'paramModal') hide('paramModal') })
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') hide('paramModal') })
     </script>
   @end
 @end

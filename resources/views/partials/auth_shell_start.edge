@@ -1,0 +1,49 @@
+{{-- Opening half of the split-screen auth shell (login / register). Pair with auth_shell_end. --}}
+<div class="min-h-screen grid lg:grid-cols-[1.05fr_1fr]">
+  <aside class="hidden lg:flex relative overflow-hidden flex-col justify-between p-12 text-white"
+    style="background:linear-gradient(135deg,var(--brand-from),var(--brand-to))">
+    <div class="absolute -top-40 -right-32 w-[28rem] h-[28rem] rounded-full bg-white/10 blur-3xl"></div>
+    <div class="absolute -bottom-40 -left-24 w-[26rem] h-[26rem] rounded-full bg-cyan-300/20 blur-3xl"></div>
+    <i class="fas fa-heart-pulse absolute -right-10 -bottom-16 text-[280px] opacity-[.07] -rotate-12" aria-hidden="true"></i>
+
+    <a href="/" class="relative flex items-center gap-3 text-white no-underline">
+      <span class="w-12 h-12 rounded-2xl bg-white/15 border border-white/25 grid place-items-center text-xl backdrop-blur"><i class="fas fa-heart-pulse"></i></span>
+      <span class="leading-tight"><b class="block text-xl">HisReport</b><span class="text-sm text-white/80">ระบบรายงานข้อมูล HIS</span></span>
+    </a>
+
+    <div class="relative max-w-md">
+      <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-[13px]"><i class="fas fa-hospital"></i>Hospital Information System</span>
+      <h1 class="mt-5 text-[40px] leading-[52px] font-bold">ข้อมูลโรงพยาบาล<br />พร้อมใช้ในไม่กี่คลิก</h1>
+      <p class="mt-4 text-white/85 leading-relaxed">ระบบรายงานสถิติโรงพยาบาลแบบรวมศูนย์ จัดการรายงาน วิเคราะห์ผล และส่งออกได้ในที่เดียว</p>
+
+      <ul class="mt-8 grid gap-3">
+        <li class="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur">
+          <span class="w-10 h-10 rounded-xl bg-white/20 grid place-items-center"><i class="fas fa-chart-line"></i></span>
+          <span><b class="block text-[15px]">แดชบอร์ด Real-time</b><span class="text-[13px] text-white/75">สถิติสำคัญจากระบบ HIS</span></span>
+        </li>
+        <li class="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur">
+          <span class="w-10 h-10 rounded-xl bg-white/20 grid place-items-center"><i class="fas fa-file-export"></i></span>
+          <span><b class="block text-[15px]">ส่งออก Excel ทันที</b><span class="text-[13px] text-white/75">ทุกรายงาน รองรับข้อมูลจำนวนมาก</span></span>
+        </li>
+        <li class="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur">
+          <span class="w-10 h-10 rounded-xl bg-white/20 grid place-items-center"><i class="fas fa-shield-halved"></i></span>
+          <span><b class="block text-[15px]">ปลอดภัย</b><span class="text-[13px] text-white/75">อ่าน HIS แบบ read-only พร้อม audit log</span></span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="relative text-xs text-white/70">© {{ new Date().getFullYear() + 543 }} HisReport · โรงพยาบาลแก้งสนามนาง</div>
+  </aside>
+
+  <section class="relative flex flex-col">
+    <div class="flex items-center justify-between px-6 py-5">
+      <a href="/" class="hic-brand lg:invisible">
+        <span class="hic-logo"><i class="fas fa-heart-pulse"></i></span>
+        <span class="hic-brand-text"><b>HisReport</b></span>
+      </a>
+      <button class="hic-iconbtn" type="button" data-theme-toggle aria-label="สลับโหมดสว่าง/มืด" title="สลับโหมดสว่าง/มืด">
+        <i class="fas fa-moon" data-theme-icon></i>
+      </button>
+    </div>
+    <div class="flex-1 flex items-center justify-center px-6 pb-12">
+      <div class="w-full max-w-[420px] hic-rise">

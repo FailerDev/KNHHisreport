@@ -4,123 +4,133 @@
   isAdmin: true,
   fullname: auth.user.fullname || auth.user.username,
   department: auth.user.department,
-  currentPage: '',
+  currentPage: 'report-settings',
 })
   @slot('main')
-    <div class="max-w-6xl mx-auto">
-      <header class="mb-5 flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 class="text-2xl font-semibold text-gray-800 flex items-center gap-2">
-            <i class="fas fa-sliders text-primary"></i> ตั้งค่ารายงาน
-          </h1>
-          <p class="text-sm text-gray-500 mt-1">จัดการหมวดหมู่และรายงาน + ทดสอบ SQL</p>
+    @let(tones = ['blue', 'violet', 'teal', 'pink', 'indigo', 'green', 'yellow', 'sky'])
+    @let(totalReports = heads.reduce((n, h) => n + (reportsByHead[h.id] || []).length, 0))
+    <div class="flex flex-col gap-6">
+      <div class="hic-pagehead" style="margin-bottom:0">
+        <div class="hic-pagehead-title hic-tone-indigo">
+          <span class="hic-pagehead-icon"><i class="fas fa-sliders"></i></span>
+          <div>
+            <h1>ตั้งค่ารายงาน</h1>
+            <p>จัดการหมวดหมู่ รายงาน และ SQL template พร้อมทดสอบ SQL</p>
+          </div>
         </div>
-        <div class="flex gap-2">
-          <button type="button" onclick="openHeadModal()" class="px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-sm flex items-center gap-1.5">
-            <i class="fas fa-folder-plus text-xs"></i><span>เพิ่มหมวดหมู่</span>
+        <div class="flex gap-2 flex-wrap">
+          <button type="button" onclick="openHeadModal()" class="hic-btn hic-btn-secondary">
+            <i class="fas fa-folder-plus"></i><span>เพิ่มหมวดหมู่</span>
           </button>
-          <button type="button" onclick="openReportModal()" class="px-3 py-2 rounded-md bg-primary hover:bg-primary/90 text-white text-sm flex items-center gap-1.5">
-            <i class="fas fa-plus text-xs"></i><span>เพิ่มรายงาน</span>
+          <button type="button" onclick="openReportModal()" class="hic-btn hic-btn-primary">
+            <i class="fas fa-plus"></i><span>เพิ่มรายงาน</span>
           </button>
         </div>
-      </header>
+      </div>
 
-      @if(message)
-        <div class="mb-4 px-4 py-3 rounded-lg border text-sm flex items-center gap-2 {{ messageType === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700' }}">
-          <i class="fas {{ messageType === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation' }}"></i>
-          <span>{{ message }}</span>
+      @include('partials/flash')
+
+      <div class="hic-metrics">
+        <div class="hic-metric hic-tone-blue hic-rise" style="--i:0">
+          <span class="hic-metric-icon"><i class="fas fa-folder-tree"></i></span>
+          <div><div class="hic-metric-label">หมวดหมู่</div><div class="hic-metric-value">{{ heads.length }}</div></div>
         </div>
-      @end
+        <div class="hic-metric hic-tone-violet hic-rise" style="--i:1">
+          <span class="hic-metric-icon"><i class="fas fa-file-lines"></i></span>
+          <div><div class="hic-metric-label">รายงานทั้งหมด</div><div class="hic-metric-value">{{ totalReports }}</div></div>
+        </div>
+      </div>
 
       @if(heads.length === 0)
-        <div class="bg-white rounded-xl border border-gray-200 py-16 text-center text-gray-500">
-          <i class="fas fa-folder-open text-3xl text-gray-300 mb-2"></i>
-          <div class="text-sm">ยังไม่มีหมวดหมู่ในระบบ</div>
+        <div class="hic-panel">
+          <div class="hic-empty">
+            <span class="hic-empty-icon"><i class="fas fa-folder-open"></i></span>
+            <b>ยังไม่มีหมวดหมู่ในระบบ</b>
+            <span>เริ่มต้นด้วยการสร้างหมวดหมู่แรก</span>
+            <button type="button" onclick="openHeadModal()" class="hic-btn hic-btn-secondary hic-btn-sm mt-3"><i class="fas fa-folder-plus"></i>เพิ่มหมวดหมู่</button>
+          </div>
+        </div>
+      @else
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <label class="hic-search" style="height:38px;width:300px;max-width:100%">
+            <i class="fas fa-magnifying-glass" style="font-size:13px"></i>
+            <input id="rsSearch" type="search" placeholder="ค้นหารายงาน…" style="font-size:14px" />
+          </label>
+          <div class="flex gap-1">
+            <button type="button" id="expandAllHeads" class="hic-btn hic-btn-ghost hic-btn-sm"><i class="fas fa-angles-down"></i><span>เปิดทั้งหมด</span></button>
+            <button type="button" id="collapseAllHeads" class="hic-btn hic-btn-ghost hic-btn-sm"><i class="fas fa-angles-up"></i><span>ปิดทั้งหมด</span></button>
+          </div>
         </div>
       @end
 
-      @if(heads.length > 0)
-        <div class="flex justify-end mb-2 gap-1">
-          <button type="button" id="expandAllHeads" class="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center gap-1">
-            <i class="fas fa-chevron-down text-[10px]"></i><span>เปิดทั้งหมด</span>
-          </button>
-          <button type="button" id="collapseAllHeads" class="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center gap-1">
-            <i class="fas fa-chevron-up text-[10px]"></i><span>ปิดทั้งหมด</span>
-          </button>
-        </div>
-      @end
-      <div class="space-y-3">
-        @each(h in heads)
+      <div class="flex flex-col gap-4">
+        @each((h, hIdx) in heads)
           @let(list = reportsByHead[h.id] || [])
-          <details open class="bg-white rounded-xl border border-gray-200 overflow-hidden head-card relative group">
-            <summary class="list-none cursor-pointer p-4 border-b border-transparent group-open:border-gray-200 flex items-center gap-3 pr-32 hover:bg-gray-50">
-              <div class="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0"><i class="fas fa-folder-open"></i></div>
+          <details open class="head-card hic-panel hic-rise hic-tone-{{ tones[hIdx % tones.length] }} relative" style="--i:{{ hIdx }}">
+            <summary class="cursor-pointer flex items-center gap-4 px-5 py-4 pr-36 select-none">
+              <span class="hic-metric-icon" style="width:42px;height:42px;border-radius:13px"><i class="fas fa-folder-open"></i></span>
               <div class="min-w-0 flex-1">
-                <h2 class="text-base font-semibold text-gray-800 break-words">{{{ safeReportTitle(h.detail) }}}</h2>
-                <div class="text-xs text-gray-500">
-                  <span class="inline-block px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium mr-1">{{ list.length }}</span>
-                  รายงาน · sort = {{ h.sort }}
+                <h2 class="font-bold break-words" style="font-size:16px;color:var(--ink-strong)">{{{ safeReportTitle(h.detail) }}}</h2>
+                <div class="text-xs mt-0.5 flex items-center gap-2" style="color:var(--ink-subtle)">
+                  <span>{{ list.length }} รายงาน</span><span>·</span><span>ลำดับ {{ h.sort }}</span>
                 </div>
               </div>
-              <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform group-open:rotate-180"></i>
+              <span class="head-caret"><i class="fas fa-chevron-down"></i></span>
             </summary>
             {{-- Action buttons sit OUTSIDE <summary> so clicking them does not toggle the disclosure --}}
-            <div class="absolute top-3.5 right-12 flex gap-1 z-10">
-              <button type="button" title="แก้ไขหมวดหมู่"
-                onclick="openHeadModal({{ JSON.stringify({ id: h.id, detail: h.detail, sort: h.sort }) }})"
-                class="w-8 h-8 rounded hover:bg-gray-100 text-gray-600 bg-white"><i class="fas fa-pen text-sm"></i></button>
-              <button type="button" title="ลบหมวดหมู่"
-                onclick="confirmDeleteHead({{ h.id }}, {{ JSON.stringify(stripTitleHtml(h.detail)) }})"
-                class="w-8 h-8 rounded hover:bg-gray-100 text-danger bg-white"><i class="fas fa-trash text-sm"></i></button>
+            <div class="absolute top-[18px] right-16 flex gap-1 z-10">
+              <button type="button" title="แก้ไขหมวดหมู่" class="hic-act is-brand"
+                onclick="openHeadModal({{ JSON.stringify({ id: h.id, detail: h.detail, sort: h.sort }) }})"><i class="fas fa-pen"></i></button>
+              <button type="button" title="ลบหมวดหมู่" class="hic-act is-bad"
+                onclick="confirmDeleteHead({{ h.id }}, {{ JSON.stringify(stripTitleHtml(h.detail)) }})"><i class="fas fa-trash"></i></button>
             </div>
 
             @if(list.length === 0)
-              <div class="py-6 text-center text-xs text-gray-400">
-                <i class="fas fa-inbox text-xl text-gray-300 mb-1"></i>
+              <div class="py-8 text-center text-sm" style="color:var(--ink-muted);border-top:1px solid var(--border)">
+                <i class="fas fa-inbox text-xl mb-1"></i>
                 <div>ไม่มีรายงานในหมวดนี้</div>
               </div>
             @else
-              <table class="w-full text-sm">
-                <thead class="bg-gray-50 text-gray-600 text-xs uppercase">
-                  <tr>
-                    <th class="text-left px-4 py-2">รายงาน</th>
-                    <th class="text-left px-4 py-2">DB</th>
-                    <th class="text-center px-4 py-2">Sort</th>
-                    <th class="text-right px-4 py-2">จัดการ</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100">
-                  @each(r in list)
-                    @let(src = r.databaseSource || 'system')
-                    <tr id="report-row-{{ r.id }}" data-report-id="{{ r.id }}">
-                      <td class="px-4 py-2.5">
-                        <div class="font-medium text-gray-800 break-words">{{{ safeReportTitle(r.detail) }}}</div>
-                        <div class="text-[11px] text-gray-500 font-mono mt-1 truncate max-w-md" title="{{ r.sql1 }}">
-                          {{ (r.sql1 || '').slice(0, 120) }}{{ (r.sql1 || '').length > 120 ? '…' : '' }}
-                        </div>
-                      </td>
-                      <td class="px-4 py-2.5">
-                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs {{ src === 'his' ? 'bg-secondary/15 text-secondary' : 'bg-primary/15 text-primary' }}">
-                          <i class="fas fa-database text-[10px]"></i>{{ src === 'his' ? 'HIS' : 'ระบบ' }}
-                        </span>
-                      </td>
-                      <td class="px-4 py-2.5 text-center text-gray-700">{{ r.sort }}</td>
-                      <td class="px-4 py-2.5">
-                        <div class="flex justify-end gap-1">
-                          <a href="/admin/reports/{{ r.id }}/parameters" title="พารามิเตอร์"
-                            class="w-8 h-8 rounded hover:bg-gray-100 text-warning flex items-center justify-center"><i class="fas fa-list-check text-sm"></i></a>
-                          <button type="button" title="แก้ไข" data-edit-report="{{ r.id }}"
-                            onclick="openReportModal({{ JSON.stringify({ id: r.id, head_id: r.headId, detail: r.detail, sql1: r.sql1, sql2: r.sql2, database_source: src, sort: r.sort }) }})"
-                            class="w-8 h-8 rounded hover:bg-gray-100 text-gray-600"><i class="fas fa-pen text-sm"></i></button>
-                          <button type="button" title="ลบ"
-                            onclick="confirmDeleteReport({{ r.id }}, {{ JSON.stringify(stripTitleHtml(r.detail)) }})"
-                            class="w-8 h-8 rounded hover:bg-gray-100 text-danger"><i class="fas fa-trash text-sm"></i></button>
-                        </div>
-                      </td>
+              <div class="overflow-x-auto" style="border-top:1px solid var(--border)">
+                <table class="hic-table">
+                  <thead>
+                    <tr>
+                      <th>รายงาน</th>
+                      <th style="width:110px">ฐานข้อมูล</th>
+                      <th style="width:80px;text-align:center">ลำดับ</th>
+                      <th style="width:140px;text-align:right">จัดการ</th>
                     </tr>
-                  @end
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    @each(r in list)
+                      @let(src = r.databaseSource || 'system')
+                      <tr id="report-row-{{ r.id }}" data-report-id="{{ r.id }}" class="rs-row" data-name="{{ stripTitleHtml(r.detail).toLowerCase() }}">
+                        <td>
+                          <a href="/reports/{{ r.id }}" class="font-semibold break-words hover:underline" style="color:var(--ink-strong)">{{{ safeReportTitle(r.detail) }}}</a>
+                          <div class="hic-mono mt-1 truncate max-w-xl" style="color:var(--ink-muted)" title="{{ r.sql1 }}">
+                            {{ (r.sql1 || '').slice(0, 120) }}{{ (r.sql1 || '').length > 120 ? '…' : '' }}
+                          </div>
+                        </td>
+                        <td>
+                          <span class="hic-badge {{ src === 'his' ? 'hic-badge-violet' : 'hic-badge-brand' }}">
+                            <i class="fas fa-database"></i>{{ src === 'his' ? 'HIS' : 'ระบบ' }}
+                          </span>
+                        </td>
+                        <td style="text-align:center">{{ r.sort }}</td>
+                        <td>
+                          <div class="flex justify-end gap-1">
+                            <a href="/admin/reports/{{ r.id }}/parameters" title="พารามิเตอร์" class="hic-act is-warn"><i class="fas fa-list-check"></i></a>
+                            <button type="button" title="แก้ไข" data-edit-report="{{ r.id }}" class="hic-act is-brand"
+                              onclick="openReportModal({{ JSON.stringify({ id: r.id, head_id: r.headId, detail: r.detail, sql1: r.sql1, sql2: r.sql2, database_source: src, sort: r.sort }) }})"><i class="fas fa-pen"></i></button>
+                            <button type="button" title="ลบ" class="hic-act is-bad"
+                              onclick="confirmDeleteReport({{ r.id }}, {{ JSON.stringify(stripTitleHtml(r.detail)) }})"><i class="fas fa-trash"></i></button>
+                          </div>
+                        </td>
+                      </tr>
+                    @end
+                  </tbody>
+                </table>
+              </div>
             @end
           </details>
         @end
@@ -129,92 +139,103 @@
 
     <style>
       .head-card > summary::-webkit-details-marker { display: none; }
-      .head-card > summary { list-style: none; }
+      .head-card > summary { list-style: none; border-radius: 20px; }
+      .head-card > summary:hover { background: var(--surface-hover); }
+      .head-card[open] > summary { border-radius: 20px 20px 0 0; }
+      .head-caret {
+        display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 9999px;
+        border: 1px solid var(--border); color: var(--ink-subtle); font-size: 11px; transition: transform .2s ease;
+      }
+      .head-card[open] .head-caret { transform: rotate(180deg); }
+      .rs-row.is-flash td { background: var(--warn-soft) !important; transition: background-color .4s ease; }
     </style>
 
     {{-- Head modal --}}
-    <div id="headModal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-4">
-      <div class="bg-white rounded-xl shadow-xl w-full max-w-md">
-        <div class="flex items-center justify-between p-4 border-b border-gray-200">
-          <h3 class="text-base font-semibold text-gray-800 flex items-center gap-2">
-            <i class="fas fa-folder text-primary"></i><span id="headModalTitle">เพิ่มหมวดหมู่</span>
-          </h3>
-          <button type="button" onclick="hide('headModal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-xmark"></i></button>
+    <div id="headModal" class="hic-modal hidden" role="dialog" aria-modal="true">
+      <div class="hic-modal-box is-sm hic-tone-blue">
+        <div class="hic-modal-head">
+          <span class="hic-modal-icon"><i class="fas fa-folder"></i></span>
+          <h3 id="headModalTitle">เพิ่มหมวดหมู่</h3>
+          <button type="button" onclick="hide('headModal')" class="hic-iconbtn" aria-label="ปิด"><i class="fas fa-xmark"></i></button>
         </div>
-        <form id="headForm" method="POST" action="/admin/report-settings/heads" class="p-5 space-y-4">
+        <form id="headForm" method="POST" action="/admin/report-settings/heads" class="contents">
           {{ csrfField() }}
           <input type="hidden" name="id" id="head_id" />
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อหมวดหมู่ <span class="text-red-500">*</span></label>
-            <input name="detail" id="head_detail" required class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+          <div class="hic-modal-body">
+            <div>
+              <label class="hic-label" for="head_detail">ชื่อหมวดหมู่ <span class="hic-req">*</span></label>
+              <input name="detail" id="head_detail" required class="hic-input" />
+              <div class="hic-help">รองรับ HTML พื้นฐาน เช่น <code>&lt;font color=red&gt;</code></div>
+            </div>
+            <div>
+              <label class="hic-label" for="head_sort">ลำดับ</label>
+              <input type="number" name="sort" id="head_sort" value="1" min="1" class="hic-input" style="width:140px" />
+            </div>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">ลำดับ</label>
-            <input type="number" name="sort" id="head_sort" value="1" min="1" class="w-32 px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
-          </div>
-          <div class="pt-3 border-t border-gray-200 flex justify-end gap-2">
-            <button type="button" onclick="hide('headModal')" class="px-3 py-2 rounded-md text-sm border border-gray-300 hover:bg-gray-100">ยกเลิก</button>
-            <button type="submit" class="px-3 py-2 rounded-md text-sm bg-primary text-white hover:bg-primary/90"><i class="fas fa-save text-xs"></i> บันทึก</button>
+          <div class="hic-modal-foot">
+            <button type="button" onclick="hide('headModal')" class="hic-btn hic-btn-ghost">ยกเลิก</button>
+            <button type="submit" class="hic-btn hic-btn-primary"><i class="fas fa-floppy-disk"></i>บันทึก</button>
           </div>
         </form>
       </div>
     </div>
 
     {{-- Report modal --}}
-    <div id="reportModal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-4">
-      <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div class="flex items-center justify-between p-4 border-b border-gray-200">
-          <h3 class="text-base font-semibold text-gray-800 flex items-center gap-2">
-            <i class="fas fa-file-lines text-primary"></i><span id="reportModalTitle">เพิ่มรายงาน</span>
-          </h3>
-          <button type="button" onclick="hide('reportModal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-xmark"></i></button>
+    <div id="reportModal" class="hic-modal hidden" role="dialog" aria-modal="true">
+      <div class="hic-modal-box is-lg hic-tone-violet">
+        <div class="hic-modal-head">
+          <span class="hic-modal-icon"><i class="fas fa-file-lines"></i></span>
+          <h3 id="reportModalTitle">เพิ่มรายงาน</h3>
+          <button type="button" onclick="hide('reportModal')" class="hic-iconbtn" aria-label="ปิด"><i class="fas fa-xmark"></i></button>
         </div>
-        <form id="reportForm" method="POST" action="/admin/report-settings/reports" class="p-5 space-y-4 overflow-y-auto">
+        <form id="reportForm" method="POST" action="/admin/report-settings/reports" class="contents">
           {{ csrfField() }}
           <input type="hidden" name="id" id="report_id" />
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อรายงาน <span class="text-red-500">*</span></label>
-              <input name="detail" id="report_detail" required class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+          <div class="hic-modal-body">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="md:col-span-2">
+                <label class="hic-label" for="report_detail">ชื่อรายงาน <span class="hic-req">*</span></label>
+                <input name="detail" id="report_detail" required class="hic-input" />
+              </div>
+              <div>
+                <label class="hic-label" for="report_head_id">หมวดหมู่ <span class="hic-req">*</span></label>
+                <select name="head_id" id="report_head_id" required class="hic-input">
+                  @each(h in heads)
+                    <option value="{{ h.id }}">{{ stripTitleHtml(h.detail) }}</option>
+                  @end
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="hic-label" for="report_db">ฐานข้อมูล <span class="hic-req">*</span></label>
+                <select name="database_source" id="report_db" required class="hic-input">
+                  <option value="system">ระบบ (system)</option>
+                  <option value="his">HIS</option>
+                </select>
+              </div>
+              <div>
+                <label class="hic-label" for="report_sort">ลำดับ</label>
+                <input type="number" name="sort" id="report_sort" value="1" min="1" class="hic-input" />
+              </div>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">หมวดหมู่ <span class="text-red-500">*</span></label>
-              <select name="head_id" id="report_head_id" required class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none bg-white">
-                @each(h in heads)
-                  <option value="{{ h.id }}">{{ stripTitleHtml(h.detail) }}</option>
-                @end
-              </select>
+              <div class="flex items-center justify-between mb-1.5 gap-2">
+                <label class="hic-label" for="report_sql1" style="margin:0">SQL หลัก <span class="hic-req">*</span></label>
+                <button type="button" onclick="testSql()" id="testSqlBtn" class="hic-btn hic-btn-warn hic-btn-sm"><i class="fas fa-vial"></i>ทดสอบ SQL</button>
+              </div>
+              <textarea name="sql1" id="report_sql1" rows="9" required placeholder="SELECT … FROM … WHERE vstdate BETWEEN @start_d AND @end_d" class="hic-code" spellcheck="false"></textarea>
+              <div class="hic-help">ใช้ token เช่น <code class="hic-mono">@start_d</code> <code class="hic-mono">@end_d</code> <code class="hic-mono">@main_dep</code> — อนุญาตเฉพาะคำสั่ง SELECT คำสั่งเดียว</div>
             </div>
+            <details class="rounded-2xl" style="border:1px solid var(--border)">
+              <summary class="px-4 py-3 text-sm cursor-pointer font-semibold" style="color:var(--ink)">SQL สำรอง (sql2) — ใช้สำหรับ count/aggregate <small style="color:var(--ink-muted);font-weight:400">(ไม่บังคับ)</small></summary>
+              <div class="px-4 pb-4"><textarea name="sql2" id="report_sql2" rows="4" class="hic-code" style="min-height:110px" spellcheck="false"></textarea></div>
+            </details>
+            <div id="testResult" class="hidden"></div>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">ฐานข้อมูล <span class="text-red-500">*</span></label>
-              <select name="database_source" id="report_db" required class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none bg-white">
-                <option value="system">ระบบ (system)</option>
-                <option value="his">HIS</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">ลำดับ</label>
-              <input type="number" name="sort" id="report_sort" value="1" min="1" class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
-            </div>
-          </div>
-          <div>
-            <div class="flex items-center justify-between mb-1">
-              <label class="block text-sm font-medium text-gray-700">SQL หลัก <span class="text-red-500">*</span></label>
-              <button type="button" onclick="testSql()" class="text-xs px-2.5 py-1 rounded bg-yellow-100 hover:bg-yellow-200 text-yellow-800 flex items-center gap-1"><i class="fas fa-vial"></i>ทดสอบ SQL</button>
-            </div>
-            <textarea name="sql1" id="report_sql1" rows="6" required placeholder="SELECT … FROM …"
-              class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none font-mono text-sm"></textarea>
-          </div>
-          <details class="rounded-md border border-gray-200">
-            <summary class="px-3 py-2 text-sm text-gray-600 cursor-pointer">SQL สำรอง (sql2) — ใช้สำหรับ count/aggregate (optional)</summary>
-            <textarea name="sql2" id="report_sql2" rows="3" class="w-full px-3 py-2 border-t border-gray-200 outline-none font-mono text-sm"></textarea>
-          </details>
-          <div id="testResult" class="hidden text-sm rounded-md"></div>
-          <div class="pt-3 border-t border-gray-200 flex justify-end gap-2">
-            <button type="button" onclick="hide('reportModal')" class="px-3 py-2 rounded-md text-sm border border-gray-300 hover:bg-gray-100">ยกเลิก</button>
-            <button type="submit" class="px-3 py-2 rounded-md text-sm bg-primary text-white hover:bg-primary/90"><i class="fas fa-save text-xs"></i> บันทึก</button>
+          <div class="hic-modal-foot">
+            <button type="button" onclick="hide('reportModal')" class="hic-btn hic-btn-ghost">ยกเลิก</button>
+            <button type="submit" class="hic-btn hic-btn-primary"><i class="fas fa-floppy-disk"></i>บันทึก</button>
           </div>
         </form>
       </div>
@@ -233,6 +254,9 @@
     <script>
       function show(id) { const m = document.getElementById(id); m.classList.remove('hidden'); m.classList.add('flex'); document.body.style.overflow = 'hidden' }
       function hide(id) { const m = document.getElementById(id); m.classList.add('hidden'); m.classList.remove('flex'); document.body.style.overflow = '' }
+      function esc(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+      }
 
       function openHeadModal(h) {
         const f = document.getElementById('headForm')
@@ -290,10 +314,11 @@
         const sql = document.getElementById('report_sql1').value
         const src = document.getElementById('report_db').value
         const tr = document.getElementById('testResult')
+        const btn = document.getElementById('testSqlBtn')
         const csrf = document.querySelector('#reportForm input[name="_csrf"]').value
-        tr.classList.remove('hidden')
-        tr.className = 'mt-2 px-3 py-2 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-sm'
-        tr.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังทดสอบ...'
+        tr.className = 'hic-alert hic-alert-info'
+        tr.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>กำลังทดสอบ…</span>'
+        btn.disabled = true
         const fd = new FormData()
         fd.append('_csrf', csrf)
         fd.append('sql1', sql)
@@ -302,27 +327,47 @@
           const res = await fetch('/admin/report-settings/test-sql', { method: 'POST', body: fd })
           const result = await res.json()
           if (result.success) {
-            tr.className = 'mt-2 px-3 py-2 rounded-md bg-green-50 border border-green-200 text-green-700 text-sm'
-            tr.innerHTML = '<div class="font-semibold flex items-center gap-2"><i class="fas fa-circle-check"></i>' + result.message + '</div>'
-              + '<div class="text-xs mt-1">เวลา: ' + result.execution_time + 's · คอลัมน์: ' + (result.columns || []).slice(0, 6).join(', ') + ((result.columns || []).length > 6 ? '…' : '') + '</div>'
+            const cols = result.columns || []
+            tr.className = 'hic-alert hic-alert-ok'
+            tr.innerHTML = '<i class="fas fa-circle-check"></i><div><div class="font-bold">' + esc(result.message) + '</div>'
+              + '<div class="text-xs mt-1">เวลา ' + esc(result.execution_time) + 's · คอลัมน์: ' + esc(cols.slice(0, 8).join(', ')) + (cols.length > 8 ? '…' : '') + '</div></div>'
           } else {
-            tr.className = 'mt-2 px-3 py-2 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm'
-            tr.innerHTML = '<i class="fas fa-circle-exclamation"></i> ' + result.message
+            tr.className = 'hic-alert hic-alert-bad'
+            tr.innerHTML = '<i class="fas fa-circle-exclamation"></i><span class="break-all">' + esc(result.message) + '</span>'
           }
         } catch (e) {
-          tr.className = 'mt-2 px-3 py-2 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm'
-          tr.innerHTML = '<i class="fas fa-circle-exclamation"></i> ' + (e.message || e)
+          tr.className = 'hic-alert hic-alert-bad'
+          tr.innerHTML = '<i class="fas fa-circle-exclamation"></i><span>' + esc(e.message || e) + '</span>'
+        } finally {
+          btn.disabled = false
         }
       }
 
       document.getElementById('headModal').addEventListener('click', e => { if (e.target.id === 'headModal') hide('headModal') })
       document.getElementById('reportModal').addEventListener('click', e => { if (e.target.id === 'reportModal') hide('reportModal') })
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') { hide('headModal'); hide('reportModal') } })
 
       document.getElementById('expandAllHeads')?.addEventListener('click', () => {
         document.querySelectorAll('.head-card').forEach(d => { d.open = true })
       })
       document.getElementById('collapseAllHeads')?.addEventListener('click', () => {
         document.querySelectorAll('.head-card').forEach(d => { d.open = false })
+      })
+
+      // Client-side search across report names
+      document.getElementById('rsSearch')?.addEventListener('input', e => {
+        const q = e.target.value.trim().toLowerCase()
+        document.querySelectorAll('.head-card').forEach(card => {
+          const rows = card.querySelectorAll('.rs-row')
+          let hit = 0
+          rows.forEach(row => {
+            const ok = !q || (row.dataset.name || '').includes(q)
+            row.style.display = ok ? '' : 'none'
+            if (ok) hit++
+          })
+          card.style.display = (!q || hit > 0) ? '' : 'none'
+          if (q && hit > 0) card.open = true
+        })
       })
 
       // Auto-open the edit modal when arriving via /admin/report-settings?edit=<id>
@@ -338,9 +383,8 @@
           if (parentDetails) parentDetails.open = true
           // instant scroll — smooth scroll gets aborted when the modal sets body.overflow=hidden
           row.scrollIntoView({ block: 'center' })
-          row.style.transition = 'background-color 0.4s'
-          row.style.backgroundColor = '#fef3c7'
-          setTimeout(() => { row.style.backgroundColor = '' }, 2500)
+          row.classList.add('is-flash')
+          setTimeout(() => { row.classList.remove('is-flash') }, 2500)
         }
         if (btn) btn.click()
         // strip ?edit from the URL so that form-submit redirect().back() doesn't re-open the modal

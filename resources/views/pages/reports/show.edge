@@ -9,67 +9,53 @@
   @slot('main')
     @let(src = report.databaseSource || 'system')
     @let(srcLabel = src === 'his' ? 'HIS Database' : 'System Database')
-    @let(srcClr = src === 'his' ? 'bg-secondary/15 text-secondary' : 'bg-primary/15 text-primary')
+    @let(srcBadge = src === 'his' ? 'hic-badge-violet' : 'hic-badge-brand')
 
-    <div class="max-w-6xl mx-auto">
-      <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <div class="flex items-center gap-2">
-          <a href="/reports" class="px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm flex items-center gap-1.5">
-            <i class="fas fa-arrow-left text-xs"></i><span>กลับ</span>
-          </a>
-          <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs {{ srcClr }}">
-            <i class="fas fa-database text-[10px]"></i>{{ srcLabel }}
-          </span>
-        </div>
-        <div class="flex gap-2">
-          @if(auth.user.userLevel === 'admin')
-            <a href="/admin/reports/{{ report.id }}/parameters" title="พารามิเตอร์"
-              class="px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm flex items-center gap-1.5">
-              <i class="fas fa-list-check text-xs"></i><span>พารามิเตอร์</span>
-            </a>
-            <a href="/admin/report-settings?edit={{ report.id }}" title="แก้ไขรายงาน"
-              class="px-3 py-2 rounded-md bg-warning/15 hover:bg-warning/25 text-warning text-sm flex items-center gap-1.5">
-              <i class="fas fa-pen text-xs"></i><span>แก้ไขรายงาน</span>
-            </a>
-          @end
-          @if(runResult && runResult.rows.length > 0)
-            <form method="POST" action="/reports/{{ report.id }}/export" class="inline">
-              {{ csrfField() }}
-              {{-- re-submit the same param values that produced these results --}}
-              @if(useDynamic)
-                @each(p in configured)
-                  <input type="hidden" name="{{ 'param_' + p.paramName }}" value="{{ values[p.paramName] || '' }}" />
-                @end
+    <div class="flex flex-col gap-5">
+      <nav class="hic-crumb no-print" aria-label="breadcrumb" style="margin-bottom:0">
+        <a href="/reports"><i class="fas fa-file-lines"></i> รายงานทั้งหมด</a>
+        @if(head)
+          <i class="fas fa-chevron-right"></i>
+          <span>{{ stripTitleHtml(head.detail) }}</span>
+        @end
+      </nav>
+
+      <div class="hic-pagehead" style="margin-bottom:0">
+        <div class="hic-pagehead-title hic-tone-violet">
+          <span class="hic-pagehead-icon"><i class="fas fa-chart-line"></i></span>
+          <div class="min-w-0">
+            <h1 class="break-words" style="font-size:22px;line-height:30px">{{{ safeReportTitle(report.detail) }}}</h1>
+            <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+              <span class="hic-badge {{ srcBadge }}"><i class="fas fa-database"></i>{{ srcLabel }}</span>
+              @if(head)
+                <span class="hic-badge hic-badge-muted"><i class="fas fa-folder-open"></i>{{ stripTitleHtml(head.detail) }}</span>
               @end
-              <button type="submit"
-                class="px-3 py-2 rounded-md bg-success hover:bg-success/90 text-white text-sm flex items-center gap-1.5">
-                <i class="fas fa-file-excel text-xs"></i><span>ส่งออก Excel</span>
-              </button>
-            </form>
-            <button type="button" onclick="window.print()" class="px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm flex items-center gap-1.5">
-              <i class="fas fa-print text-xs"></i><span>พิมพ์</span>
-            </button>
+            </div>
+          </div>
+        </div>
+        <div class="flex gap-2 flex-wrap no-print">
+          <a href="/reports" class="hic-btn hic-btn-ghost"><i class="fas fa-arrow-left"></i><span>กลับ</span></a>
+          @if(auth.user.userLevel === 'admin')
+            <a href="/admin/reports/{{ report.id }}/parameters" class="hic-btn hic-btn-secondary" title="พารามิเตอร์">
+              <i class="fas fa-list-check"></i><span>พารามิเตอร์</span>
+            </a>
+            <a href="/admin/report-settings?edit={{ report.id }}" class="hic-btn hic-btn-warn" title="แก้ไขรายงาน">
+              <i class="fas fa-pen"></i><span>แก้ไข</span>
+            </a>
           @end
         </div>
       </div>
 
-      <header class="mb-4">
-        <h1 class="text-xl font-semibold text-gray-800">{{{ safeReportTitle(report.detail) }}}</h1>
-        @if(head)
-          <div class="text-xs text-gray-500 mt-1"><i class="fas fa-folder-open"></i> {{{ safeReportTitle(head.detail) }}}</div>
-        @end
-      </header>
-
       @if(error)
-        <div class="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-2">
-          <i class="fas fa-circle-exclamation mt-0.5"></i>
+        <div class="hic-alert hic-alert-bad" role="alert">
+          <i class="fas fa-circle-exclamation"></i>
           <div><strong class="block">เกิดข้อผิดพลาด</strong><span class="block mt-1">{{ error }}</span></div>
         </div>
       @end
 
       @if(validationErrors.length > 0)
-        <div class="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-2">
-          <i class="fas fa-circle-exclamation mt-0.5"></i>
+        <div class="hic-alert hic-alert-bad" role="alert">
+          <i class="fas fa-circle-exclamation"></i>
           <div>
             <strong>กรุณาตรวจสอบข้อมูล</strong>
             <ul class="list-disc list-inside mt-1 space-y-0.5">
@@ -82,58 +68,51 @@
       @end
 
       @if(hasPlaceholders)
-        <div class="bg-white rounded-xl border border-gray-200 mb-4">
-          <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+        <div class="hic-panel no-print">
+          <div class="hic-panel-head">
             <div>
-              <h2 class="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                <i class="fas fa-filter text-primary"></i>เงื่อนไขการค้นหา
-              </h2>
-              <p class="text-xs text-gray-500 mt-0.5">กรอกค่าพารามิเตอร์เพื่อประมวลผลรายงาน</p>
+              <h2><i class="fas fa-filter" style="color:var(--heading)"></i>เงื่อนไขการค้นหา</h2>
+              <p>กรอกค่าพารามิเตอร์เพื่อประมวลผลรายงาน</p>
             </div>
             @if(useDynamic)
-              <span class="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">{{ configured.length }} พารามิเตอร์</span>
+              <span class="hic-badge hic-badge-muted">{{ configured.length }} พารามิเตอร์</span>
             @end
           </div>
 
-          <form id="reportForm" method="POST" action="/reports/{{ report.id }}" class="p-4">
+          <form id="reportForm" method="POST" action="/reports/{{ report.id }}" class="hic-panel-body">
             {{ csrfField() }}
 
             @if(useDynamic)
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 @each(p in configured)
                   @let(fieldId = 'param_' + p.paramName)
                   @let(fieldNm = 'param_' + p.paramName)
                   @let(value = values[p.paramName] || '')
                   <div>
-                    <label for="{{ fieldId }}" class="block text-sm font-medium text-gray-700 mb-1">
+                    <label for="{{ fieldId }}" class="hic-label">
                       {{ p.paramLabel }}
                       @if(p.paramRequired)
-                        <span class="text-red-500">*</span>
+                        <span style="color:var(--bad)">*</span>
                       @end
-                      <span class="text-xs text-gray-400 ml-1">({{ '@' + p.paramName }})</span>
+                      <small class="ml-1 font-mono">{{ '@' + p.paramName }}</small>
                     </label>
                     @if(p.paramType === 'select')
-                      <select id="{{ fieldId }}" name="{{ fieldNm }}" {{ p.paramRequired ? 'required' : '' }}
-                        class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white">
+                      <select id="{{ fieldId }}" name="{{ fieldNm }}" {{ p.paramRequired ? 'required' : '' }} class="hic-input">
                         <option value="">-- เลือก {{ p.paramLabel }} --</option>
                         @each(opt in p.parsedOptions)
                           <option value="{{ opt }}" {{ String(value) === String(opt) ? 'selected' : '' }}>{{ opt }}</option>
                         @end
                       </select>
                     @elseif(p.paramType === 'date')
-                      <input type="date" id="{{ fieldId }}" name="{{ fieldNm }}" value="{{ value }}" {{ p.paramRequired ? 'required' : '' }}
-                        class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+                      <input type="date" id="{{ fieldId }}" name="{{ fieldNm }}" value="{{ value }}" {{ p.paramRequired ? 'required' : '' }} class="hic-input" />
                     @elseif(p.paramType === 'datetime')
-                      <input type="datetime-local" id="{{ fieldId }}" name="{{ fieldNm }}" value="{{ value }}" {{ p.paramRequired ? 'required' : '' }}
-                        class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+                      <input type="datetime-local" id="{{ fieldId }}" name="{{ fieldNm }}" value="{{ value }}" {{ p.paramRequired ? 'required' : '' }} class="hic-input" />
                     @elseif(p.paramType === 'textarea')
                       <textarea id="{{ fieldId }}" name="{{ fieldNm }}" {{ p.paramRequired ? 'required' : '' }}
-                        placeholder="กรอก {{ p.paramLabel }}"
-                        class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none">{{ value }}</textarea>
+                        placeholder="กรอก {{ p.paramLabel }}" class="hic-input">{{ value }}</textarea>
                     @else
                       <input type="{{ p.paramType }}" id="{{ fieldId }}" name="{{ fieldNm }}" value="{{ value }}" {{ p.paramRequired ? 'required' : '' }}
-                        placeholder="กรอก {{ p.paramLabel }}"
-                        class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none" />
+                        placeholder="กรอก {{ p.paramLabel }}" class="hic-input" />
                     @end
                   </div>
                 @end
@@ -141,38 +120,37 @@
             @else
               {{-- Legacy non-dynamic fields. Show all common params; the backend
                   will only consume the ones whose @tokens appear in the SQL. --}}
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">จากวันที่</label>
-                  <input type="date" name="datepick1" class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
+                  <label class="hic-label">จากวันที่</label>
+                  <input type="date" name="datepick1" class="hic-input" />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">ถึงวันที่</label>
-                  <input type="date" name="datepick2" class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
+                  <label class="hic-label">ถึงวันที่</label>
+                  <input type="date" name="datepick2" class="hic-input" />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">จากเวลา</label>
-                  <input type="text" name="start_t" value="08.00" placeholder="HH.MM" class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
+                  <label class="hic-label">จากเวลา</label>
+                  <input type="text" name="start_t" value="08.00" placeholder="HH.MM" class="hic-input" />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">ถึงเวลา</label>
-                  <input type="text" name="end_t" value="16.00" placeholder="HH.MM" class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
+                  <label class="hic-label">ถึงเวลา</label>
+                  <input type="text" name="end_t" value="16.00" placeholder="HH.MM" class="hic-input" />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">AN</label>
-                  <input type="text" name="an" class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
+                  <label class="hic-label">AN</label>
+                  <input type="text" name="an" class="hic-input" />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">แผนก (main_dep)</label>
-                  <input type="text" name="main_dep" class="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none" />
+                  <label class="hic-label">แผนก <small>(main_dep)</small></label>
+                  <input type="text" name="main_dep" class="hic-input" />
                 </div>
               </div>
             @end
 
-            <div class="mt-4 pt-4 border-t border-gray-200 flex justify-end">
-              <button type="submit" id="runBtn"
-                class="px-4 py-2 rounded-md bg-primary hover:bg-primary/90 text-white text-sm flex items-center gap-1.5">
-                <i class="fas fa-play text-xs"></i><span>ประมวลผลรายงาน</span>
+            <div class="mt-5 pt-5 flex justify-end" style="border-top:1px solid var(--border)">
+              <button type="submit" id="runBtn" class="hic-btn hic-btn-primary hic-btn-lg">
+                <i class="fas fa-play"></i><span>ประมวลผลรายงาน</span>
               </button>
             </div>
           </form>
@@ -181,48 +159,75 @@
 
       {{-- Results --}}
       @if(runResult && runResult.rows.length > 0)
-        <div class="bg-white rounded-xl border border-gray-200">
-          <div class="p-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
+        <div class="hic-panel overflow-hidden">
+          <div class="hic-panel-head">
             <div>
-              <h2 class="text-sm font-semibold text-gray-800">ผลการค้นหา</h2>
-              <p class="text-xs text-gray-500 mt-0.5">{{ runResult.count }} รายการ · {{ runResult.columns.length }} คอลัมน์</p>
+              <h2><i class="fas fa-table" style="color:var(--heading)"></i>ผลการค้นหา</h2>
+              <p><b style="color:var(--ink-strong)">{{ runResult.count.toLocaleString('th-TH') }}</b> รายการ · {{ runResult.columns.length }} คอลัมน์</p>
             </div>
-            <input type="text" id="resultSearch" placeholder="ค้นหาในตาราง..."
-              class="px-3 py-1.5 text-sm rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none w-56" />
+            <div class="flex items-center gap-2 flex-wrap no-print">
+              <label class="hic-search" style="height:38px;width:240px">
+                <i class="fas fa-magnifying-glass" style="font-size:13px"></i>
+                <input type="text" id="resultSearch" placeholder="ค้นหาในตาราง…" style="font-size:14px" />
+              </label>
+              <form method="POST" action="/reports/{{ report.id }}/export" class="inline">
+                {{ csrfField() }}
+                {{-- re-submit the same param values that produced these results --}}
+                @if(useDynamic)
+                  @each(p in configured)
+                    <input type="hidden" name="{{ 'param_' + p.paramName }}" value="{{ values[p.paramName] || '' }}" />
+                  @end
+                @end
+                <button type="submit" class="hic-btn hic-btn-success" style="height:38px">
+                  <i class="fas fa-file-excel"></i><span>Excel</span>
+                </button>
+              </form>
+              <button type="button" onclick="window.print()" class="hic-btn hic-btn-secondary" style="height:38px">
+                <i class="fas fa-print"></i><span>พิมพ์</span>
+              </button>
+            </div>
           </div>
-          <div class="overflow-x-auto">
-            <table id="resultsTable" class="w-full text-sm">
-              <thead class="bg-gray-50 text-gray-600 text-xs uppercase">
+          <div class="hic-table-wrap">
+            <table id="resultsTable" class="hic-table">
+              <thead>
                 <tr>
-                  <th class="px-3 py-2 text-center w-14">#</th>
+                  <th class="num">#</th>
                   @each(col in runResult.columns)
-                    <th class="px-3 py-2 text-left">{{ col }}</th>
+                    <th>{{ col }}</th>
                   @end
                 </tr>
               </thead>
-              <tbody class="divide-y divide-gray-100">
+              <tbody>
                 @each((row, idx) in runResult.rows)
                   <tr>
-                    <td class="px-3 py-2 text-center text-gray-500">{{ idx + 1 }}</td>
+                    <td class="num">{{ idx + 1 }}</td>
                     @each(col in runResult.columns)
-                      <td class="px-3 py-2 text-gray-700">{{ row[col] === null ? '' : row[col] }}</td>
+                      <td>{{ row[col] === null ? '' : row[col] }}</td>
                     @end
                   </tr>
                 @end
               </tbody>
             </table>
           </div>
+          <div id="resultEmpty" class="hic-empty hidden" style="padding:32px 16px">
+            <span>ไม่พบแถวที่ตรงกับคำค้นหา</span>
+          </div>
         </div>
       @elseif(runResult && runResult.rows.length === 0)
-        <div class="bg-white rounded-xl border border-gray-200 py-12 text-center text-gray-500">
-          <i class="fas fa-folder-open text-3xl text-gray-300 mb-2"></i>
-          <div class="text-sm">ไม่พบข้อมูล</div>
+        <div class="hic-panel">
+          <div class="hic-empty">
+            <span class="hic-empty-icon"><i class="fas fa-folder-open"></i></span>
+            <b>ไม่พบข้อมูล</b>
+            <span>ลองปรับเงื่อนไขการค้นหาแล้วประมวลผลอีกครั้ง</span>
+          </div>
         </div>
       @elseif(hasPlaceholders && !runResult && !error)
-        <div class="bg-white rounded-xl border border-gray-200 py-12 text-center text-gray-500">
-          <i class="fas fa-magnifying-glass text-3xl text-gray-300 mb-2"></i>
-          <div class="text-sm font-medium text-gray-700">กรุณาระบุเงื่อนไขการค้นหา</div>
-          <div class="text-xs text-gray-500 mt-1">เลือกค่าจากฟอร์มด้านบนแล้วกด "ประมวลผลรายงาน"</div>
+        <div class="hic-panel">
+          <div class="hic-empty">
+            <span class="hic-empty-icon" style="background:var(--brand-soft);color:var(--brand-from)"><i class="fas fa-magnifying-glass-chart"></i></span>
+            <b>กรุณาระบุเงื่อนไขการค้นหา</b>
+            <span>เลือกค่าจากฟอร์มด้านบนแล้วกด "ประมวลผลรายงาน"</span>
+          </div>
         </div>
       @end
     </div>
@@ -232,14 +237,18 @@
         const btn = document.getElementById('runBtn')
         if (btn) {
           btn.disabled = true
-          btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i><span>กำลังประมวลผล...</span>'
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>กำลังประมวลผล…</span>'
         }
       })
       document.getElementById('resultSearch')?.addEventListener('input', e => {
         const q = e.target.value.toLowerCase()
+        let shown = 0
         document.querySelectorAll('#resultsTable tbody tr').forEach(tr => {
-          tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none'
+          const match = tr.textContent.toLowerCase().includes(q)
+          tr.style.display = match ? '' : 'none'
+          if (match) shown++
         })
+        document.getElementById('resultEmpty')?.classList.toggle('hidden', shown > 0)
       })
     </script>
   @end

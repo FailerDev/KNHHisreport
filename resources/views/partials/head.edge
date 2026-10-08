@@ -1,0 +1,36 @@
+{{-- Shared <head> assets: fonts, Tailwind CDN, Font Awesome, HIC design system.
+     The inline theme script runs before paint to avoid a light/dark flash. --}}
+<script>
+  (function () {
+    var t = null
+    try { t = localStorage.getItem('hic-theme') } catch (e) {}
+    if (t === 'dark' || (!t && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark')
+    }
+  })()
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          primary: '#5a72d8',
+          secondary: '#8a84e0',
+          success: '#3f9a6b',
+          warning: '#c99a45',
+          danger: '#c9566a',
+        },
+        fontFamily: {
+          thai: ['Sarabun', 'Leelawadee UI', 'Tahoma', 'sans-serif'],
+        },
+      },
+    },
+  }
+</script>
+<link href="/ui/hic.css" rel="stylesheet" />

@@ -1,0 +1,107 @@
+{{--
+  Module launcher (HIC style) — used by the signed-in home page and the admin dashboard.
+  Expects local: user (User model)
+--}}
+@let(lnIsAdmin = user.userLevel === 'admin')
+@let(lnName = user.fullname || user.username)
+@let(lnLast = (user.lastLogin && user.lastLogin.toFormat) ? user.lastLogin.toFormat('dd/MM/yyyy HH:mm') : '—')
+@let(lnModules = [
+  { href: '/dashboard', icon: 'fa-chart-pie', tone: 'blue', label: 'แดชบอร์ดรายงาน', desc: 'สถิติสำคัญแบบเรียลไทม์จากระบบ HIS พร้อมกราฟสรุป' },
+  { href: '/reports', icon: 'fa-file-lines', tone: 'violet', label: 'รายงานทั้งหมด', desc: 'เลือกรายงาน กรอกเงื่อนไข แล้วดูผลหรือส่งออก Excel' },
+])
+@let(lnAdminModules = [
+  { href: '/admin/report-settings', icon: 'fa-sliders', tone: 'indigo', label: 'ตั้งค่ารายงาน', desc: 'จัดการหมวดหมู่ รายงาน และ SQL template' },
+  { href: '/admin/dashboard-settings', icon: 'fa-chart-line', tone: 'teal', label: 'ตั้งค่าแดชบอร์ด', desc: 'เพิ่ม/แก้ไข widget และกราฟบนแดชบอร์ด' },
+  { href: '/admin/users', icon: 'fa-users-gear', tone: 'pink', label: 'จัดการผู้ใช้', desc: 'เพิ่มผู้ใช้ กำหนดสิทธิ์ และรีเซ็ตรหัสผ่าน' },
+  { href: '/admin/his-settings', icon: 'fa-database', tone: 'yellow', label: 'ตั้งค่า HIS Database', desc: 'กำหนดการเชื่อมต่อฐานข้อมูล HIS ของโรงพยาบาล' },
+])
+
+<div class="flex flex-col gap-8">
+  <section class="hic-banner hic-rise">
+    <div class="hic-banner-text">
+      <span class="hic-banner-eyebrow"><i class="fas fa-calendar-days"></i><span data-today>วันนี้</span></span>
+      <h1 class="hic-greeting"><span data-greet>สวัสดี</span>, คุณ{{ lnName }}</h1>
+      <p class="hic-banner-msg">เลือกเมนูที่ต้องการใช้งานด้านล่าง หรือไปที่แดชบอร์ดเพื่อดูภาพรวมของวันนี้</p>
+    </div>
+    <div class="hic-stats">
+      <div class="hic-stat">
+        <span class="hic-stat-icon"><i class="fas {{ lnIsAdmin ? 'fa-crown' : 'fa-user' }}"></i></span>
+        <span class="hic-stat-body"><b style="font-size:16px">{{ lnIsAdmin ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งาน' }}</b><span>สิทธิ์การใช้งาน</span></span>
+      </div>
+      <div class="hic-stat">
+        <span class="hic-stat-icon"><i class="fas fa-building"></i></span>
+        <span class="hic-stat-body"><b style="font-size:16px">{{ user.department || '—' }}</b><span>แผนก</span></span>
+      </div>
+      <div class="hic-stat">
+        <span class="hic-stat-icon"><i class="fas fa-clock-rotate-left"></i></span>
+        <span class="hic-stat-body"><b style="font-size:16px">{{ lnLast }}</b><span>เข้าใช้ล่าสุด</span></span>
+      </div>
+    </div>
+    <span class="hic-banner-mark" aria-hidden="true"><i class="fas fa-heart-pulse"></i></span>
+  </section>
+
+  <section>
+    <div class="hic-section-head">
+      <div class="hic-section-title">
+        <span class="hic-section-icon"><i class="fas fa-layer-group"></i></span>
+        <h2>เมนูใช้งาน</h2>
+        <span class="hic-pill">{{ lnModules.length }}</span>
+      </div>
+    </div>
+    <div class="hic-grid">
+      @each((m, i) in lnModules)
+        <a href="{{ m.href }}" class="hic-card hic-tone-{{ m.tone }}" style="--i:{{ i }}">
+          <div class="hic-card-top">
+            <span class="hic-tile"><i class="fas {{ m.icon }}"></i></span>
+            <span class="hic-go"><i class="fas fa-arrow-right"></i></span>
+          </div>
+          <div class="hic-card-text">
+            <span class="hic-card-label">{{ m.label }}</span>
+            <span class="hic-card-desc">{{ m.desc }}</span>
+          </div>
+          <span class="hic-watermark" aria-hidden="true"><i class="fas {{ m.icon }}"></i></span>
+        </a>
+      @end
+    </div>
+  </section>
+
+  @if(lnIsAdmin)
+    <section>
+      <div class="hic-section-head">
+        <div class="hic-section-title">
+          <span class="hic-section-icon"><i class="fas fa-screwdriver-wrench"></i></span>
+          <h2>จัดการระบบ</h2>
+          <span class="hic-pill">{{ lnAdminModules.length }}</span>
+        </div>
+      </div>
+      <div class="hic-grid">
+        @each((m, i) in lnAdminModules)
+          <a href="{{ m.href }}" class="hic-card hic-tone-{{ m.tone }}" style="--i:{{ i + 2 }}">
+            <div class="hic-card-top">
+              <span class="hic-tile"><i class="fas {{ m.icon }}"></i></span>
+              <span class="hic-go"><i class="fas fa-arrow-right"></i></span>
+            </div>
+            <div class="hic-card-text">
+              <span class="hic-card-label">{{ m.label }}</span>
+              <span class="hic-card-desc">{{ m.desc }}</span>
+            </div>
+            <span class="hic-watermark" aria-hidden="true"><i class="fas {{ m.icon }}"></i></span>
+          </a>
+        @end
+      </div>
+    </section>
+  @end
+
+  <section class="hic-panel hic-rise" style="--i:6">
+    <div class="hic-panel-head">
+      <h2><i class="fas fa-id-card" style="color:var(--heading)"></i>ข้อมูลบัญชีของคุณ</h2>
+    </div>
+    <dl class="hic-panel-body grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 text-sm">
+      <div><dt style="color:var(--ink-subtle)">ชื่อผู้ใช้</dt><dd class="font-semibold mt-1" style="color:var(--ink-strong)">{{ user.username }}</dd></div>
+      <div><dt style="color:var(--ink-subtle)">ชื่อ-นามสกุล</dt><dd class="font-semibold mt-1" style="color:var(--ink-strong)">{{ user.fullname || '—' }}</dd></div>
+      <div><dt style="color:var(--ink-subtle)">แผนก</dt><dd class="font-semibold mt-1" style="color:var(--ink-strong)">{{ user.department || '—' }}</dd></div>
+      <div><dt style="color:var(--ink-subtle)">สิทธิ์</dt><dd class="mt-1"><span class="hic-badge {{ lnIsAdmin ? 'hic-badge-warn' : 'hic-badge-brand' }}"><i class="fas {{ lnIsAdmin ? 'fa-crown' : 'fa-user' }}"></i>{{ lnIsAdmin ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งาน' }}</span></dd></div>
+      <div><dt style="color:var(--ink-subtle)">เข้าใช้ครั้งล่าสุด</dt><dd class="font-semibold mt-1" style="color:var(--ink-strong)">{{ lnLast }}</dd></div>
+    </dl>
+  </section>
+</div>

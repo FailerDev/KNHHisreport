@@ -4,49 +4,28 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ title ?? 'HisReport' }}</title>
-
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-    rel="stylesheet"
-  />
-
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            primary: '#3b82f6',
-            secondary: '#6366f1',
-            success: '#10b981',
-            warning: '#f59e0b',
-            danger: '#ef4444',
-          },
-          fontFamily: {
-            thai: ['Segoe UI', 'Tahoma', 'Geneva', 'Verdana', 'sans-serif'],
-          },
-        },
-      },
-    }
-  </script>
-
+  @include('partials/head')
   @vite(['resources/css/app.css', 'resources/js/app.js'])
   @if($slots.head)
     {{{ await $slots.head() }}}
   @end
 </head>
-<body class="bg-gray-50 font-thai min-h-screen">
+<body class="hic-body font-thai">
+  {{-- `showSidebar` is kept as the prop name for compatibility: it now toggles the top app bar --}}
   @if(showSidebar)
-    @include('partials/sidebar')
-    <main class="md:ml-64 p-4 md:p-6">
-      {{{ await $slots.main() }}}
-    </main>
-  @else
-    <main class="container mx-auto p-4 md:p-6">
-      {{{ await $slots.main() }}}
-    </main>
+    @include('partials/topbar')
   @end
 
+  <main class="hic-main">
+    {{{ await $slots.main() }}}
+  </main>
+
+  <footer class="hic-footer">
+    <span>© {{ new Date().getFullYear() + 543 }} HisReport · ระบบรายงานข้อมูล HIS โรงพยาบาล</span>
+    <span>HisReport v2 · AdonisJS</span>
+  </footer>
+
+  <script src="/ui/hic.js" defer></script>
   @if($slots.scripts)
     {{{ await $slots.scripts() }}}
   @end

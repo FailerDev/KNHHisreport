@@ -1,0 +1,8 @@
+{{-- Flash alert for admin pages. Expects locals: message, messageType ('success' | other) --}}
+@if(typeof message !== 'undefined' && message)
+  <div class="hic-alert {{ messageType === 'success' ? 'hic-alert-ok' : 'hic-alert-bad' }} hic-rise" role="{{ messageType === 'success' ? 'status' : 'alert' }}">
+    <i class="fas {{ messageType === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation' }}"></i>
+    <span class="flex-1">{{ message }}</span>
+    <button type="button" class="opacity-70 hover:opacity-100" onclick="this.parentElement.remove()" aria-label="ปิด"><i class="fas fa-xmark"></i></button>
+  </div>
+@end
