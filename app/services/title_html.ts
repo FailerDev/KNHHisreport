@@ -80,3 +80,48 @@ export function stripTitleHtml(input: unknown): string {
     .replace(/\s+/g, ' ')
     .trim()
 }
+
+export type TitleNoteTone = 'bad' | 'info' | 'muted'
+export interface ReportTitleParts {
+  no: string | null
+  title: string
+  notes: { text: string; tone: TitleNoteTone }[]
+}
+
+function noteTone(color: string): TitleNoteTone {
+  const c = color.toLowerCase()
+  if (/red|#f00|#ff0000|crimson|maroon|orange/.test(c)) return 'bad'
+  if (/blue|#00f|#0000ff|navy|green|purple/.test(c)) return 'info'
+  return 'muted'
+}
+
+/**
+ * Splits a legacy report title like
+ * `01.รายชื่อผู้ป่วย OPD <font color=blue>(ระบุวันได้)</font>` into its running
+ * number, plain-text title and coloured parenthetical notes so the list can
+ * render them as a badge + tags instead of inline red/blue text.
+ */
+export function reportTitleParts(input: unknown): ReportTitleParts {
+  const notes: ReportTitleParts['notes'] = []
+  let html = decodeEntities(String(input ?? ''))
+
+  html = html.replace(
+    /<font\b([^>]*)>([\s\S]*?)<\/font>/gi,
+    (_match, attrs: string, inner: string) => {
+      const text = stripTitleHtml(inner)
+      if (!/^\(.*\)$/.test(text)) return ` ${text} `
+      const color = /color\s*=\s*["']?([^"'\s>]+)/i.exec(attrs)?.[1] ?? ''
+      notes.push({ text: text.slice(1, -1).trim(), tone: noteTone(color) })
+      return ' '
+    }
+  )
+
+  let title = stripTitleHtml(html)
+  let no: string | null = null
+  const m = /^(\d{1,3})\s*[.)\-:]\s*(?=\S)/.exec(title)
+  if (m) {
+    no = m[1].padStart(2, '0')
+    title = title.slice(m[0].length)
+  }
+  return { no, title, notes: notes.filter((n) => n.text) }
+}

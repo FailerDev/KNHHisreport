@@ -7,202 +7,390 @@
   currentPage: 'mainreport',
 })
   @slot('main')
-    <div class="max-w-6xl mx-auto">
-      <header class="mb-5">
-        <h1 class="text-2xl font-semibold text-gray-800 flex items-center gap-2">
-          <i class="fas fa-file-lines text-primary"></i> รายงานทั้งหมด
-        </h1>
-        <p class="text-sm text-gray-500 mt-1">รายการรายงานสถิติทั้งหมดในระบบ</p>
-      </header>
-
-      {{-- Stats --}}
-      <div class="grid grid-cols-3 gap-3 mb-5">
-        <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center"><i class="fas fa-folder-tree"></i></div>
-          <div><div class="text-xs text-gray-500">หมวดหมู่</div><div class="text-xl font-semibold">{{ stats.categories }}</div></div>
-        </div>
-        <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center"><i class="fas fa-file-lines"></i></div>
-          <div><div class="text-xs text-gray-500">รายงานทั้งหมด</div><div class="text-xl font-semibold">{{ stats.total }}</div></div>
-        </div>
-        <div class="bg-white rounded-xl p-4 border border-gray-200 flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-success/10 text-success flex items-center justify-center"><i class="fas fa-circle-check"></i></div>
-          <div><div class="text-xs text-gray-500">สถานะ</div><div class="text-base font-semibold text-success">พร้อมใช้งาน</div></div>
-        </div>
-      </div>
-
-      {{-- Toolbar --}}
-      <div class="bg-white rounded-xl border border-gray-200 p-3 mb-5">
-        <form method="GET" action="/reports" class="flex flex-wrap gap-2 items-center">
-          <div class="relative flex-1 min-w-[12rem]">
-            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i class="fas fa-magnifying-glass text-sm"></i></span>
-            <input id="reportSearch" type="search" name="search" value="{{ search }}" placeholder="ค้นหารายงาน..."
-              class="w-full pl-10 pr-3 py-2 rounded-full border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm" />
+    @let(tones = ['blue', 'violet', 'teal', 'pink', 'indigo', 'green', 'yellow', 'sky'])
+    <div class="flex flex-col gap-5">
+      <div class="hic-pagehead" style="margin-bottom:0">
+        <div class="hic-pagehead-title hic-tone-violet">
+          <span class="hic-pagehead-icon"><i class="fas fa-file-lines"></i></span>
+          <div>
+            <h1>รายงานทั้งหมด</h1>
+            <p>{{ stats.categories }} หมวดหมู่ · {{ stats.total }} รายงาน — เลือกหมวดหมู่ หรือพิมพ์ค้นหาได้ทันที</p>
           </div>
-          <select name="dep" onchange="this.form.submit()"
-            class="px-3 py-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary outline-none text-sm bg-white">
-            <option value="0">ทุกหมวดหมู่</option>
-            @each(h in allHeads)
-              <option value="{{ h.id }}" {{ dep === h.id ? 'selected' : '' }}>{{ stripTitleHtml(h.detail) }}</option>
-            @end
-          </select>
-          <button type="submit" class="px-3 py-2 rounded-md bg-primary hover:bg-primary/90 text-white text-sm flex items-center gap-1.5">
-            <i class="fas fa-filter text-xs"></i><span>กรอง</span>
-          </button>
-          @if(auth.user.userLevel === 'admin')
-            <a href="/admin/report-settings" class="px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm flex items-center gap-1.5">
-              <i class="fas fa-sliders text-xs"></i><span>จัดการ</span>
-            </a>
-          @end
-        </form>
-        <div id="hits" class="mt-2 px-3 py-1.5 rounded text-xs bg-primary/10 text-primary inline-flex items-center gap-1.5 hidden">
-          <i class="fas fa-circle-info"></i><span><span id="hitCount">0</span> รายงานที่ตรงกับการค้นหา</span>
+        </div>
+        @if(auth.user.userLevel === 'admin')
+          <a href="/admin/report-settings" class="hic-btn hic-btn-secondary">
+            <i class="fas fa-sliders"></i><span>จัดการรายงาน</span>
+          </a>
+        @end
+      </div>
+
+      <div class="rp-toolbar">
+        @if(heads.length > 0)
+          {{-- Category dropdown --}}
+          <div class="rp-dd" id="catDD">
+            <button type="button" class="rp-dd-btn" id="catBtn" aria-haspopup="true" aria-expanded="false" aria-controls="catMenu">
+              <span class="rp-dd-kicker">หมวดหมู่</span>
+              <span class="rp-dd-value">
+                <span class="rp-cat-dot" id="catCurrentDot"></span>
+                <span class="rp-dd-label" id="catCurrent">ทั้งหมด</span>
+                <span class="rp-cat-count" id="catCurrentCount"></span>
+              </span>
+              <i class="fas fa-chevron-down rp-dd-caret"></i>
+            </button>
+            <div class="rp-dd-menu" id="catMenu" hidden>
+              <nav class="rp-cats" id="catNav" aria-label="หมวดหมู่รายงาน">
+                <button type="button" class="rp-cat" data-cat="all" title="ทั้งหมด">
+                  <span class="rp-cat-dot" style="background:var(--ink-muted)"></span>
+                  <span class="rp-cat-name">ทั้งหมด</span>
+                  <span class="rp-cat-count" data-total="{{ stats.total }}">{{ stats.total }}</span>
+                </button>
+                @each((h, hIdx) in heads)
+                  @let(list = reportsByHead[h.id] || [])
+                  <button type="button" class="rp-cat hic-tone-{{ tones[hIdx % tones.length] }} {{ list.length === 0 ? 'is-zero' : '' }}" data-cat="{{ h.id }}"
+                    title="{{ stripTitleHtml(h.detail) }}">
+                    <span class="rp-cat-dot"></span>
+                    <span class="rp-cat-name">{{ stripTitleHtml(h.detail) }}</span>
+                    <span class="rp-cat-count" data-total="{{ list.length }}">{{ list.length }}</span>
+                  </button>
+                @end
+              </nav>
+            </div>
+          </div>
+        @end
+
+        {{-- Search --}}
+        <label class="hic-search rp-search">
+          <i class="fas fa-magnifying-glass"></i>
+          <input id="reportSearch" type="search" value="{{ search }}" placeholder="ค้นหาชื่อรายงานจากทุกหมวด…" autocomplete="off" />
+          <span id="hits" class="hic-badge hic-badge-brand hidden"><span id="hitCount">0</span> รายการ</span>
+          <kbd class="hic-kbd hidden md:inline">/</kbd>
+        </label>
+      </div>
+
+      {{-- Recently opened (per-browser) --}}
+      <div id="recentWrap" class="hidden">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-sm font-semibold mr-1" style="color:var(--ink-subtle)"><i class="fas fa-clock-rotate-left mr-1"></i>เปิดล่าสุด</span>
+          <div id="recentList" class="flex gap-2 flex-wrap"></div>
         </div>
       </div>
 
-      {{-- Grid of category cards --}}
       @if(heads.length === 0)
-        <div class="bg-white rounded-xl border border-gray-200 py-16 text-center text-gray-500">
-          <div class="text-3xl mb-2 text-gray-300"><i class="fas fa-folder-open"></i></div>
-          <div class="text-sm">ยังไม่มีรายงานในระบบ</div>
+        <div class="hic-panel">
+          <div class="hic-empty">
+            <span class="hic-empty-icon"><i class="fas fa-folder-open"></i></span>
+            <b>ยังไม่มีรายงานในระบบ</b>
+          </div>
         </div>
       @else
-        <div class="flex justify-end mb-2 gap-1">
-          <button type="button" id="expandAll" class="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center gap-1">
-            <i class="fas fa-chevron-down text-[10px]"></i><span>เปิดทั้งหมด</span>
-          </button>
-          <button type="button" id="collapseAll" class="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center gap-1">
-            <i class="fas fa-chevron-up text-[10px]"></i><span>ปิดทั้งหมด</span>
-          </button>
-        </div>
-        <div id="reportGrid" class="space-y-3">
-          @each(h in heads)
-            @let(list = reportsByHead[h.id] || [])
-            <details open
-              class="bg-white rounded-xl border border-gray-200 overflow-hidden report-card transition hover:shadow-md group"
-              data-category="{{ stripTitleHtml(h.detail).toLowerCase() }}">
-              <summary class="list-none cursor-pointer p-3.5 border-b border-transparent group-open:border-gray-100 flex items-center gap-3 hover:bg-gray-50">
-                <div class="w-10 h-10 rounded-md bg-gradient-to-br from-primary/10 to-primary/20 text-primary flex items-center justify-center flex-shrink-0">
-                  <i class="fas fa-folder-open"></i>
-                </div>
-                <div class="min-w-0 flex-1">
-                  <h2 class="text-base font-semibold text-gray-800 break-words">{{{ safeReportTitle(h.detail) }}}</h2>
-                  <div class="text-xs text-gray-500">
-                    <span class="inline-block min-w-[1.25rem] px-1.5 py-0.5 bg-primary/10 text-primary rounded-full font-medium text-[10px] mr-1">{{ list.length }}</span>
-                    รายงาน
-                  </div>
-                </div>
-                <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform group-open:rotate-180"></i>
-              </summary>
-
-              @if(list.length === 0)
-                <div class="py-6 text-center text-xs text-gray-400">
-                  <i class="fas fa-inbox text-xl text-gray-300 mb-1"></i>
-                  <div>ไม่มีรายงานในหมวดนี้</div>
-                </div>
-              @else
-                <ul class="p-2 grid grid-cols-1 md:grid-cols-2 gap-1">
-                  @each(r in list)
-                    @let(src = r.databaseSource || 'system')
-                    <li>
-                      <a href="/reports/{{ r.id }}"
-                        class="report-item flex items-center gap-3 px-3 py-2.5 rounded-md border border-transparent hover:border-primary/30 hover:bg-primary/5 transition text-gray-700"
-                        data-name="{{ stripTitleHtml(r.detail).toLowerCase() }}"
-                      >
-                        <span class="w-9 h-9 rounded bg-gray-100 text-gray-600 flex items-center justify-center text-sm flex-shrink-0">
-                          <i class="fas fa-chart-line"></i>
-                        </span>
-                        <div class="flex-1 min-w-0">
-                          <div class="font-medium text-gray-800 break-words text-sm">{{{ safeReportTitle(r.detail) }}}</div>
-                          <div class="mt-1 flex gap-1.5 flex-wrap">
-                            @if(src === 'his')
-                              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-secondary/15 text-secondary">
-                                <i class="fas fa-database text-[8px]"></i>HIS
-                              </span>
-                            @else
-                              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-primary/15 text-primary">
-                                <i class="fas fa-server text-[8px]"></i>ระบบ
+        <div>
+          {{-- Report lists --}}
+          <div id="reportGrid" class="flex flex-col gap-5 min-w-0">
+            @each((h, hIdx) in heads)
+              @let(list = reportsByHead[h.id] || [])
+              <section class="rp-sec hic-panel hic-tone-{{ tones[hIdx % tones.length] }}" data-cat="{{ h.id }}"
+                data-category="{{ stripTitleHtml(h.detail).toLowerCase() }}">
+                <header class="rp-sec-head">
+                  <span class="hic-metric-icon" style="width:40px;height:40px;border-radius:12px;font-size:15px"><i class="fas fa-folder-open"></i></span>
+                  <h2>{{{ safeReportTitle(h.detail) }}}</h2>
+                  <span class="hic-pill rp-sec-count">{{ list.length }}</span>
+                </header>
+                @if(list.length === 0)
+                  <div class="py-8 text-center text-sm" style="color:var(--ink-muted)">ไม่มีรายงานในหมวดนี้</div>
+                @else
+                  <ol class="rp-list">
+                    @each(r in list)
+                      @let(src = r.databaseSource || 'system')
+                      @let(t = reportTitleParts(r.detail))
+                      <li>
+                        <a href="/reports/{{ r.id }}" class="report-item" data-id="{{ r.id }}" data-name="{{ stripTitleHtml(r.detail).toLowerCase() }}"
+                          title="{{ stripTitleHtml(r.detail) }}">
+                          @if(t.no)
+                            <span class="rp-num">{{ t.no }}</span>
+                          @else
+                            <span class="rp-num rp-num-none"><i class="fas fa-file-lines"></i></span>
+                          @end
+                          <span class="rp-body">
+                            <span class="rp-title">{{ t.title }}</span>
+                            @if(t.notes.length || src !== 'his')
+                              <span class="rp-tags">
+                                @if(src !== 'his')
+                                  <span class="rp-tag rp-tag-src"><i class="fas fa-database"></i>ระบบ</span>
+                                @end
+                                @each(n in t.notes)
+                                  <span class="rp-tag rp-tag-{{ n.tone }}">{{ n.text }}</span>
+                                @end
                               </span>
                             @end
-                          </div>
-                        </div>
-                        <i class="fas fa-chevron-right text-xs text-gray-300"></i>
-                      </a>
-                    </li>
-                  @end
-                </ul>
-              @end
-            </details>
-          @end
-        </div>
+                          </span>
+                          <i class="fas fa-chevron-right rp-go"></i>
+                        </a>
+                      </li>
+                    @end
+                  </ol>
+                @end
+              </section>
+            @end
 
-        <div id="noResults" class="hidden mt-4 bg-white rounded-xl border border-gray-200 py-12 text-center text-gray-500">
-          <i class="fas fa-circle-question text-2xl text-gray-300 mb-2"></i>
-          <div class="text-sm">ไม่พบรายงานที่ตรงกับการค้นหา</div>
-          <button type="button" id="clearSearch" class="mt-3 px-3 py-1.5 rounded-md bg-gray-100 text-sm hover:bg-gray-200">
-            <i class="fas fa-rotate-left"></i> ล้างคำค้นหา
-          </button>
+            <div id="noResults" class="hidden hic-panel">
+              <div class="hic-empty">
+                <span class="hic-empty-icon"><i class="fas fa-magnifying-glass"></i></span>
+                <b>ไม่พบรายงานที่ตรงกับการค้นหา</b>
+                <span>ลองใช้คำที่สั้นลง หรือค้นหาด้วยชื่อหมวด</span>
+                <button type="button" id="clearSearch" class="hic-btn hic-btn-secondary hic-btn-sm mt-3">
+                  <i class="fas fa-rotate-left"></i>ล้างคำค้นหา
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       @end
     </div>
 
     <style>
-      /* Hide native <summary> markers (triangle / disclosure arrow) */
-      .report-card > summary::-webkit-details-marker { display: none; }
-      .report-card > summary { list-style: none; }
+      .rp-search { height: 52px; padding-left: 20px; font-size: 16px; box-shadow: var(--shadow-card); border-color: var(--border); }
+      .rp-search input { font-size: 16px; }
+
+      .rp-toolbar { display: flex; gap: 12px; align-items: stretch; }
+      .rp-toolbar .rp-search { flex: 1; min-width: 0; }
+      .rp-dd { position: relative; flex: none; width: 360px; }
+      .rp-dd-btn {
+        display: flex; align-items: center; gap: 10px; width: 100%; height: 52px; padding: 0 16px 0 18px;
+        border: 1px solid var(--border); border-radius: 9999px; background: var(--surface); box-shadow: var(--shadow-card);
+        color: var(--ink-strong); cursor: pointer; text-align: left; font: 600 15px/20px var(--font-thai);
+        transition: border-color .12s ease;
+      }
+      .rp-dd-btn:hover, .rp-dd-btn[aria-expanded="true"] { border-color: var(--brand-from); }
+      .rp-dd-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+      .rp-dd-kicker { flex: none; font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+      .rp-dd-value { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+      .rp-dd-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .rp-dd-caret { flex: none; font-size: 12px; color: var(--ink-muted); transition: transform .15s ease; }
+      .rp-dd-btn[aria-expanded="true"] .rp-dd-caret { transform: rotate(180deg); }
+      .rp-dd-menu {
+        position: absolute; z-index: 40; top: calc(100% + 8px); left: 0; width: min(680px, calc(100vw - 32px));
+        max-height: min(70vh, 600px); overflow-y: auto; padding: 8px;
+        border: 1px solid var(--border); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-pop);
+      }
+      .rp-dd-menu[hidden] { display: none; }
+      .rp-cats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 6px; }
+      .rp-cat {
+        display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; padding: 8px 8px 8px 10px;
+        border: 0; border-radius: 10px; background: transparent; color: var(--ink); text-align: left; cursor: pointer;
+        font: 500 14px/20px var(--font-thai); transition: background-color .12s ease, color .12s ease;
+      }
+      .rp-cat:hover, .rp-cat:focus-visible { background: var(--surface-sunken); color: var(--ink-strong); outline: none; }
+      .rp-cat.is-active { background: var(--brand-soft); color: var(--brand-from); font-weight: 700; }
+      html.dark .rp-cat.is-active { color: var(--heading); }
+      .rp-cat.is-empty, .rp-cat.is-zero { opacity: .45; }
+      .rp-cat-dot { flex: none; width: 8px; height: 8px; border-radius: 9999px; background: var(--tone-ink, var(--brand-from)); }
+      .rp-cat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .rp-cat-count { flex: none; min-width: 30px; padding: 0 7px; border-radius: 9999px; background: var(--surface-sunken); color: var(--ink-subtle); font: 600 12px/20px var(--font-sans); text-align: center; font-variant-numeric: tabular-nums; }
+      .rp-cat.is-active .rp-cat-count { background: var(--brand-from); color: #fff; }
+
+      .rp-sec { overflow: hidden; scroll-margin-top: calc(var(--header-height) + 16px); }
+      .rp-sec-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+      .rp-sec-head h2 { flex: 1; min-width: 0; margin: 0; font: 700 16.5px/24px var(--font-thai); color: var(--ink-strong); }
+
+      .rp-list { margin: 0; padding: 8px; list-style: none; column-width: 440px; column-gap: 8px; }
+      .rp-list > li { break-inside: avoid; }
+      .report-item {
+        display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; border-radius: 12px;
+        color: var(--ink-strong); text-decoration: none; transition: background-color .12s ease;
+      }
+      .report-item:hover { background: color-mix(in srgb, var(--tile) 60%, transparent); }
+      .report-item:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+      .rp-num {
+        flex: none; min-width: 34px; height: 24px; margin-top: 1px; padding: 0 6px; border-radius: 8px;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: var(--tile); color: var(--tone-ink); font: 700 12.5px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+      }
+      .rp-num-none { background: var(--surface-sunken); color: var(--ink-muted); font-size: 11px; }
+      .rp-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+      .rp-title { font-size: 14.5px; line-height: 22px; font-weight: 500; overflow-wrap: anywhere; }
+      .rp-title mark { padding: 0 1px; border-radius: 3px; background: color-mix(in srgb, var(--warn) 28%, transparent); color: inherit; }
+      .rp-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+      .rp-tag {
+        display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 0 8px; border-radius: 6px;
+        font: 500 12px/20px var(--font-thai); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .rp-tag i { font-size: 9.5px; }
+      .rp-tag-info { background: var(--brand-soft); color: var(--brand-from); }
+      .rp-tag-bad { background: var(--warn-soft); color: var(--warn); }
+      .rp-tag-muted, .rp-tag-src { background: var(--surface-sunken); color: var(--ink-subtle); }
+      html.dark .rp-tag-info { color: var(--heading); }
+      .rp-go { flex: none; margin-top: 6px; font-size: 11px; color: var(--ink-muted); opacity: 0; transition: opacity .12s ease, transform .12s ease; }
+      .report-item:hover .rp-go { opacity: 1; color: var(--tone-ink); transform: translateX(2px); }
+
+      .rp-recent {
+        display: inline-flex; align-items: center; gap: 8px; max-width: 320px; height: 34px; padding: 0 12px;
+        border: 1px solid var(--border); border-radius: 9999px; background: var(--surface);
+        color: var(--ink); text-decoration: none; font-size: 13.5px; transition: background-color .12s ease, border-color .12s ease;
+      }
+      .rp-recent:hover { border-color: var(--brand-from); color: var(--brand-from); }
+      .rp-recent span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .rp-recent i { font-size: 11px; color: var(--ink-muted); }
+
+      @media (max-width: 767px) {
+        .rp-toolbar { flex-direction: column; }
+        .rp-dd { width: 100%; }
+        .rp-dd-btn { height: 48px; }
+        .rp-cats { grid-template-columns: minmax(0, 1fr); }
+      }
+      @media (max-width: 640px) {
+        .rp-list { padding: 4px; }
+        .report-item { padding: 10px 8px; gap: 10px; }
+      }
     </style>
     <script>
       (function () {
         const search = document.getElementById('reportSearch')
         const grid = document.getElementById('reportGrid')
+        if (!grid) return
+        const sections = Array.from(grid.querySelectorAll('.rp-sec'))
+        const cats = Array.from(document.querySelectorAll('.rp-cat'))
         const noResults = document.getElementById('noResults')
         const hits = document.getElementById('hits')
         const hitCount = document.getElementById('hitCount')
-        const clearBtn = document.getElementById('clearSearch')
-        const expandBtn = document.getElementById('expandAll')
-        const collapseBtn = document.getElementById('collapseAll')
-        if (!grid) return
-        let timer = null
+        const STORE_CAT = 'hr-report-cat'
+        const STORE_RECENT = 'hr-recent-reports'
 
-        function applyFilter() {
-          const q = (search?.value || '').trim().toLowerCase()
-          let visibleCards = 0
-          let visibleItems = 0
-          grid.querySelectorAll('.report-card').forEach(card => {
-            const items = card.querySelectorAll('.report-item')
-            let cardMatch = false
-            if (items.length === 0) {
-              const isMatch = !q || (card.dataset.category || '').includes(q)
-              card.style.display = isMatch ? '' : 'none'
-              if (isMatch) visibleCards++
-              return
-            }
-            items.forEach(item => {
-              const isMatch = !q || (item.dataset.name || '').includes(q) || (card.dataset.category || '').includes(q)
-              item.parentElement.style.display = isMatch ? '' : 'none'
-              if (isMatch) { cardMatch = true; visibleItems++ }
-            })
-            card.style.display = cardMatch ? '' : 'none'
-            // Auto-expand when searching so matched items are visible.
-            if (q && cardMatch && card.tagName === 'DETAILS') card.open = true
-            if (cardMatch) visibleCards++
-          })
-          if (noResults) noResults.classList.toggle('hidden', visibleCards > 0)
-          if (hits) {
-            if (q && visibleCards > 0) { hitCount.textContent = visibleItems; hits.classList.remove('hidden') }
-            else hits.classList.add('hidden')
-          }
+        const store = {
+          get(k) { try { return localStorage.getItem(k) } catch (e) { return null } },
+          set(k, v) { try { localStorage.setItem(k, v) } catch (e) {} },
         }
 
-        search?.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(applyFilter, 80) })
-        clearBtn?.addEventListener('click', () => { if (search) { search.value = ''; applyFilter(); search.focus() } })
-        expandBtn?.addEventListener('click', () => {
-          grid.querySelectorAll('.report-card').forEach(c => { if (c.tagName === 'DETAILS') c.open = true })
+        const catBtn = document.getElementById('catBtn')
+        const catMenu = document.getElementById('catMenu')
+        const catCurrent = document.getElementById('catCurrent')
+        const catCurrentCount = document.getElementById('catCurrentCount')
+        const catCurrentDot = document.getElementById('catCurrentDot')
+        function openMenu(on) {
+          catMenu.hidden = !on
+          catBtn.setAttribute('aria-expanded', String(on))
+          if (on) (catMenu.querySelector('.rp-cat.is-active') || cats[0])?.focus()
+        }
+        catBtn.addEventListener('click', () => openMenu(catMenu.hidden))
+        document.addEventListener('click', e => { if (!catMenu.hidden && !e.target.closest('#catDD')) openMenu(false) })
+        catMenu.addEventListener('keydown', e => {
+          const i = cats.indexOf(document.activeElement)
+          if (e.key === 'Escape') { openMenu(false); catBtn.focus() }
+          else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault()
+            cats[(i + (e.key === 'ArrowDown' ? 1 : cats.length - 1)) % cats.length]?.focus()
+          }
         })
-        collapseBtn?.addEventListener('click', () => {
-          grid.querySelectorAll('.report-card').forEach(c => { if (c.tagName === 'DETAILS') c.open = false })
+
+        let current = store.get(STORE_CAT)
+        if (!current || !cats.some(c => c.dataset.cat === current)) current = sections[0]?.dataset.cat || 'all'
+
+        const esc = t => t.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+        function highlight(el, q) {
+          if (!el) return
+          if (el.dataset.raw === undefined) el.dataset.raw = el.textContent
+          const raw = el.dataset.raw
+          const at = q ? raw.toLowerCase().indexOf(q) : -1
+          if (at < 0) { if (el.dataset.marked) { el.textContent = raw; delete el.dataset.marked } return }
+          el.innerHTML = esc(raw.slice(0, at)) + '<mark>' + esc(raw.slice(at, at + q.length)) + '</mark>' + esc(raw.slice(at + q.length))
+          el.dataset.marked = '1'
+        }
+
+        function render() {
+          const q = (search.value || '').trim().toLowerCase()
+          let total = 0
+
+          sections.forEach(sec => {
+            const items = sec.querySelectorAll('.report-item')
+            const catMatch = q && (sec.dataset.category || '').includes(q)
+            let shown = 0
+            items.forEach(item => {
+              const ok = !q || catMatch || (item.dataset.name || '').includes(q)
+              item.parentElement.style.display = ok ? '' : 'none'
+              if (ok) shown++
+              highlight(item.querySelector('.rp-title'), ok ? q : '')
+            })
+            total += shown
+            sec.querySelector('.rp-sec-count').textContent = shown
+            const navBtn = cats.find(c => c.dataset.cat === sec.dataset.cat)
+            if (navBtn) {
+              const countEl = navBtn.querySelector('.rp-cat-count')
+              countEl.textContent = q ? shown : countEl.dataset.total
+              navBtn.classList.toggle('is-empty', !!q && shown === 0)
+            }
+            // While searching, show every section that has hits; otherwise only the selected one.
+            const visible = q ? shown > 0 : (current === 'all' || sec.dataset.cat === current)
+            sec.style.display = visible ? '' : 'none'
+          })
+
+          const allBtn = cats.find(c => c.dataset.cat === 'all')
+          if (allBtn) allBtn.querySelector('.rp-cat-count').textContent = q ? total : allBtn.querySelector('.rp-cat-count').dataset.total
+
+          cats.forEach(c => c.classList.toggle('is-active', q ? c.dataset.cat === 'all' : c.dataset.cat === current))
+          const activeBtn = cats.find(c => c.classList.contains('is-active'))
+          if (activeBtn) {
+            catCurrent.textContent = q ? 'ผลค้นหาทุกหมวด' : activeBtn.title
+            catCurrentCount.textContent = activeBtn.querySelector('.rp-cat-count').textContent
+            catCurrentDot.style.background = getComputedStyle(activeBtn.querySelector('.rp-cat-dot')).backgroundColor
+          }
+          noResults.classList.toggle('hidden', !q || total > 0)
+          hits.classList.toggle('hidden', !q)
+          hitCount.textContent = total
+        }
+
+        cats.forEach(btn => btn.addEventListener('click', () => {
+          const cat = btn.dataset.cat
+          openMenu(false)
+          if (search.value.trim()) {
+            // During a search, the nav jumps to that category's results instead of filtering.
+            const sec = sections.find(s => s.dataset.cat === cat)
+            if (sec && sec.style.display !== 'none') sec.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            else if (cat === 'all') window.scrollTo({ top: 0, behavior: 'smooth' })
+            return
+          }
+          current = cat
+          store.set(STORE_CAT, cat)
+          render()
+          const top = grid.getBoundingClientRect().top + window.scrollY - 100
+          if (window.scrollY > top) window.scrollTo({ top, behavior: 'smooth' })
+        }))
+
+        let timer = null
+        search.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(render, 80) })
+        document.getElementById('clearSearch')?.addEventListener('click', () => { search.value = ''; render(); search.focus() })
+        document.addEventListener('keydown', e => {
+          const tag = document.activeElement?.tagName
+          if (e.key === '/' && tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') { e.preventDefault(); search.focus() }
+          if (e.key === 'Escape' && document.activeElement === search && search.value) { search.value = ''; render() }
         })
-        applyFilter()
+
+        // Recently opened reports (stored only in this browser)
+        function readRecent() {
+          try { return JSON.parse(store.get(STORE_RECENT) || '[]') } catch (e) { return [] }
+        }
+        grid.addEventListener('click', e => {
+          const a = e.target.closest('.report-item')
+          if (!a) return
+          const name = a.querySelector('.rp-title').textContent.trim()
+          const list = readRecent().filter(r => r.id !== a.dataset.id)
+          list.unshift({ id: a.dataset.id, name })
+          store.set(STORE_RECENT, JSON.stringify(list.slice(0, 6)))
+        })
+        const recent = readRecent().filter(r => grid.querySelector('.report-item[data-id="' + r.id + '"]'))
+        if (recent.length) {
+          const wrap = document.getElementById('recentList')
+          recent.forEach(r => {
+            const a = document.createElement('a')
+            a.className = 'rp-recent'
+            a.href = '/reports/' + encodeURIComponent(r.id)
+            a.title = r.name
+            a.innerHTML = '<i class="fas fa-file-lines"></i><span></span>'
+            a.querySelector('span').textContent = r.name
+            wrap.appendChild(a)
+          })
+          document.getElementById('recentWrap').classList.remove('hidden')
+        }
+
+        render()
       })()
     </script>
   @end
