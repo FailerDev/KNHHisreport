@@ -9,7 +9,8 @@
 */
 
 import edge from 'edge.js'
-import { safeReportTitle, stripTitleHtml } from '#services/title_html'
+import { reportTitleParts, safeReportTitle, stripTitleHtml } from '#services/title_html'
 
 edge.global('safeReportTitle', safeReportTitle)
 edge.global('stripTitleHtml', stripTitleHtml)
+edge.global('reportTitleParts', reportTitleParts)
