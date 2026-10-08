@@ -8,6 +8,7 @@ tmp
 .env.local
 .env.production.local
 .env.development.local
+.env.test
 
 # Frontend assets compiled code
 public/assets
@@ -29,3 +30,9 @@ CUTOVER.md
 DEPLOY.md
 .claude
 linux
+context.md
+ux ui/
+*.rar
+
+# Database dumps
+01 DB/
