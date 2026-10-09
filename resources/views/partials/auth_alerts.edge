@@ -1,0 +1,13 @@
+{{-- Error / notice alerts for the auth-shell pages. Expects optional locals: error, notice --}}
+@if(typeof error !== 'undefined' && error)
+  <div class="hic-alert hic-alert-bad mb-5" role="alert">
+    <i class="fas fa-circle-exclamation"></i>
+    <span>{{ error }}</span>
+  </div>
+@end
+@if(typeof notice !== 'undefined' && notice)
+  <div class="hic-alert hic-alert-info mb-5" role="status">
+    <i class="fas fa-circle-info"></i>
+    <span>{{ notice }}</span>
+  </div>
+@end

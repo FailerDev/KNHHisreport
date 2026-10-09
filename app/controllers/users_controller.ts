@@ -2,6 +2,9 @@ import type { HttpContext } from '@adonisjs/core/http'
 import vine from '@vinejs/vine'
 import User from '#models/user'
 import { writeAudit } from '#services/audit'
+import UserTwoFactor from '#models/user_two_factor'
+import { clearLockout, lockedUsernames, userKey } from '#services/login_lockout'
+import { disableTwoFactor, setForce } from '#services/two_factor'
 
 const idField = () => vine.string().trim().transform((v) => Number(v))
 
@@ -36,6 +39,15 @@ const resetPasswordValidator = vine.compile(
   })
 )
 
+const twoFactorValidator = vine.compile(
+  vine.object({
+    user_id: idField(),
+    force: vine.enum(['default', 'require', 'exempt'] as const),
+    reset: vine.string().optional(),
+    unlock: vine.string().optional(),
+  })
+)
+
 const deleteUserValidator = vine.compile(
   vine.object({
     user_id: idField(),
@@ -45,6 +57,10 @@ const deleteUserValidator = vine.compile(
 export default class UsersController {
   async index({ view, session }: HttpContext) {
     const users = await User.query().orderBy('id', 'desc')
+    const [twofaRows, locked] = await Promise.all([UserTwoFactor.all(), lockedUsernames()])
+    const twofa = Object.fromEntries(
+      twofaRows.map((r) => [r.userId, { method: r.method, force: r.force }])
+    )
 
     const total = users.length
     const active = users.filter((u) => u.status === 1).length
@@ -53,6 +69,8 @@ export default class UsersController {
 
     return view.render('pages/admin/users', {
       users,
+      twofa,
+      lockedUsernames: [...locked],
       stats: { total, active, admins, inactive },
       message: session.flashMessages.get('message'),
       messageType: session.flashMessages.get('messageType'),
@@ -168,6 +186,37 @@ export default class UsersController {
     return response.redirect().back()
   }
 
+  /** Per-user 2FA override (default / require / exempt), reset enrolment, lift login lock. */
+  async twoFactor(ctx: HttpContext) {
+    const { request, session, response } = ctx
+    try {
+      const payload = await request.validateUsing(twoFactorValidator)
+      const user = await User.find(payload.user_id)
+      if (!user) {
+        session.flash('message', 'ไม่พบผู้ใช้ที่ระบุ')
+        session.flash('messageType', 'error')
+        return response.redirect().back()
+      }
+
+      await setForce(user.id, payload.force)
+      if (payload.reset) await disableTwoFactor(user.id)
+      if (payload.unlock) await clearLockout(userKey(user.username))
+      await writeAudit(ctx, {
+        action: 'user.2fa',
+        entity: 'user',
+        entityId: user.id,
+        summary: `2FA settings for ${user.username}: force=${payload.force}${payload.reset ? ', reset' : ''}${payload.unlock ? ', unlocked' : ''}`,
+      })
+
+      session.flash('message', `บันทึกการตั้งค่า 2FA ของ ${user.username} แล้ว`)
+      session.flash('messageType', 'success')
+    } catch (err: any) {
+      session.flash('message', err?.messages?.[0]?.message ?? err?.message ?? 'เกิดข้อผิดพลาด')
+      session.flash('messageType', 'error')
+    }
+    return response.redirect().back()
+  }
+
   async destroy(ctx: HttpContext) {
     const { request, auth, session, response } = ctx
     try {
@@ -186,6 +235,9 @@ export default class UsersController {
       }
       const usernameBefore = user.username
       await user.delete()
+      await disableTwoFactor(user.id)
+      await UserTwoFactor.query().where('user_id', user.id).delete()
+      await clearLockout(userKey(usernameBefore))
       await writeAudit(ctx, {
         action: 'user.delete',
         entity: 'user',

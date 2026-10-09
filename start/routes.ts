@@ -15,6 +15,9 @@ const AdminReportRequestsController = () => import('#controllers/admin_report_re
 const NotificationsController = () => import('#controllers/notifications_controller')
 const SettingsController = () => import('#controllers/settings_controller')
 const NotificationSettingsController = () => import('#controllers/notification_settings_controller')
+const TwoFactorController = () => import('#controllers/two_factor_controller')
+const AccountSecurityController = () => import('#controllers/account_security_controller')
+const SecuritySettingsController = () => import('#controllers/security_settings_controller')
 
 router.get('/', async ({ view, auth }) => {
   await auth.check()
@@ -36,6 +39,18 @@ router
   })
   .use(middleware.guest())
 
+// 2FA — second login step + enrolment. No middleware: the controller serves
+// either the user parked mid-login (session `twofa.pending`) or a signed-in user.
+router.get('/2fa/verify', [TwoFactorController, 'showVerify']).as('twofa.verify.show')
+router.post('/2fa/verify', [TwoFactorController, 'verify']).as('twofa.verify')
+router.post('/2fa/verify/line', [TwoFactorController, 'sendVerifyLine']).as('twofa.verify.line')
+router.post('/2fa/cancel', [TwoFactorController, 'cancel']).as('twofa.cancel')
+router.get('/2fa/setup', [TwoFactorController, 'showSetup']).as('twofa.setup.show')
+router.post('/2fa/setup/totp', [TwoFactorController, 'confirmTotp']).as('twofa.setup.totp')
+router.post('/2fa/setup/line/send', [TwoFactorController, 'sendSetupLine']).as('twofa.setup.line.send')
+router.post('/2fa/setup/line', [TwoFactorController, 'confirmLine']).as('twofa.setup.line')
+router.get('/2fa/recovery-codes', [TwoFactorController, 'showRecoveryCodes']).as('twofa.recoveryCodes').use(middleware.auth())
+
 router.get('/logout', [AuthController, 'logout']).use(middleware.auth())
 router.post('/logout', [AuthController, 'logout']).as('auth.logout').use(middleware.auth())
 
@@ -52,6 +67,11 @@ router
     router.post('/reports/:id/export', [ReportsController, 'export']).as('reports.export')
 
     // Data/report requests (requester side)
+    // The signed-in user's own 2FA
+    router.get('/account/security', [AccountSecurityController, 'show']).as('account.security')
+    router.post('/account/security/recovery-codes', [AccountSecurityController, 'regenerateCodes'])
+    router.post('/account/security/disable', [AccountSecurityController, 'disable'])
+
     router.get('/requests', [ReportRequestsController, 'index']).as('requests.index')
     router.get('/requests/create', [ReportRequestsController, 'create']).as('requests.create')
     router.post('/requests', [ReportRequestsController, 'store']).as('requests.store')
@@ -70,6 +90,11 @@ router
     router.post('/admin/users/update', [UsersController, 'update']).as('admin.users.update')
     router.post('/admin/users/reset-password', [UsersController, 'resetPassword']).as('admin.users.resetPassword')
     router.post('/admin/users/delete', [UsersController, 'destroy']).as('admin.users.destroy')
+    router.post('/admin/users/two-factor', [UsersController, 'twoFactor']).as('admin.users.twoFactor')
+
+    router.get('/admin/security-settings', [SecuritySettingsController, 'show']).as('admin.securitySettings')
+    router.post('/admin/security-settings', [SecuritySettingsController, 'save'])
+    router.post('/admin/security-settings/unlock', [SecuritySettingsController, 'unlock'])
 
     router.get('/admin/his-settings', [HisSettingsController, 'show']).as('admin.his.show')
     router.post('/admin/his-settings', [HisSettingsController, 'save']).as('admin.his.save')

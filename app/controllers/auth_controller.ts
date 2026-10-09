@@ -1,7 +1,16 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { DateTime } from 'luxon'
 import vine from '@vinejs/vine'
 import User from '#models/user'
+import { securitySettings } from '#services/app_settings'
+import { checkLockout, ipKey, recordFailedAttempt, userKey } from '#services/login_lockout'
+import { isTwoFactorRequired, twoFactorRecord } from '#services/two_factor'
+import {
+  clearPendingLogin,
+  completeLogin,
+  landingFor,
+  startPendingLogin,
+} from '#services/login_flow'
+import { writeAudit } from '#services/audit'
 
 const loginValidator = vine.compile(
   vine.object({
@@ -20,14 +29,18 @@ const registerValidator = vine.compile(
 )
 
 export default class AuthController {
-  async showLogin({ view, auth, response }: HttpContext) {
+  async showLogin({ view, auth, response, session }: HttpContext) {
     if (await auth.use('web').check()) {
-      return response.redirect(this.landingFor(auth.use('web').user as User))
+      return response.redirect(landingFor(auth.use('web').user as User))
     }
-    return view.render('pages/login')
+    return view.render('pages/login', {
+      error: session.flashMessages.get('error'),
+      notice: session.flashMessages.get('notice'),
+    })
   }
 
-  async login({ request, auth, response, view }: HttpContext) {
+  async login(ctx: HttpContext) {
+    const { request, response, view } = ctx
     let payload
     try {
       payload = await request.validateUsing(loginValidator)
@@ -38,43 +51,66 @@ export default class AuthController {
       })
     }
 
+    const fail = (error: string) => view.render('pages/login', { error, username: payload.username })
+    const security = await securitySettings()
+    const uKey = userKey(payload.username)
+    const iKey = ipKey(request.ip())
+
+    // Rate limit: refuse before even checking the password while locked
+    const userLocked = await checkLockout(uKey)
+    const ipLocked = security.ipMaxAttempts > 0 ? await checkLockout(iKey) : null
+    if (userLocked !== null || ipLocked !== null) {
+      return fail(
+        `เข้าสู่ระบบผิดพลาดหลายครั้ง ระบบล็อกชั่วคราว กรุณาลองใหม่ในอีก ${Math.max(userLocked ?? 0, ipLocked ?? 0)} นาที`
+      )
+    }
+
     let user: User
     try {
       user = await User.verifyCredentials(payload.username, payload.password)
     } catch {
-      return view.render('pages/login', {
-        error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง',
-        username: payload.username,
-      })
+      const lockedFor = await recordFailedAttempt(uKey, security.loginMaxAttempts, security.loginLockoutMinutes)
+      const ipLockedFor =
+        security.ipMaxAttempts > 0
+          ? await recordFailedAttempt(iKey, security.ipMaxAttempts, security.loginLockoutMinutes)
+          : null
+      if (lockedFor !== null || ipLockedFor !== null) {
+        await writeAudit(ctx, {
+          action: 'auth.lockout',
+          entity: 'user',
+          summary: `login locked for ${payload.username} from ${request.ip()}`,
+          meta: { byUsername: lockedFor !== null, byIp: ipLockedFor !== null },
+        })
+        return fail(
+          `เข้าสู่ระบบผิดพลาดหลายครั้ง ระบบล็อกชั่วคราว ${security.loginLockoutMinutes} นาที`
+        )
+      }
+      return fail('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง')
     }
 
     if (user.status !== 1) {
-      return view.render('pages/login', {
-        error: 'บัญชีของคุณยังไม่ได้รับการอนุมัติจากผู้ดูแลระบบ',
-        username: payload.username,
-      })
+      return fail('บัญชีของคุณยังไม่ได้รับการอนุมัติจากผู้ดูแลระบบ')
     }
 
-    await auth.use('web').login(user)
-
-    user.lastLogin = DateTime.now()
-    try {
-      await user.save()
-    } catch {
-      /* best-effort */
+    const record = await twoFactorRecord(user.id)
+    if (await isTwoFactorRequired(user, record, security)) {
+      startPendingLogin(ctx, user)
+      return response.redirect(record?.method ? '/2fa/verify' : '/2fa/setup')
     }
 
-    return response.redirect(this.landingFor(user))
+    return completeLogin(ctx, user)
   }
 
-  async logout({ auth, response }: HttpContext) {
-    await auth.use('web').logout()
+  async logout(ctx: HttpContext) {
+    const { auth, response } = ctx
+    clearPendingLogin(ctx)
+    if (await auth.use('web').check()) await auth.use('web').logout()
     return response.redirect('/login')
   }
 
   async showRegister({ view, auth, response }: HttpContext) {
     if (await auth.use('web').check()) {
-      return response.redirect(this.landingFor(auth.use('web').user as User))
+      return response.redirect(landingFor(auth.use('web').user as User))
     }
     return view.render('pages/register')
   }
@@ -111,9 +147,5 @@ export default class AuthController {
     return view.render('pages/register', {
       success: 'สมัครสมาชิกสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ',
     })
-  }
-
-  private landingFor(user: User): string {
-    return user?.userLevel === 'admin' ? '/admin/dashboard' : '/reports'
   }
 }

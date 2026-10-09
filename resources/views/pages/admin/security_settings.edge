@@ -1,0 +1,177 @@
+@component('layouts/app', {
+  title: 'ความปลอดภัย · HisReport',
+  showSidebar: true,
+  isAdmin: true,
+  fullname: auth.user.fullname || auth.user.username,
+  department: auth.user.department,
+  currentPage: 'security-settings',
+})
+  @slot('main')
+    @let(settingsTab = 'security-settings')
+    <div class="max-w-5xl mx-auto flex flex-col gap-6">
+      @include('partials/settings_nav')
+
+      <div class="hic-pagehead" style="margin-bottom:0">
+        <div class="hic-pagehead-title hic-tone-green">
+          <span class="hic-pagehead-icon"><i class="fas fa-shield-halved"></i></span>
+          <div>
+            <h1>ความปลอดภัย</h1>
+            <p>จำกัดการเข้าสู่ระบบผิดพลาด (rate limit) และยืนยันตัวตน 2 ขั้นตอน (2FA)</p>
+          </div>
+        </div>
+        <span class="hic-badge {{ settings.twofaEnabled ? 'hic-badge-ok' : 'hic-badge-muted' }}">
+          <i class="fas fa-shield-halved"></i>2FA {{ settings.twofaEnabled ? 'เปิดอยู่' : 'ปิด' }} · ผูกแล้ว {{ enrolledCount }} คน
+        </span>
+      </div>
+
+      @include('partials/flash')
+
+      <form method="POST" action="/admin/security-settings" class="flex flex-col gap-6">
+        {{ csrfField() }}
+
+        {{-- Rate limit --}}
+        <section class="hic-panel">
+          <div class="hic-panel-head">
+            <h2><i class="fas fa-gauge-high" style="color:var(--heading)"></i>จำกัดการเข้าสู่ระบบผิดพลาด</h2>
+          </div>
+          <div class="hic-panel-body flex flex-col gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="hic-label" for="login_max_attempts">ผิดได้กี่ครั้งต่อชื่อผู้ใช้</label>
+                <input type="number" min="1" max="50" required name="login_max_attempts" id="login_max_attempts" class="hic-input" value="{{ settings.loginMaxAttempts }}" />
+                <div class="hic-help">รวมการกรอกรหัส 2FA ผิดด้วย</div>
+              </div>
+              <div>
+                <label class="hic-label" for="login_lockout_minutes">ล็อกนานกี่นาที</label>
+                <input type="number" min="1" max="1440" required name="login_lockout_minutes" id="login_lockout_minutes" class="hic-input" value="{{ settings.loginLockoutMinutes }}" />
+              </div>
+              <div>
+                <label class="hic-label" for="ip_max_attempts">ผิดได้กี่ครั้งต่อเครื่อง (IP)</label>
+                <input type="number" min="0" max="1000" required name="ip_max_attempts" id="ip_max_attempts" class="hic-input" value="{{ settings.ipMaxAttempts }}" />
+                <div class="hic-help">กันการไล่เดาหลายชื่อผู้ใช้จากเครื่องเดียว · 0 = ปิด</div>
+              </div>
+            </div>
+            <div class="hic-help">ถ้าระบบอยู่หลัง reverse proxy ที่ไม่ส่ง IP จริงต่อมา ทุกคนจะดูเหมือนมาจาก IP เดียว — กรณีนั้นให้ตั้งค่าต่อ IP สูงๆ หรือ 0</div>
+          </div>
+        </section>
+
+        {{-- 2FA policy --}}
+        <section class="hic-panel">
+          <div class="hic-panel-head">
+            <h2><i class="fas fa-mobile-screen" style="color:var(--heading)"></i>ยืนยันตัวตน 2 ขั้นตอน (2FA)</h2>
+            <label class="hic-switch">
+              <input type="checkbox" name="twofa_enabled" value="1" {{ settings.twofaEnabled ? 'checked' : '' }} />
+              <span class="track"></span>
+              <span>เปิดใช้งาน</span>
+            </label>
+          </div>
+          <div class="hic-panel-body flex flex-col gap-4">
+            <p class="text-sm" style="color:var(--ink-subtle)">
+              สวิตช์หลัก — ปิดแล้วจะไม่ถามรหัส 2FA ใครเลย (แม้ผู้ใช้ที่ผูกไว้แล้ว) · เปิดแล้ว ผู้ที่ผูก 2FA ไว้จะถูกถามรหัสทุกครั้ง
+            </p>
+            <div>
+              <span class="hic-label">บังคับให้ต้องใช้ 2FA</span>
+              <div class="flex flex-col gap-2 text-sm">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" name="twofa_required_admin" value="1" {{ settings.twofaRequiredLevels.includes('admin') ? 'checked' : '' }} />
+                  <span><b>ผู้ดูแลระบบ</b> — แนะนำ เพราะเข้าถึงการตั้งค่าและ SQL ได้</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" name="twofa_required_user" value="1" {{ settings.twofaRequiredLevels.includes('user') ? 'checked' : '' }} />
+                  <span><b>ผู้ใช้ทั่วไป</b></span>
+                </label>
+              </div>
+              <div class="hic-help">ผู้ที่ถูกบังคับแต่ยังไม่ผูก จะต้องตั้งค่า 2FA ทันทีหลังกรอกรหัสผ่าน · กำหนดรายคน (บังคับ/ยกเว้น) ได้ที่หน้าผู้ใช้และสิทธิ์</div>
+            </div>
+            <div>
+              <label class="hic-label" for="twofa_totp_issuer">ชื่อที่แสดงในแอป Authenticator</label>
+              <input name="twofa_totp_issuer" id="twofa_totp_issuer" class="hic-input" maxlength="60" placeholder="HisReport" value="{{ settings.twofaTotpIssuer }}" />
+            </div>
+          </div>
+        </section>
+
+        {{-- LINE OTP --}}
+        <section class="hic-panel">
+          <div class="hic-panel-head">
+            <h2><i class="fab fa-line" style="color:#06c755"></i>OTP ทาง LINE ผ่าน MOPH Alert (ไม่บังคับ)</h2>
+            <span class="hic-badge {{ hasAlertKeys && settings.mophAlertApiUrl ? 'hic-badge-ok' : 'hic-badge-muted' }}">{{ hasAlertKeys && settings.mophAlertApiUrl ? 'พร้อมใช้' : 'ยังไม่ตั้งค่า' }}</span>
+          </div>
+          <div class="hic-panel-body flex flex-col gap-4">
+            <p class="text-sm" style="color:var(--ink-subtle)">
+              ส่ง OTP ถึงผู้ใช้ทาง LINE หมอพร้อมโดยใช้เลขบัตรประชาชน — เป็นคนละ API/key กับ MOPH Notify ที่ส่งเข้าห้อง LINE ในหน้าการแจ้งเตือน
+              ถ้าไม่ตั้งค่า ผู้ใช้จะเลือกได้เฉพาะแอป Authenticator
+            </p>
+            <div>
+              <label class="hic-label" for="moph_alert_api_url">MOPH Alert API URL</label>
+              <input name="moph_alert_api_url" id="moph_alert_api_url" class="hic-input hic-mono" maxlength="255" value="{{ settings.mophAlertApiUrl || '' }}" placeholder="https://…" />
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="hic-label" for="moph_alert_client_key">client-key</label>
+                <input type="password" name="moph_alert_client_key" id="moph_alert_client_key" class="hic-input hic-mono" autocomplete="off"
+                  placeholder="{{ hasAlertKeys ? 'บันทึกไว้แล้ว (…' + clientKeyTail + ') — เว้นว่างเพื่อใช้ค่าเดิม' : 'client-key' }}" />
+              </div>
+              <div>
+                <label class="hic-label" for="moph_alert_secret_key">secret-key</label>
+                <input type="password" name="moph_alert_secret_key" id="moph_alert_secret_key" class="hic-input hic-mono" autocomplete="off"
+                  placeholder="{{ hasAlertKeys ? 'บันทึกไว้แล้ว (…' + secretKeyTail + ') — เว้นว่างเพื่อใช้ค่าเดิม' : 'secret-key' }}" />
+              </div>
+            </div>
+            @if(hasAlertKeys)
+              <label class="flex items-center gap-2 text-sm cursor-pointer" style="color:var(--ink-subtle)">
+                <input type="checkbox" name="clear_moph_alert_keys" value="1" /> ลบ key ที่บันทึกไว้
+              </label>
+            @end
+            <div>
+              <label class="hic-label" for="line_setup_message">ข้อความแนะนำบนหน้าผูก LINE</label>
+              <textarea name="line_setup_message" id="line_setup_message" rows="2" maxlength="500" class="hic-input" placeholder="เช่น ต้องลงทะเบียน LINE หมอพร้อมก่อน">{{ settings.lineSetupMessage || '' }}</textarea>
+            </div>
+          </div>
+        </section>
+
+        <div class="flex justify-end">
+          <button type="submit" class="hic-btn hic-btn-primary"><i class="fas fa-floppy-disk"></i><span>บันทึก</span></button>
+        </div>
+      </form>
+
+      {{-- Active locks --}}
+      <section class="hic-panel overflow-hidden">
+        <div class="hic-panel-head">
+          <h2><i class="fas fa-lock" style="color:var(--heading)"></i>ถูกล็อกอยู่ตอนนี้ <span class="hic-pill">{{ locks.length }}</span></h2>
+        </div>
+        @if(locks.length === 0)
+          <div class="hic-empty">
+            <span class="hic-empty-icon"><i class="fas fa-lock-open"></i></span>
+            <b>ไม่มีบัญชีหรือเครื่องที่ถูกล็อก</b>
+          </div>
+        @else
+          <div class="hic-table-wrap" style="max-height:none">
+            <table class="hic-table">
+              <thead>
+                <tr><th>ประเภท</th><th>ชื่อผู้ใช้ / IP</th><th>ผิดพลาด</th><th>ล็อกถึง</th><th style="text-align:right">จัดการ</th></tr>
+              </thead>
+              <tbody>
+                @each(l in locks)
+                  @let(isUser = l.lockKey.startsWith('user:'))
+                  <tr>
+                    <td><span class="hic-badge {{ isUser ? 'hic-badge-brand' : 'hic-badge-violet' }}"><i class="fas {{ isUser ? 'fa-user' : 'fa-network-wired' }}"></i>{{ isUser ? 'ผู้ใช้' : 'IP' }}</span></td>
+                    <td class="hic-mono">{{ l.lockKey.replace(/^(user|ip):/, '') }}</td>
+                    <td>{{ l.failCount }} ครั้ง</td>
+                    <td>{{ thaiDate(l.lockedUntil, true) }}</td>
+                    <td style="text-align:right">
+                      <form method="POST" action="/admin/security-settings/unlock" class="inline">
+                        {{ csrfField() }}
+                        <input type="hidden" name="lock_key" value="{{ l.lockKey }}" />
+                        <button type="submit" class="hic-btn hic-btn-secondary hic-btn-sm"><i class="fas fa-lock-open"></i>ปลดล็อก</button>
+                      </form>
+                    </td>
+                  </tr>
+                @end
+              </tbody>
+            </table>
+          </div>
+        @end
+      </section>
+    </div>
+  @end
+@end

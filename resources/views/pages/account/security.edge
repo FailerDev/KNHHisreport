@@ -1,0 +1,110 @@
+@component('layouts/app', {
+  title: 'ความปลอดภัยบัญชี · HisReport',
+  showSidebar: true,
+  isAdmin: auth.user.userLevel === 'admin',
+  fullname: auth.user.fullname || auth.user.username,
+  department: auth.user.department,
+  currentPage: 'account-security',
+})
+  @slot('main')
+    <div class="max-w-3xl mx-auto flex flex-col gap-6">
+      <div class="hic-pagehead" style="margin-bottom:0">
+        <div class="hic-pagehead-title hic-tone-green">
+          <span class="hic-pagehead-icon"><i class="fas fa-shield-halved"></i></span>
+          <div>
+            <h1>ความปลอดภัยบัญชี</h1>
+            <p>ยืนยันตัวตน 2 ขั้นตอน (2FA) ของบัญชี {{ auth.user.username }}</p>
+          </div>
+        </div>
+        <span class="hic-badge {{ twofa.enabled ? 'hic-badge-ok' : 'hic-badge-muted' }}">
+          <i class="fas {{ twofa.enabled ? 'fa-lock' : 'fa-lock-open' }}"></i>2FA {{ twofa.enabled ? 'เปิดอยู่' : 'ปิด' }}
+        </span>
+      </div>
+
+      @include('partials/flash')
+
+      <section class="hic-panel">
+        <div class="hic-panel-head">
+          <h2><i class="fas fa-mobile-screen" style="color:var(--heading)"></i>ยืนยันตัวตน 2 ขั้นตอน</h2>
+        </div>
+        <div class="hic-panel-body flex flex-col gap-4">
+          @if(twofa.enabled)
+            <div class="hic-kv">
+              <span style="color:var(--ink-subtle)">วิธีที่ใช้</span>
+              <b>
+                @if(twofa.method === 'totp')
+                  <i class="fas fa-mobile-screen"></i> แอป Authenticator
+                @else
+                  <i class="fab fa-line" style="color:#06c755"></i> LINE (หมอพร้อม) · {{ twofa.citizenIdMasked }}
+                @end
+              </b>
+              <span style="color:var(--ink-subtle)">เปิดใช้เมื่อ</span>
+              <span>{{ twofa.enabledAt ? thaiDate(twofa.enabledAt, true) : '—' }}</span>
+              <span style="color:var(--ink-subtle)">รหัสสำรองที่เหลือ</span>
+              <span>
+                <b>{{ twofa.remainingCodes }}</b> / {{ twofa.totalCodes }}
+                @if(twofa.remainingCodes <= 3)
+                  <span class="hic-badge hic-badge-warn ml-1"><i class="fas fa-triangle-exclamation"></i>ใกล้หมด ควรสร้างชุดใหม่</span>
+                @end
+              </span>
+            </div>
+            @if(!twofa.systemEnabled)
+              <div class="hic-alert hic-alert-info"><i class="fas fa-circle-info"></i><span>ขณะนี้ผู้ดูแลระบบปิดการถามรหัส 2FA ไว้ทั้งระบบ — การตั้งค่าของคุณจะมีผลเมื่อเปิดใช้อีกครั้ง</span></div>
+            @end
+          @else
+            <p class="text-sm" style="color:var(--ink)">
+              เมื่อเปิดใช้ ทุกครั้งที่เข้าสู่ระบบจะต้องกรอกรหัสจากแอป Authenticator (หรือ LINE) เพิ่มจากรหัสผ่าน
+              แม้รหัสผ่านรั่วไหล ผู้อื่นก็เข้าบัญชีไม่ได้
+            </p>
+            <div>
+              <a href="/2fa/setup" class="hic-btn hic-btn-primary"><i class="fas fa-shield-halved"></i><span>เปิดใช้ 2FA</span></a>
+            </div>
+          @end
+        </div>
+      </section>
+
+      @if(twofa.enabled)
+        <section class="hic-panel">
+          <div class="hic-panel-head">
+            <h2><i class="fas fa-key" style="color:var(--heading)"></i>รหัสสำรองชุดใหม่</h2>
+          </div>
+          <form method="POST" action="/account/security/recovery-codes" class="hic-panel-body flex flex-col gap-3">
+            {{ csrfField() }}
+            <p class="text-sm" style="color:var(--ink-subtle)">สร้างรหัสสำรอง {{ twofa.totalCodes }} รหัสชุดใหม่ — รหัสชุดเดิมทั้งหมดจะใช้ไม่ได้ทันที</p>
+            <div class="flex flex-wrap gap-2 items-end">
+              <div class="flex-1" style="min-width:220px">
+                <label class="hic-label" for="pw_regen">ยืนยันด้วยรหัสผ่านปัจจุบัน</label>
+                <input type="password" id="pw_regen" name="current_password" required class="hic-input" autocomplete="current-password" />
+              </div>
+              <button type="submit" class="hic-btn hic-btn-secondary"><i class="fas fa-rotate"></i><span>สร้างรหัสสำรองใหม่</span></button>
+            </div>
+          </form>
+        </section>
+
+        <section class="hic-panel">
+          <div class="hic-panel-head">
+            <h2><i class="fas fa-power-off" style="color:var(--bad)"></i>ปิดใช้งาน 2FA</h2>
+          </div>
+          @if(twofa.canDisable)
+            <form method="POST" action="/account/security/disable" class="hic-panel-body flex flex-col gap-3"
+              onsubmit="return confirm('ยืนยันปิดการยืนยันตัวตน 2 ขั้นตอน? บัญชีจะเหลือแค่รหัสผ่านป้องกัน')">
+              {{ csrfField() }}
+              <p class="text-sm" style="color:var(--ink-subtle)">ลบการผูกโทรศัพท์และรหัสสำรองทั้งหมด หากต้องการเปลี่ยนโทรศัพท์ ให้ปิดแล้วเปิดใหม่</p>
+              <div class="flex flex-wrap gap-2 items-end">
+                <div class="flex-1" style="min-width:220px">
+                  <label class="hic-label" for="pw_disable">ยืนยันด้วยรหัสผ่านปัจจุบัน</label>
+                  <input type="password" id="pw_disable" name="current_password" required class="hic-input" autocomplete="current-password" />
+                </div>
+                <button type="submit" class="hic-btn hic-btn-ghost" style="color:var(--bad)"><i class="fas fa-power-off"></i><span>ปิด 2FA</span></button>
+              </div>
+            </form>
+          @else
+            <div class="hic-panel-body">
+              <div class="hic-alert hic-alert-info"><i class="fas fa-lock"></i><span>บัญชีนี้ถูกกำหนดให้ต้องใช้ 2FA จึงปิดเองไม่ได้ — หากเปลี่ยนโทรศัพท์หรือทำหาย ให้ติดต่อผู้ดูแลระบบเพื่อรีเซ็ต</span></div>
+            </div>
+          @end
+        </section>
+      @end
+    </div>
+  @end
+@end

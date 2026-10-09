@@ -12,7 +12,12 @@ import { DEFAULT_MOPH_API_URL } from '#services/moph_notify'
  * request event — and the cache is dropped on every save.
  */
 
-const SECRET_KEYS = new Set(['notify.moph_client_key', 'notify.moph_secret_key'])
+const SECRET_KEYS = new Set([
+  'notify.moph_client_key',
+  'notify.moph_secret_key',
+  'twofa.moph_alert_client_key',
+  'twofa.moph_alert_secret_key',
+])
 const CACHE_MS = 30_000
 
 let cache: { at: number; values: Map<string, string | null> } | null = null
@@ -97,6 +102,50 @@ export async function notificationSettings(): Promise<NotificationSettings> {
       lineNewRequest: flag(s.get('notify.event.line_new_request'), true),
       lineCompleted: flag(s.get('notify.event.line_completed'), false),
     },
+  }
+}
+
+export interface SecuritySettings {
+  /** Failed logins per username before it is locked */
+  loginMaxAttempts: number
+  loginLockoutMinutes: number
+  /** Failed logins per client IP before it is locked (0 = off) */
+  ipMaxAttempts: number
+  /** Master switch — off means nobody is asked for a 2FA code */
+  twofaEnabled: boolean
+  /** User levels that must enrol 2FA (others may opt in) */
+  twofaRequiredLevels: Array<'admin' | 'user'>
+  twofaTotpIssuer: string
+  /** LINE OTP via MOPH Alert (sent to a citizen ID, not a room) */
+  mophAlertApiUrl: string | null
+  mophAlertClientKey: string | null
+  mophAlertSecretKey: string | null
+  lineSetupMessage: string | null
+}
+
+const int = (v: string | null | undefined, fallback: number, min: number, max: number) => {
+  const n = Number(v)
+  return v !== null && v !== undefined && v !== '' && Number.isInteger(n) && n >= min && n <= max
+    ? n
+    : fallback
+}
+
+export async function securitySettings(): Promise<SecuritySettings> {
+  const s = await loadAll()
+  return {
+    loginMaxAttempts: int(s.get('security.login_max_attempts'), 5, 1, 50),
+    loginLockoutMinutes: int(s.get('security.login_lockout_minutes'), 15, 1, 1440),
+    ipMaxAttempts: int(s.get('security.ip_max_attempts'), 30, 0, 1000),
+    twofaEnabled: flag(s.get('twofa.enabled'), false),
+    twofaRequiredLevels: String(s.get('twofa.required_levels') ?? '')
+      .split(',')
+      .map((v) => v.trim())
+      .filter((v): v is 'admin' | 'user' => v === 'admin' || v === 'user'),
+    twofaTotpIssuer: s.get('twofa.totp_issuer') || 'HisReport',
+    mophAlertApiUrl: s.get('twofa.moph_alert_api_url') || null,
+    mophAlertClientKey: s.get('twofa.moph_alert_client_key') || null,
+    mophAlertSecretKey: s.get('twofa.moph_alert_secret_key') || null,
+    lineSetupMessage: s.get('twofa.line_setup_message') || null,
   }
 }
 
