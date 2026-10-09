@@ -20,6 +20,15 @@
 @let(tbInRequests = tbPage === 'requests' || tbPage === 'admin-requests')
 @let(tbRequestsHref = tbIsAdmin ? '/admin/requests' : '/requests')
 @let(tbPending = (tbIsAdmin && typeof pendingRequests !== 'undefined' && pendingRequests) ? pendingRequests : 0)
+{{-- Help button opens the manual at the chapter for the current page (ids in pages/manual) --}}
+@let(tbHelpAnchors = {
+  'home': 'navigation', 'dashboard': 'admin-settings', 'index_dashboard': 'dashboard', 'mainreport': 'reports',
+  'requests': 'requests', 'admin-requests': 'admin-requests', 'account-security': 'account-security',
+  'settings': 'admin-settings', 'report-settings': 'admin-reports', 'dashboard-settings': 'admin-dashboard',
+  'users': 'admin-users', 'his-settings': 'admin-his', 'notification-settings': 'admin-notifications',
+  'security-settings': 'admin-security',
+})
+@let(tbHelpHref = '/manual' + (tbHelpAnchors[tbPage] ? '#' + tbHelpAnchors[tbPage] : ''))
 
 <header class="hic-header">
   <a class="hic-brand" href="{{ tbHome }}" aria-label="HisReport หน้าหลัก">
@@ -87,6 +96,9 @@
         </div>
       </div>
     @end
+    <a class="hic-iconbtn" href="{{ tbHelpHref }}" aria-label="คู่มือการใช้งาน" title="คู่มือการใช้งาน">
+      <i class="fas fa-circle-question"></i>
+    </a>
     <button class="hic-iconbtn" type="button" data-theme-toggle aria-label="สลับโหมดสว่าง/มืด" title="สลับโหมดสว่าง/มืด">
       <i class="fas fa-moon" data-theme-icon></i>
     </button>
@@ -112,6 +124,7 @@
         <a href="/reports" role="menuitem"><i class="fas fa-file-lines"></i>รายงานทั้งหมด</a>
         <a href="/requests" role="menuitem"><i class="fas fa-inbox"></i>คำขอข้อมูลของฉัน</a>
         <a href="/account/security" role="menuitem"><i class="fas fa-shield-halved"></i>ความปลอดภัยบัญชี (2FA)</a>
+        <a href="/manual" role="menuitem"><i class="fas fa-book-open"></i>คู่มือการใช้งาน</a>
         @if(tbIsAdmin)
           <a href="/admin/settings" role="menuitem"><i class="fas fa-gear"></i>ตั้งค่าระบบ</a>
         @end
@@ -146,4 +159,5 @@
     <a href="/admin/security-settings" class="{{ tbPage === 'security-settings' ? 'is-active' : '' }}"><i class="fas fa-shield-halved"></i>ความปลอดภัย</a>
   @end
   <a href="/account/security" class="{{ tbPage === 'account-security' ? 'is-active' : '' }}"><i class="fas fa-user-shield"></i>ความปลอดภัยบัญชี (2FA)</a>
+  <a href="/manual" class="{{ tbPage === 'manual' ? 'is-active' : '' }}"><i class="fas fa-book-open"></i>คู่มือการใช้งาน</a>
 </div>
