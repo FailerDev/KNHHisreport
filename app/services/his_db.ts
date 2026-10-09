@@ -64,20 +64,14 @@ class HisDbService {
 
   /**
    * (Re)register the 'his' Lucid connection with explicit params.
-   * Closes the existing connection first if it was open.
+   *
+   * Uses `manager.patch()`, which swaps the config in place and disconnects
+   * the old pool in the background. (close()+release()+add() raced: add() was
+   * a no-op while the old pool was still registered, and the async release
+   * then deleted the connection entirely.)
    */
   registerConnection(params: HisConnectionParams): void {
-    // Close existing 'his' if it was opened, so manager.add can replace it.
-    if (db.manager.has(CONNECTION_NAME)) {
-      try {
-        db.manager.close(CONNECTION_NAME, true).catch(() => {})
-        db.manager.release(CONNECTION_NAME)
-      } catch {
-        /* ignore — manager may not have an open pool yet */
-      }
-    }
-
-    db.manager.add(CONNECTION_NAME, {
+    db.manager.patch(CONNECTION_NAME, {
       client: 'mysql2',
       connection: {
         host: params.host,
