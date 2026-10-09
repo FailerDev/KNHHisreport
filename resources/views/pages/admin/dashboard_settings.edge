@@ -8,6 +8,8 @@
 })
   @slot('main')
     <div class="flex flex-col gap-6">
+      @let(settingsTab = 'dashboard-settings')
+      @include('partials/settings_nav')
       <div class="hic-pagehead" style="margin-bottom:0">
         <div class="hic-pagehead-title hic-tone-teal">
           <span class="hic-pagehead-icon"><i class="fas fa-chart-line"></i></span>

@@ -1,0 +1,99 @@
+@component('layouts/app', {
+  title: 'คำขอข้อมูลของฉัน · HisReport',
+  showSidebar: true,
+  isAdmin: auth.user.userLevel === 'admin',
+  fullname: auth.user.fullname || auth.user.username,
+  department: auth.user.department,
+  currentPage: 'requests',
+})
+  @slot('main')
+    @let(filters = [
+      { key: '', label: 'ทั้งหมด', count: counts.all },
+      { key: 'pending', label: 'รอตรวจสอบ', count: counts.pending },
+      { key: 'in_progress', label: 'กำลังจัดทำ', count: counts.in_progress },
+      { key: 'completed', label: 'เสร็จสิ้น', count: counts.completed },
+      { key: 'rejected', label: 'ไม่อนุมัติ', count: counts.rejected },
+      { key: 'cancelled', label: 'ยกเลิก', count: counts.cancelled },
+    ])
+    <div class="flex flex-col gap-6">
+      <div class="hic-pagehead" style="margin-bottom:0">
+        <div class="hic-pagehead-title hic-tone-indigo">
+          <span class="hic-pagehead-icon"><i class="fas fa-inbox"></i></span>
+          <div>
+            <h1>คำขอข้อมูล/รายงาน</h1>
+            <p>ส่งคำขอข้อมูลถึงงานสารสนเทศ และติดตามสถานะได้ที่นี่</p>
+          </div>
+        </div>
+        <a href="/requests/create" class="hic-btn hic-btn-primary">
+          <i class="fas fa-plus"></i><span>ส่งคำขอใหม่</span>
+        </a>
+      </div>
+
+      @include('partials/flash')
+
+      <div class="hic-metrics">
+        <div class="hic-metric hic-tone-yellow hic-rise" style="--i:0">
+          <span class="hic-metric-icon"><i class="fas fa-hourglass-half"></i></span>
+          <div><div class="hic-metric-label">รอตรวจสอบ</div><div class="hic-metric-value">{{ counts.pending }}</div></div>
+        </div>
+        <div class="hic-metric hic-tone-blue hic-rise" style="--i:1">
+          <span class="hic-metric-icon"><i class="fas fa-gears"></i></span>
+          <div><div class="hic-metric-label">กำลังจัดทำ</div><div class="hic-metric-value">{{ counts.in_progress }}</div></div>
+        </div>
+        <div class="hic-metric hic-tone-green hic-rise" style="--i:2">
+          <span class="hic-metric-icon"><i class="fas fa-circle-check"></i></span>
+          <div><div class="hic-metric-label">เสร็จสิ้น</div><div class="hic-metric-value">{{ counts.completed }}</div></div>
+        </div>
+      </div>
+
+      <div class="flex gap-2 flex-wrap">
+        @each(f in filters)
+          <a href="/requests{{ f.key ? '?status=' + f.key : '' }}" class="hic-chip {{ status === f.key ? 'is-on' : '' }}">{{ f.label }} <span class="hic-pill">{{ f.count }}</span></a>
+        @end
+      </div>
+
+      <div class="hic-panel overflow-hidden">
+        @if(requests.length === 0)
+          <div class="hic-empty">
+            <span class="hic-empty-icon"><i class="fas fa-inbox"></i></span>
+            <b>ยังไม่มีคำขอ</b>
+            <a href="/requests/create" class="hic-btn hic-btn-secondary hic-btn-sm mt-3"><i class="fas fa-plus"></i>ส่งคำขอแรก</a>
+          </div>
+        @else
+          <div class="hic-table-wrap" style="max-height:none">
+            <table class="hic-table">
+              <thead>
+                <tr>
+                  <th>เลขที่คำขอ</th>
+                  <th>เรื่อง</th>
+                  <th>วันที่ส่ง</th>
+                  <th>ต้องการภายใน</th>
+                  <th>สถานะ</th>
+                  <th style="text-align:center">ไฟล์</th>
+                </tr>
+              </thead>
+              <tbody>
+                @each(r in requests)
+                  @let(meta = requestStatusMeta(r.status))
+                  <tr class="cursor-pointer" onclick="location.href='/requests/{{ r.id }}'">
+                    <td class="hic-mono" style="white-space:nowrap"><a href="/requests/{{ r.id }}" class="hover:underline">{{ r.reqNo }}</a></td>
+                    <td><div class="font-semibold" style="color:var(--ink-strong)">{{ r.title }}</div></td>
+                    <td style="white-space:nowrap">{{ thaiDate(r.createdAt) }}</td>
+                    <td style="white-space:nowrap">
+                      {{ r.dueDate ? thaiDate(r.dueDate) : '—' }}
+                      @if(r.isOverdue)
+                        <span class="hic-badge hic-badge-bad ml-1">เกินกำหนด</span>
+                      @end
+                    </td>
+                    <td><span class="hic-badge {{ meta.badge }}"><i class="fas {{ meta.icon }}"></i>{{ meta.label }}</span></td>
+                    <td style="text-align:center">{{ r.$extras.files_count || '—' }}</td>
+                  </tr>
+                @end
+              </tbody>
+            </table>
+          </div>
+        @end
+      </div>
+    </div>
+  @end
+@end

@@ -1,0 +1,126 @@
+@component('layouts/app', {
+  title: 'ส่งคำขอข้อมูล · HisReport',
+  showSidebar: true,
+  isAdmin: auth.user.userLevel === 'admin',
+  fullname: auth.user.fullname || auth.user.username,
+  department: auth.user.department,
+  currentPage: 'requests',
+})
+  @slot('main')
+    @let(oldLevel = flashMessages.get('data_level', 'aggregate'))
+    @let(oldFormat = flashMessages.get('output_format', 'xlsx'))
+    <div class="flex flex-col gap-6 max-w-3xl mx-auto w-full">
+      <div>
+        <nav class="hic-crumb" aria-label="breadcrumb">
+          <a href="/requests">คำขอข้อมูล/รายงาน</a><i class="fas fa-chevron-right"></i><span>ส่งคำขอใหม่</span>
+        </nav>
+        <div class="hic-pagehead" style="margin-bottom:0">
+          <div class="hic-pagehead-title hic-tone-indigo">
+            <span class="hic-pagehead-icon"><i class="fas fa-file-circle-plus"></i></span>
+            <div>
+              <h1>แบบฟอร์มขอข้อมูล/รายงาน</h1>
+              <p>ระบบจะออกเลขที่คำขอ (REQ) ให้อัตโนมัติหลังส่ง</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      @include('partials/flash')
+
+      <form method="POST" action="/requests" class="hic-panel">
+        {{ csrfField() }}
+        <div class="hic-panel-body flex flex-col gap-5">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <div class="hic-label">ผู้ขอ</div>
+              <input class="hic-input" value="{{ auth.user.fullname || auth.user.username }}" disabled />
+            </div>
+            <div>
+              <div class="hic-label">หน่วยงาน</div>
+              <input class="hic-input" value="{{ auth.user.department || '—' }}" disabled />
+            </div>
+          </div>
+
+          <div>
+            <label class="hic-label" for="title">เรื่องที่ขอ <span class="hic-req">*</span></label>
+            <input name="title" id="title" required minlength="5" maxlength="255" class="hic-input"
+              placeholder="เช่น จำนวนผู้ป่วยเบาหวานรายใหม่ แยกตามตำบล" value="{{ flashMessages.get('title', '') }}" />
+          </div>
+
+          <div>
+            <label class="hic-label" for="description">รายละเอียดข้อมูลที่ต้องการ <span class="hic-req">*</span></label>
+            <textarea name="description" id="description" required minlength="10" maxlength="5000" rows="5" class="hic-input"
+              placeholder="ระบุคอลัมน์/ตัวชี้วัดที่ต้องการ เงื่อนไข การจัดกลุ่ม ฯลฯ">{{ flashMessages.get('description', '') }}</textarea>
+          </div>
+
+          <div>
+            <span class="hic-label">ระดับข้อมูล <span class="hic-req">*</span></span>
+            <div class="flex flex-col gap-2 text-sm">
+              <label class="flex items-start gap-2 cursor-pointer">
+                <input type="radio" name="data_level" value="aggregate" {{ oldLevel !== 'identifiable' ? 'checked' : '' }} class="mt-1" />
+                <span><b>ข้อมูลสรุป</b> — ตัวเลขสถิติ ไม่ระบุตัวบุคคล</span>
+              </label>
+              <label class="flex items-start gap-2 cursor-pointer">
+                <input type="radio" name="data_level" value="identifiable" {{ oldLevel === 'identifiable' ? 'checked' : '' }} class="mt-1" />
+                <span><b>ข้อมูลรายบุคคล</b> — มี HN / ชื่อ / เลขบัตรประชาชน (ต้องระบุวัตถุประสงค์ตาม PDPA)</span>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label class="hic-label" for="purpose">วัตถุประสงค์การนำข้อมูลไปใช้ <span id="purposeReq" class="hic-req {{ oldLevel === 'identifiable' ? '' : 'hidden' }}">*</span></label>
+            <textarea name="purpose" id="purpose" maxlength="2000" rows="3" class="hic-input"
+              placeholder="เช่น ใช้ประกอบการประชุมคณะกรรมการ PCT / ทำวิจัยเลขที่ ...">{{ flashMessages.get('purpose', '') }}</textarea>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="hic-label" for="date_from">ข้อมูลตั้งแต่วันที่</label>
+              <input type="date" name="date_from" id="date_from" class="hic-input" value="{{ flashMessages.get('date_from', '') }}" />
+            </div>
+            <div>
+              <label class="hic-label" for="date_to">ถึงวันที่</label>
+              <input type="date" name="date_to" id="date_to" class="hic-input" value="{{ flashMessages.get('date_to', '') }}" />
+            </div>
+            <div>
+              <label class="hic-label" for="due_date">ต้องการรับข้อมูลภายใน</label>
+              <input type="date" name="due_date" id="due_date" min="{{ today }}" class="hic-input" value="{{ flashMessages.get('due_date', '') }}" />
+            </div>
+          </div>
+
+          <div>
+            <label class="hic-label" for="output_format">รูปแบบไฟล์ที่ต้องการ <span class="hic-req">*</span></label>
+            <select name="output_format" id="output_format" class="hic-input">
+              @each(f in ['xlsx', 'csv', 'pdf', 'any'])
+                <option value="{{ f }}" {{ oldFormat === f ? 'selected' : '' }}>{{ outputFormatLabel(f) }}</option>
+              @end
+            </select>
+          </div>
+        </div>
+        <div class="hic-modal-foot">
+          <a href="/requests" class="hic-btn hic-btn-ghost">ยกเลิก</a>
+          <button type="submit" class="hic-btn hic-btn-primary"><i class="fas fa-paper-plane"></i>ส่งคำขอ</button>
+        </div>
+      </form>
+    </div>
+  @end
+
+  @slot('scripts')
+    <script>
+      (function () {
+        const purpose = document.getElementById('purpose')
+        const mark = document.getElementById('purposeReq')
+        function sync() {
+          const identifiable = document.querySelector('input[name="data_level"]:checked')?.value === 'identifiable'
+          purpose.required = identifiable
+          mark.classList.toggle('hidden', !identifiable)
+        }
+        document.querySelectorAll('input[name="data_level"]').forEach((el) => el.addEventListener('change', sync))
+        const from = document.getElementById('date_from')
+        const to = document.getElementById('date_to')
+        from.addEventListener('change', () => { to.min = from.value })
+        sync()
+      })()
+    </script>
+  @end
+@end

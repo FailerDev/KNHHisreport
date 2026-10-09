@@ -1,0 +1,97 @@
+@component('layouts/app', {
+  title: 'ตั้งค่าระบบ · HisReport',
+  showSidebar: true,
+  isAdmin: true,
+  fullname: auth.user.fullname || auth.user.username,
+  department: auth.user.department,
+  currentPage: 'settings',
+})
+  @slot('main')
+    @let(settingsTab = 'overview')
+    @let(groups = [
+      {
+        title: 'รายงานและแดชบอร์ด',
+        icon: 'fa-chart-column',
+        cards: [
+          { href: '/admin/report-settings', icon: 'fa-sliders', tone: 'indigo', label: 'ตั้งค่ารายงาน', desc: 'หมวดหมู่ รายงาน SQL template และพารามิเตอร์', status: stats.heads + ' หมวด · ' + stats.reports + ' รายงาน', state: 'muted' },
+          { href: '/admin/dashboard-settings', icon: 'fa-chart-line', tone: 'teal', label: 'ตั้งค่าแดชบอร์ด', desc: 'ตัวชี้วัดและกราฟบนหน้าแดชบอร์ด', status: stats.dashboardItems + ' รายการ', state: 'muted' },
+        ],
+      },
+      {
+        title: 'ผู้ใช้และสิทธิ์',
+        icon: 'fa-users',
+        cards: [
+          { href: '/admin/users', icon: 'fa-users-gear', tone: 'pink', label: 'จัดการผู้ใช้', desc: 'เพิ่มผู้ใช้ กำหนดสิทธิ์ อนุมัติบัญชี และรีเซ็ตรหัสผ่าน', status: stats.users + ' คน · ผู้ดูแล ' + stats.admins + ' คน', state: 'muted' },
+        ],
+      },
+      {
+        title: 'การเชื่อมต่อฐานข้อมูล',
+        icon: 'fa-plug',
+        cards: [
+          { href: '/admin/his-settings', icon: 'fa-database', tone: 'yellow', label: 'HIS Database', desc: 'การเชื่อมต่อฐานข้อมูล HIS ของโรงพยาบาลที่รายงานดึงข้อมูล', status: his.connected ? 'เชื่อมต่อได้' : (his.hasConfig ? 'เชื่อมต่อไม่ได้' : 'ยังไม่ได้ตั้งค่า'), state: his.connected ? 'ok' : 'bad' },
+        ],
+      },
+      {
+        title: 'การแจ้งเตือนและการคุ้มครองข้อมูล',
+        icon: 'fa-bell',
+        cards: [
+          { href: '/admin/notification-settings', icon: 'fa-bell', tone: 'sky', label: 'การแจ้งเตือน', desc: 'เลือกเหตุการณ์ที่จะแจ้งเตือน ตั้งค่า LINE และระยะเวลาเก็บไฟล์ข้อมูลรายบุคคล (PDPA)', status: (notify.lineEnabled ? 'LINE เปิด' : 'LINE ปิด') + ' · เก็บไฟล์ ' + notify.retentionDays + ' วัน', state: notify.lineEnabled ? 'ok' : 'muted' },
+        ],
+      },
+    ])
+    <div class="flex flex-col gap-6">
+      <div class="hic-pagehead" style="margin-bottom:0">
+        <div class="hic-pagehead-title hic-tone-slate">
+          <span class="hic-pagehead-icon"><i class="fas fa-gear"></i></span>
+          <div>
+            <h1>ตั้งค่าระบบ</h1>
+            <p>รวมทุกการตั้งค่าของระบบไว้ที่เดียว แยกตามหมวด</p>
+          </div>
+        </div>
+      </div>
+
+      @include('partials/settings_nav')
+
+      {{-- Request queue shortcut: it's daily work, not a setting, but admins look for it here --}}
+      <a href="/admin/requests" class="hic-panel hic-rise flex items-center gap-4 p-4 hover:shadow-md transition hic-tone-sky" style="text-decoration:none">
+        <span class="hic-metric-icon"><i class="fas fa-list-check"></i></span>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold" style="color:var(--ink-strong)">คำขอข้อมูล/รายงาน</div>
+          <div class="text-sm" style="color:var(--ink-subtle)">รอตรวจสอบ {{ requests.pending }} · กำลังจัดทำ {{ requests.in_progress }} · เสร็จสิ้น {{ requests.completed }}</div>
+        </div>
+        @if(requests.pending > 0)
+          <span class="hic-badge hic-badge-warn"><i class="fas fa-hourglass-half"></i>รอตรวจสอบ {{ requests.pending }}</span>
+        @end
+        <i class="fas fa-chevron-right" style="color:var(--ink-muted)"></i>
+      </a>
+
+      @each((g, gi) in groups)
+        <section>
+          <div class="hic-section-head">
+            <div class="hic-section-title">
+              <span class="hic-section-icon"><i class="fas {{ g.icon }}"></i></span>
+              <h2>{{ g.title }}</h2>
+            </div>
+          </div>
+          <div class="hic-grid">
+            @each((c, ci) in g.cards)
+              <a href="{{ c.href }}" class="hic-card hic-tone-{{ c.tone }}" style="--i:{{ gi * 2 + ci }}">
+                <div class="hic-card-top">
+                  <span class="hic-tile"><i class="fas {{ c.icon }}"></i></span>
+                  <span class="hic-go"><i class="fas fa-arrow-right"></i></span>
+                </div>
+                <div class="hic-card-text">
+                  <span class="hic-card-label">{{ c.label }}</span>
+                  <span class="hic-card-desc">{{ c.desc }}</span>
+                  <span class="hic-badge {{ c.state === 'ok' ? 'hic-badge-ok' : (c.state === 'bad' ? 'hic-badge-bad' : 'hic-badge-muted') }} mt-2" style="align-self:flex-start">{{ c.status }}</span>
+                </div>
+                <span class="hic-watermark" aria-hidden="true"><i class="fas {{ c.icon }}"></i></span>
+              </a>
+            @end
+          </div>
+        </section>
+      @end
+
+    </div>
+  @end
+@end
