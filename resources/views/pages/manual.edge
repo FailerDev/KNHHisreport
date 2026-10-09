@@ -1,0 +1,509 @@
+{{--
+  /manual — in-app user manual. Admin chapters render only for admins.
+  Section ids are linked from the topbar help button (partials/topbar), so
+  keep them stable when editing.
+--}}
+@let(mnIsAdmin = auth.user.userLevel === 'admin')
+@let(mnUserToc = [
+  { id: 'start', icon: 'fa-right-to-bracket', label: 'เริ่มต้นใช้งาน' },
+  { id: 'navigation', icon: 'fa-compass', label: 'หน้าหลักและเมนู' },
+  { id: 'dashboard', icon: 'fa-chart-pie', label: 'แดชบอร์ด' },
+  { id: 'reports', icon: 'fa-file-lines', label: 'รายงาน' },
+  { id: 'requests', icon: 'fa-inbox', label: 'ขอข้อมูล/รายงาน' },
+  { id: 'notifications', icon: 'fa-bell', label: 'การแจ้งเตือน' },
+  { id: 'account-security', icon: 'fa-user-shield', label: 'ความปลอดภัยบัญชี (2FA)' },
+  { id: 'faq', icon: 'fa-circle-question', label: 'ปัญหาที่พบบ่อย' },
+])
+@let(mnAdminToc = [
+  { id: 'admin-settings', icon: 'fa-gear', label: 'ภาพรวมการตั้งค่า' },
+  { id: 'admin-requests', icon: 'fa-list-check', label: 'จัดการคำขอข้อมูล' },
+  { id: 'admin-reports', icon: 'fa-sliders', label: 'ตั้งค่ารายงาน' },
+  { id: 'admin-parameters', icon: 'fa-list-ol', label: 'พารามิเตอร์รายงาน' },
+  { id: 'admin-dashboard', icon: 'fa-chart-line', label: 'ตั้งค่าแดชบอร์ด' },
+  { id: 'admin-users', icon: 'fa-users-gear', label: 'ผู้ใช้และสิทธิ์' },
+  { id: 'admin-his', icon: 'fa-database', label: 'HIS Database' },
+  { id: 'admin-notifications', icon: 'fa-bullhorn', label: 'ตั้งค่าการแจ้งเตือน' },
+  { id: 'admin-security', icon: 'fa-shield-halved', label: 'ตั้งค่าความปลอดภัย' },
+])
+
+@component('layouts/app', {
+  title: 'คู่มือการใช้งาน · HisReport',
+  showSidebar: true,
+  isAdmin: mnIsAdmin,
+  fullname: auth.user.fullname || auth.user.username,
+  department: auth.user.department,
+  currentPage: 'manual',
+})
+  @slot('head')
+    <style>
+      .mn-layout { display: grid; gap: 24px; align-items: start; }
+      @media (min-width: 1024px) { .mn-layout { grid-template-columns: 250px minmax(0, 1fr); } }
+      .mn-toc { display: flex; flex-direction: column; gap: 2px; }
+      @media (min-width: 1024px) {
+        .mn-toc-wrap { position: sticky; top: calc(var(--header-height, 64px) + 16px); max-height: calc(100vh - var(--header-height, 64px) - 32px); overflow-y: auto; }
+      }
+      .mn-toc-label { padding: 12px 10px 4px; font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+      .mn-toc a { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 10px; font-size: 14px; color: var(--ink); text-decoration: none; }
+      .mn-toc a i { width: 16px; text-align: center; color: var(--ink-muted); }
+      .mn-toc a:hover { background: var(--surface-sunken); }
+      .mn-toc a.is-on { background: var(--brand-soft); color: var(--brand-from); font-weight: 600; }
+      .mn-toc a.is-on i { color: var(--brand-from); }
+      .mn-sec { scroll-margin-top: calc(var(--header-height, 64px) + 16px); }
+      .mn-body { display: flex; flex-direction: column; gap: 14px; font-size: 15px; line-height: 1.75; color: var(--ink); }
+      .mn-body h3 { margin-top: 6px; font-size: 16px; font-weight: 700; color: var(--ink-strong); }
+      .mn-body ul, .mn-body ol { padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
+      .mn-body ul { list-style: disc; }
+      .mn-body ol { list-style: decimal; }
+      .mn-body b { color: var(--ink-strong); }
+      .mn-body code { padding: 1px 6px; border-radius: 6px; background: var(--surface-sunken); font-size: 13px; }
+      .mn-path { display: inline-flex; align-items: center; gap: 6px; padding: 1px 8px; border-radius: 8px; background: var(--surface-sunken); font-size: 13px; color: var(--ink-strong); text-decoration: none; white-space: nowrap; }
+      .mn-path:hover { color: var(--brand-from); }
+      .mn-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+      .mn-flow .fa-arrow-right { color: var(--ink-muted); font-size: 12px; }
+      .mn-admin-head { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+      .mn-empty { display: none; }
+    </style>
+  @end
+
+  @slot('main')
+    <div class="flex flex-col gap-6">
+      <div class="hic-pagehead" style="margin-bottom:0">
+        <div class="hic-pagehead-title hic-tone-blue">
+          <span class="hic-pagehead-icon"><i class="fas fa-book-open"></i></span>
+          <div>
+            <h1>คู่มือการใช้งาน</h1>
+            <p>วิธีใช้งานระบบ HisReport ทีละขั้นตอน{{ mnIsAdmin ? ' · รวมคู่มือผู้ดูแลระบบ' : '' }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="mn-layout">
+        {{-- Table of contents --}}
+        <aside class="mn-toc-wrap hic-panel" style="padding:12px">
+          <label class="hic-search" style="margin-bottom:6px">
+            <i class="fas fa-magnifying-glass"></i>
+            <input type="search" id="mnFilter" placeholder="ค้นหาในคู่มือ…" aria-label="ค้นหาในคู่มือ" autocomplete="off" />
+          </label>
+          <nav class="mn-toc" aria-label="สารบัญคู่มือ">
+            <div class="mn-toc-label">สำหรับผู้ใช้งาน</div>
+            @each(t in mnUserToc)
+              <a href="#{{ t.id }}" data-toc="{{ t.id }}"><i class="fas {{ t.icon }}"></i>{{ t.label }}</a>
+            @end
+            @if(mnIsAdmin)
+              <div class="mn-toc-label">สำหรับผู้ดูแลระบบ</div>
+              @each(t in mnAdminToc)
+                <a href="#{{ t.id }}" data-toc="{{ t.id }}"><i class="fas {{ t.icon }}"></i>{{ t.label }}</a>
+              @end
+            @end
+          </nav>
+        </aside>
+
+        <div class="flex flex-col gap-6 min-w-0">
+          <div class="hic-alert hic-alert-info mn-empty" id="mnNoMatch"><i class="fas fa-circle-info"></i><span>ไม่พบหัวข้อที่ตรงกับคำค้น</span></div>
+
+          {{-- ============================ USER CHAPTERS ============================ --}}
+
+          <section class="hic-panel mn-sec" id="start">
+            <div class="hic-panel-head"><h2><i class="fas fa-right-to-bracket" style="color:var(--heading)"></i>เริ่มต้นใช้งาน</h2></div>
+            <div class="hic-panel-body mn-body">
+              <h3>สมัครสมาชิก</h3>
+              <ol>
+                <li>ที่หน้าเข้าสู่ระบบ กด <b>สมัครสมาชิก</b></li>
+                <li>กรอกชื่อ-นามสกุล ชื่อผู้ใช้ (อย่างน้อย 3 ตัวอักษร) รหัสผ่าน (อย่างน้อย 6 ตัวอักษร) และแผนก</li>
+                <li>บัญชีใหม่ต้อง <b>รอผู้ดูแลระบบอนุมัติ</b> ก่อน จึงจะเข้าสู่ระบบได้ — ระหว่างนี้จะขึ้นข้อความ “บัญชีของคุณยังไม่ได้รับการอนุมัติ”</li>
+              </ol>
+              <h3>เข้าสู่ระบบ</h3>
+              <ol>
+                <li>กรอกชื่อผู้ใช้และรหัสผ่าน แล้วกด <b>เข้าสู่ระบบ</b></li>
+                <li>ถ้าบัญชีเปิด 2FA ไว้ ระบบจะถามรหัสอีกขั้น — กรอกรหัส 6 หลักจากแอป Authenticator หรือกดส่ง OTP ทาง LINE (หมอพร้อม) ดูเพิ่มที่ <a href="#account-security" class="mn-path"><i class="fas fa-user-shield"></i>ความปลอดภัยบัญชี</a></li>
+                <li>ถ้าผู้ดูแลระบบบังคับใช้ 2FA แต่คุณยังไม่ได้ผูก ระบบจะพาไปหน้าตั้งค่า 2FA ทันที</li>
+              </ol>
+              <div class="hic-alert hic-alert-bad"><i class="fas fa-lock"></i><span>กรอกรหัสผ่าน (หรือรหัส 2FA) ผิดหลายครั้งติดกัน ระบบจะ <b>ล็อกชั่วคราว</b> ตามเวลาที่ผู้ดูแลกำหนด — รอให้ครบเวลาแล้วลองใหม่ หรือติดต่อผู้ดูแลระบบให้ปลดล็อก</span></div>
+              <h3>ออกจากระบบ</h3>
+              <p>กดชื่อของคุณที่มุมขวาบน แล้วเลือก <b>ออกจากระบบ</b> ควรออกทุกครั้งเมื่อใช้เครื่องร่วมกับผู้อื่น</p>
+            </div>
+          </section>
+
+          <section class="hic-panel mn-sec" id="navigation">
+            <div class="hic-panel-head"><h2><i class="fas fa-compass" style="color:var(--heading)"></i>หน้าหลักและเมนู</h2></div>
+            <div class="hic-panel-body mn-body">
+              <p>แถบด้านบนของทุกหน้ามีเมนูหลัก:</p>
+              <ul>
+                <li><b>หน้าหลัก</b> — การ์ดเมนูทั้งหมด และข้อมูลบัญชีของคุณ (สิทธิ์ แผนก เข้าใช้ล่าสุด)</li>
+                <li><b>แดชบอร์ด</b> — ตัวชี้วัดและกราฟสรุปจากระบบ HIS</li>
+                <li><b>รายงาน</b> — เลือกรายงานมาประมวลผลและส่งออก Excel</li>
+                <li><b>คำขอข้อมูล</b> — ส่งคำขอข้อมูลที่ไม่มีในรายงาน และติดตามสถานะ</li>
+                @if(mnIsAdmin)
+                  <li><b>ตั้งค่าระบบ</b> (เฉพาะผู้ดูแล) — รวมการตั้งค่าทุกอย่างไว้ที่เดียว</li>
+                @end
+              </ul>
+              <p>ไอคอนด้านขวาบน:</p>
+              <ul>
+                <li><i class="fas fa-bell"></i> <b>กระดิ่ง</b> — การแจ้งเตือนที่ยังไม่อ่าน กดรายการเพื่อเปิดเรื่องนั้น หรือกด “อ่านทั้งหมดแล้ว”</li>
+                <li><i class="fas fa-circle-question"></i> <b>คู่มือ</b> — เปิดคู่มือนี้ตรงหัวข้อของหน้าที่คุณกำลังใช้อยู่</li>
+                <li><i class="fas fa-moon"></i> <b>โหมดสว่าง/มืด</b> — สลับสีหน้าจอ ระบบจำค่าไว้ในเครื่อง</li>
+                <li><b>ชื่อผู้ใช้</b> — เมนูส่วนตัว: คำขอข้อมูลของฉัน ความปลอดภัยบัญชี (2FA) คู่มือ และออกจากระบบ</li>
+              </ul>
+              <p>บนมือถือ กดปุ่ม <i class="fas fa-bars"></i> เพื่อเปิดเมนู</p>
+            </div>
+          </section>
+
+          <section class="hic-panel mn-sec" id="dashboard">
+            <div class="hic-panel-head"><h2><i class="fas fa-chart-pie" style="color:var(--heading)"></i>แดชบอร์ด</h2></div>
+            <div class="hic-panel-body mn-body">
+              <p>ไปที่ <a href="/dashboard" class="mn-path"><i class="fas fa-chart-pie"></i>แดชบอร์ด</a> เพื่อดูสถิติสำคัญจากระบบ HIS</p>
+              <ul>
+                <li><b>ตัวชี้วัด</b> — การ์ดตัวเลขแต่ละรายการ บางการ์ดกดเข้าไปดูรายงานรายละเอียดได้</li>
+                <li><b>กราฟสรุป</b> — กราฟของตัวชี้วัดที่ผู้ดูแลตั้งค่าให้แสดงกราฟ</li>
+                <li>ข้อมูลดึงจากฐานข้อมูล HIS โดยตรง — ถ้าตัวเลขไม่ขึ้น อาจเป็นเพราะการเชื่อมต่อ HIS มีปัญหา ให้แจ้งผู้ดูแลระบบ</li>
+              </ul>
+            </div>
+          </section>
+
+          <section class="hic-panel mn-sec" id="reports">
+            <div class="hic-panel-head"><h2><i class="fas fa-file-lines" style="color:var(--heading)"></i>รายงาน</h2></div>
+            <div class="hic-panel-body mn-body">
+              <h3>หารายงาน</h3>
+              <ol>
+                <li>ไปที่ <a href="/reports" class="mn-path"><i class="fas fa-file-lines"></i>รายงาน</a></li>
+                <li>เลือกหมวดหมู่ หรือพิมพ์ชื่อรายงานในช่อง <b>ค้นหาชื่อรายงานจากทุกหมวด</b></li>
+                <li>กดชื่อรายงานเพื่อเปิด</li>
+              </ol>
+              <h3>ประมวลผลรายงาน</h3>
+              <ol>
+                <li>กรอก <b>เงื่อนไขการค้นหา</b> เช่น จากวันที่ – ถึงวันที่ แผนก หรือค่าอื่นที่รายงานนั้นต้องใช้ (ช่องที่มี <span class="hic-req">*</span> ต้องกรอก)</li>
+                <li>กด <b>ประมวลผลรายงาน</b> แล้วรอสักครู่ (รายงานที่ช่วงวันกว้างอาจใช้เวลานาน)</li>
+                <li>ผลจะแสดงเป็นตาราง — พิมพ์ในช่อง <b>ค้นหาในตาราง</b> เพื่อกรองแถวที่แสดง</li>
+              </ol>
+              <h3>ส่งออกและพิมพ์</h3>
+              <ul>
+                <li>กดปุ่ม <span class="mn-path"><i class="fas fa-file-excel"></i>Excel</span> เพื่อดาวน์โหลดผลลัพธ์ทั้งหมดเป็นไฟล์ .xlsx</li>
+                <li>กดปุ่ม <b>พิมพ์</b> เพื่อพิมพ์ตารางผลลัพธ์</li>
+              </ul>
+              <div class="hic-alert hic-alert-info"><i class="fas fa-lightbulb"></i><span>ไม่พบรายงานที่ต้องการ? ส่ง <a href="#requests"><b>คำขอข้อมูล</b></a> ถึงงานสารสนเทศได้ ถ้ามีคนขอซ้ำบ่อย งานสารสนเทศอาจทำเป็นรายงานถาวรให้รันเองได้ในภายหลัง</span></div>
+            </div>
+          </section>
+
+          <section class="hic-panel mn-sec" id="requests">
+            <div class="hic-panel-head"><h2><i class="fas fa-inbox" style="color:var(--heading)"></i>ขอข้อมูล/รายงาน</h2></div>
+            <div class="hic-panel-body mn-body">
+              <p>ใช้เมื่อต้องการข้อมูลที่ไม่มีในหน้ารายงาน คำขอจะส่งถึงงานสารสนเทศ (ผู้ดูแลระบบ) และติดตามสถานะได้ในระบบ</p>
+              <h3>ส่งคำขอ</h3>
+              <ol>
+                <li>ไปที่ <a href="/requests" class="mn-path"><i class="fas fa-inbox"></i>คำขอข้อมูลของฉัน</a> แล้วกด <b>ส่งคำขอใหม่</b></li>
+                <li>กรอก <b>เรื่องที่ขอ</b> และ <b>รายละเอียดข้อมูลที่ต้องการ</b> (คอลัมน์ ตัวชี้วัด เงื่อนไข การจัดกลุ่ม) ยิ่งละเอียดยิ่งได้ข้อมูลตรงความต้องการ</li>
+                <li>เลือก <b>ระดับข้อมูล</b>:
+                  <ul>
+                    <li><b>ข้อมูลสรุป</b> — ตัวเลขสถิติ ไม่ระบุตัวบุคคล</li>
+                    <li><b>ข้อมูลรายบุคคล</b> — มี HN / ชื่อ / เลขบัตรประชาชน <b>ต้องระบุวัตถุประสงค์การนำข้อมูลไปใช้</b> ตาม PDPA</li>
+                  </ul>
+                </li>
+                <li>ระบุช่วงวันที่ของข้อมูล วันที่ต้องการรับข้อมูล และรูปแบบไฟล์ (Excel / CSV / PDF)</li>
+                <li>กด <b>ส่งคำขอ</b> — ระบบออกเลขที่คำขอให้อัตโนมัติ เช่น <code>REQ-2570-0001</code> (ตามปีงบประมาณ)</li>
+              </ol>
+              <h3>สถานะคำขอ</h3>
+              <div class="mn-flow">
+                <span class="hic-badge hic-badge-warn"><i class="fas fa-hourglass-half"></i>รอตรวจสอบ</span>
+                <i class="fas fa-arrow-right"></i>
+                <span class="hic-badge hic-badge-brand"><i class="fas fa-gears"></i>กำลังจัดทำ</span>
+                <i class="fas fa-arrow-right"></i>
+                <span class="hic-badge hic-badge-ok"><i class="fas fa-circle-check"></i>เสร็จสิ้น</span>
+              </div>
+              <ul>
+                <li><b>รอตรวจสอบ</b> — ส่งแล้ว รอเจ้าหน้าที่ตรวจ ในขั้นนี้ผู้ขอ <b>ยกเลิกคำขอเองได้</b></li>
+                <li><b>กำลังจัดทำ</b> — เจ้าหน้าที่รับงานแล้ว</li>
+                <li><b>เสร็จสิ้น</b> — มีไฟล์ผลลัพธ์ให้ดาวน์โหลดในหน้าคำขอ อาจมีหมายเหตุจากผู้จัดทำ (เช่น คำอธิบายคอลัมน์)</li>
+                <li><span class="hic-badge hic-badge-bad"><i class="fas fa-circle-xmark"></i>ไม่อนุมัติ</span> — จะมีเหตุผลแจ้งในหน้าคำขอ</li>
+                <li><span class="hic-badge hic-badge-muted"><i class="fas fa-ban"></i>ยกเลิก</span> — ผู้ขอยกเลิกเอง</li>
+              </ul>
+              <div class="hic-alert hic-alert-bad"><i class="fas fa-user-lock"></i><span><b>ข้อมูลรายบุคคล:</b> ไฟล์ผลลัพธ์จะถูก <b>ลบอัตโนมัติ</b> หลังปิดงานตามระยะเวลาที่กำหนด (หน้าคำขอจะแสดงวันที่จะลบ) — ดาวน์โหลดเก็บไว้ให้เรียบร้อย ใช้ตามวัตถุประสงค์ที่แจ้งไว้เท่านั้น และไม่ส่งต่อผู้ไม่เกี่ยวข้อง ทุกการดาวน์โหลดถูกบันทึกไว้</span></div>
+            </div>
+          </section>
+
+          <section class="hic-panel mn-sec" id="notifications">
+            <div class="hic-panel-head"><h2><i class="fas fa-bell" style="color:var(--heading)"></i>การแจ้งเตือน</h2></div>
+            <div class="hic-panel-body mn-body">
+              <p>เมื่อคำขอของคุณได้รับอนุมัติ ไม่อนุมัติ เสร็จสิ้น หรือไฟล์ถูกลบ จะมีตัวเลขแดงขึ้นที่ <i class="fas fa-bell"></i> กระดิ่งมุมขวาบน</p>
+              <ul>
+                <li>กดรายการแจ้งเตือนเพื่อเปิดคำขอนั้น (ระบบจะทำเครื่องหมายว่าอ่านแล้ว)</li>
+                <li>กด <b>อ่านทั้งหมดแล้ว</b> เพื่อล้างทุกรายการ</li>
+              </ul>
+            </div>
+          </section>
+
+          <section class="hic-panel mn-sec" id="account-security">
+            <div class="hic-panel-head"><h2><i class="fas fa-user-shield" style="color:var(--heading)"></i>ความปลอดภัยบัญชี (2FA)</h2></div>
+            <div class="hic-panel-body mn-body">
+              <p>การยืนยันตัวตน 2 ขั้นตอน (2FA) ทำให้ต้องใช้รหัสจากโทรศัพท์เพิ่มจากรหัสผ่าน แม้รหัสผ่านรั่วไหล ผู้อื่นก็เข้าบัญชีไม่ได้ จัดการได้ที่ <a href="/account/security" class="mn-path"><i class="fas fa-user-shield"></i>ความปลอดภัยบัญชี</a></p>
+              <h3>เปิดใช้ด้วยแอป Authenticator (แนะนำ)</h3>
+              <ol>
+                <li>ติดตั้งแอป Google Authenticator หรือ Microsoft Authenticator บนโทรศัพท์</li>
+                <li>กด <b>เปิดใช้ 2FA</b> แล้วเลือก <b>แอป Authenticator</b></li>
+                <li>ในแอปกด + แล้วสแกน QR code (สแกนไม่ได้ให้พิมพ์รหัสที่แสดงแทน)</li>
+                <li>กรอกรหัส 6 หลักที่แอปแสดง แล้วกด <b>ยืนยันและเปิดใช้งาน</b></li>
+              </ol>
+              <h3>เปิดใช้ด้วย LINE (หมอพร้อม)</h3>
+              <ol>
+                <li>ต้องลงทะเบียน LINE หมอพร้อมไว้ก่อน</li>
+                <li>เลือก <b>LINE (หมอพร้อม)</b> กรอกเลขบัตรประชาชน 13 หลัก แล้วกด <b>ส่งรหัส OTP</b></li>
+                <li>กรอกรหัส OTP ที่ได้รับทาง LINE (ใช้ได้ภายใน 5 นาที)</li>
+              </ol>
+              <h3>รหัสสำรอง</h3>
+              <ul>
+                <li>หลังเปิดใช้ ระบบจะแสดง <b>รหัสสำรอง 10 รหัส</b> — จดหรือพิมพ์เก็บไว้ในที่ปลอดภัย</li>
+                <li>ใช้แทนรหัสจากโทรศัพท์ได้เมื่อโทรศัพท์ไม่อยู่กับตัว (กด “ใช้โทรศัพท์ไม่ได้” ตอนยืนยันตัวตน) รหัสละ 1 ครั้ง</li>
+                <li>เหลือน้อยให้กด <b>สร้างรหัสสำรองใหม่</b> (รหัสชุดเดิมจะใช้ไม่ได้ทันที)</li>
+              </ul>
+              <div class="hic-alert hic-alert-info"><i class="fas fa-mobile-screen"></i><span><b>เปลี่ยนหรือทำโทรศัพท์หาย:</b> ถ้ายังเข้าระบบได้ ให้ปิด 2FA แล้วเปิดใหม่กับเครื่องใหม่ ถ้าเข้าไม่ได้หรือบัญชีถูกบังคับใช้ 2FA ให้ติดต่อผู้ดูแลระบบเพื่อรีเซ็ต</span></div>
+            </div>
+          </section>
+
+          <section class="hic-panel mn-sec" id="faq">
+            <div class="hic-panel-head"><h2><i class="fas fa-circle-question" style="color:var(--heading)"></i>ปัญหาที่พบบ่อย</h2></div>
+            <div class="hic-panel-body mn-body">
+              <div class="hic-table-wrap">
+                <table class="hic-table">
+                  <thead><tr><th>อาการ</th><th>สาเหตุ / วิธีแก้</th></tr></thead>
+                  <tbody>
+                    <tr><td>“บัญชียังไม่ได้รับการอนุมัติ”</td><td>บัญชีที่สมัครเองต้องรอผู้ดูแลระบบอนุมัติ</td></tr>
+                    <tr><td>“ระบบล็อกชั่วคราว”</td><td>กรอกรหัสผิดหลายครั้ง — รอตามเวลาที่แจ้ง หรือให้ผู้ดูแลปลดล็อก</td></tr>
+                    <tr><td>ลืมรหัสผ่าน</td><td>ติดต่อผู้ดูแลระบบให้รีเซ็ตรหัสผ่าน</td></tr>
+                    <tr><td>รหัส 2FA ไม่ผ่าน</td><td>ตรวจว่าเวลาในโทรศัพท์ตั้งเป็นอัตโนมัติ หรือใช้รหัสสำรองแทน</td></tr>
+                    <tr><td>รายงานไม่พบข้อมูล</td><td>ตรวจช่วงวันที่และเงื่อนไข แล้วประมวลผลอีกครั้ง</td></tr>
+                    <tr><td>รายงาน/แดชบอร์ดขึ้นข้อผิดพลาด</td><td>อาจเชื่อมต่อฐานข้อมูล HIS ไม่ได้ หรือ SQL ของรายงานผิด — แจ้งผู้ดูแลพร้อมชื่อรายงาน</td></tr>
+                    <tr><td>ดาวน์โหลดไฟล์คำขอไม่ได้</td><td>ไฟล์ข้อมูลรายบุคคลอาจถูกลบตามระยะเวลาจัดเก็บแล้ว — ส่งคำขอใหม่</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          {{-- ============================ ADMIN CHAPTERS ============================ --}}
+          @if(mnIsAdmin)
+            <div class="mn-admin-head" id="mnAdminHead">
+              <span class="hic-badge hic-badge-warn"><i class="fas fa-crown"></i>สำหรับผู้ดูแลระบบ</span>
+              <span class="text-sm" style="color:var(--ink-subtle)">ส่วนนี้แสดงเฉพาะผู้ที่มีสิทธิ์ผู้ดูแลระบบ</span>
+            </div>
+
+            <section class="hic-panel mn-sec" id="admin-settings">
+              <div class="hic-panel-head"><h2><i class="fas fa-gear" style="color:var(--heading)"></i>ภาพรวมการตั้งค่า</h2></div>
+              <div class="hic-panel-body mn-body">
+                <p><a href="/admin/settings" class="mn-path"><i class="fas fa-gear"></i>ตั้งค่าระบบ</a> รวมการตั้งค่าทุกหมวดไว้ที่เดียว แต่ละการ์ดแสดงสถานะปัจจุบัน (เช่น HIS เชื่อมต่อได้หรือไม่, 2FA เปิดหรือปิด) ให้เห็นปัญหาได้ทันที</p>
+                <ul>
+                  <li>แถบเมนูย่อยด้านบนของทุกหน้าตั้งค่า ใช้สลับไปหน้าอื่นได้เร็ว</li>
+                  <li>ทางลัด <b>คำขอข้อมูล/รายงาน</b> แสดงจำนวนรอตรวจสอบ / กำลังจัดทำ / เสร็จสิ้น</li>
+                </ul>
+                <h3>ลำดับการตั้งค่าครั้งแรก</h3>
+                <ol>
+                  <li><a href="#admin-his">HIS Database</a> — ตั้งค่าและทดสอบการเชื่อมต่อ</li>
+                  <li><a href="#admin-reports">ตั้งค่ารายงาน</a> และ <a href="#admin-parameters">พารามิเตอร์</a></li>
+                  <li><a href="#admin-dashboard">ตั้งค่าแดชบอร์ด</a></li>
+                  <li><a href="#admin-users">ผู้ใช้และสิทธิ์</a> — อนุมัติบัญชี กำหนดผู้ดูแล</li>
+                  <li><a href="#admin-notifications">การแจ้งเตือน</a> และ <a href="#admin-security">ความปลอดภัย</a></li>
+                </ol>
+              </div>
+            </section>
+
+            <section class="hic-panel mn-sec" id="admin-requests">
+              <div class="hic-panel-head"><h2><i class="fas fa-list-check" style="color:var(--heading)"></i>จัดการคำขอข้อมูล</h2></div>
+              <div class="hic-panel-body mn-body">
+                <p>เปิด <a href="/admin/requests" class="mn-path"><i class="fas fa-list-check"></i>คำขอข้อมูล</a> (ตัวเลขบนเมนูคือจำนวนรอตรวจสอบ) แล้วกดคำขอเพื่อจัดการ</p>
+                <h3>ขั้นตอน</h3>
+                <ol>
+                  <li><b>ตรวจคำขอ</b> — อ่านรายละเอียด ระดับข้อมูล และวัตถุประสงค์ (โดยเฉพาะข้อมูลรายบุคคล)</li>
+                  <li><b>อนุมัติ / รับงาน</b> — คุณจะเป็นผู้รับผิดชอบ สถานะเปลี่ยนเป็น “กำลังจัดทำ” หรือ <b>ไม่อนุมัติ</b> พร้อมเหตุผล (ผู้ขอจะเห็นข้อความนี้)</li>
+                  <li><b>จัดทำไฟล์</b> ได้ 3 วิธี:
+                    <ul>
+                      <li><b>อัปโหลดไฟล์ผลลัพธ์</b> — .xlsx .xls .csv .pdf ไม่เกิน 20MB</li>
+                      <li><b>สร้างไฟล์จากรายงานในระบบ</b> — เลือกรายงาน กรอกพารามิเตอร์ ระบบรันแล้วแนบเป็น Excel ทันที (วันที่ตั้งต้นจากช่วงข้อมูลในคำขอ)</li>
+                      <li><b>เขียน SQL เอง</b> — เฉพาะ SELECT คำสั่งเดียว ใช้ <code>@start_d</code> <code>@end_d</code> แทนช่วงวันที่ในคำขอ ผลลัพธ์แนบเป็น Excel</li>
+                    </ul>
+                  </li>
+                  <li><b>ปิดงาน (เสร็จสิ้น)</b> — ใส่หมายเหตุถึงผู้ขอได้ (เช่น คำอธิบายคอลัมน์) และแนบไฟล์พร้อมปิดงานในขั้นตอนเดียวได้</li>
+                </ol>
+                <div class="hic-alert hic-alert-ok"><i class="fas fa-floppy-disk"></i><span><b>บันทึกเป็นรายงานถาวร:</b> ถ้าข้อมูลนี้ถูกขอซ้ำบ่อย หลังรัน SQL เองแล้ว กด “บันทึกเป็นรายงานถาวร” เลือกหมวดและตั้งชื่อ — ผู้ใช้จะรันเองได้ที่หน้ารายงาน จากนั้นไปตั้งค่าพารามิเตอร์ต่อ</span></div>
+                <p>ทุกการกระทำ (อนุมัติ แนบไฟล์ ลบไฟล์ ปิดงาน ดาวน์โหลด) ถูกบันทึกในประวัติของคำขอ</p>
+              </div>
+            </section>
+
+            <section class="hic-panel mn-sec" id="admin-reports">
+              <div class="hic-panel-head"><h2><i class="fas fa-sliders" style="color:var(--heading)"></i>ตั้งค่ารายงาน</h2></div>
+              <div class="hic-panel-body mn-body">
+                <p>ที่ <a href="/admin/report-settings" class="mn-path"><i class="fas fa-sliders"></i>ตั้งค่ารายงาน</a> จัดการหมวดหมู่และรายงาน</p>
+                <h3>หมวดหมู่</h3>
+                <ul>
+                  <li>กด <b>เพิ่มหมวดหมู่</b> ตั้งชื่อ (รองรับ HTML พื้นฐาน) และลำดับการแสดง</li>
+                  <li>ลบหมวดได้เมื่อไม่ต้องการ — ตรวจรายงานในหมวดก่อนลบ</li>
+                </ul>
+                <h3>รายงาน</h3>
+                <ol>
+                  <li>กด <b>เพิ่มรายงาน</b> (หรือ “เพิ่มรายงานในหมวดนี้”) ตั้งชื่อและเลือกหมวด</li>
+                  <li>เลือกฐานข้อมูล: <b>หลัก (HIS)</b> หรือ <b>ระบบ (system)</b></li>
+                  <li>เขียน SQL หลัก — ใช้ token แทนค่าที่ผู้ใช้กรอก เช่น <code>@start_d</code> <code>@end_d</code> <code>@main_dep</code></li>
+                  <li>SQL สำรอง (sql2) ใช้สำหรับ count/aggregate — ไม่บังคับ</li>
+                  <li>กด <b>ทดสอบ SQL</b> เพื่อดูเวลาที่ใช้และคอลัมน์ที่ได้ ก่อนกดบันทึก</li>
+                  <li>ไปที่ <b>พารามิเตอร์</b> ของรายงาน เพื่อสร้างช่องกรอกให้ token ที่ใช้</li>
+                </ol>
+                <div class="hic-alert hic-alert-bad"><i class="fas fa-shield-halved"></i><span>ระบบอนุญาตเฉพาะ <b>SELECT คำสั่งเดียว</b> คำสั่งแก้ไขข้อมูล (INSERT, UPDATE, DELETE ฯลฯ) จะถูกปฏิเสธ — ควรใช้ user ฐานข้อมูล HIS ที่อ่านได้อย่างเดียวด้วย</span></div>
+                <p>ช่องค้นหาในหน้านี้ค้นได้ทั้งชื่อรายงานและคำใน SQL (เช่น ชื่อตาราง) — สะดวกเมื่อต้องหารายงานที่ใช้ตารางใดตารางหนึ่ง</p>
+              </div>
+            </section>
+
+            <section class="hic-panel mn-sec" id="admin-parameters">
+              <div class="hic-panel-head"><h2><i class="fas fa-list-ol" style="color:var(--heading)"></i>พารามิเตอร์รายงาน</h2></div>
+              <div class="hic-panel-body mn-body">
+                <p>พารามิเตอร์คือช่องกรอกในฟอร์ม “เงื่อนไขการค้นหา” ของหน้ารายงาน เปิดได้จากปุ่ม <b>พารามิเตอร์</b> ในตารางรายงาน</p>
+                <ol>
+                  <li>ระบบแสดง <b>token ที่ตรวจพบใน SQL</b> (รูปแบบ <code>@name</code>) และบอกตัวที่ยังไม่ได้กำหนด</li>
+                  <li>กด <b>สร้างพารามิเตอร์อัตโนมัติ</b> เพื่อสร้างจาก token ที่ตรวจพบ หรือกด <b>เพิ่มพารามิเตอร์</b> เอง</li>
+                  <li>แก้ไขแต่ละตัว: ชื่อ (ต้องตรงกับ token ใน SQL) คำอธิบายที่ผู้ใช้เห็น ชนิด ค่าเริ่มต้น และ “จำเป็นต้องกรอก”</li>
+                </ol>
+                <div class="hic-table-wrap">
+                  <table class="hic-table">
+                    <thead><tr><th>ชนิด</th><th>ใช้เมื่อ</th></tr></thead>
+                    <tbody>
+                      <tr><td><code>date</code> / <code>datetime</code></td><td>วันที่ หรือวันที่และเวลา</td></tr>
+                      <tr><td><code>text</code> / <code>textarea</code></td><td>ข้อความสั้น / ยาว</td></tr>
+                      <tr><td><code>number</code></td><td>ตัวเลข</td></tr>
+                      <tr><td><code>select</code></td><td>ตัวเลือก — กำหนดในช่อง “ตัวเลือก” คั่นด้วยจุลภาคหรือเป็น JSON array</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+
+            <section class="hic-panel mn-sec" id="admin-dashboard">
+              <div class="hic-panel-head"><h2><i class="fas fa-chart-line" style="color:var(--heading)"></i>ตั้งค่าแดชบอร์ด</h2></div>
+              <div class="hic-panel-body mn-body">
+                <p>ที่ <a href="/admin/dashboard-settings" class="mn-path"><i class="fas fa-chart-line"></i>ตั้งค่าแดชบอร์ด</a> กด <b>เพิ่มรายการ</b> แล้วกรอก:</p>
+                <ul>
+                  <li><b>ชื่อรายการ</b> และ <b>SQL หลัก (HIS)</b> — ต้องคืนค่าตัวเลข 1 ค่า (คอลัมน์แรกของแถวแรก)</li>
+                  <li><b>ไอคอน</b> และสี (น้ำเงิน / เขียว / เหลือง ฯลฯ)</li>
+                  <li><b>ลิงก์ไปรายงาน</b> (ไม่บังคับ) — กดการ์ดแล้วเปิดรายงานรายละเอียด</li>
+                  <li><b>ลำดับ</b> — เว้นว่างเพื่อซ่อนรายการจากแดชบอร์ดโดยไม่ต้องลบ</li>
+                  <li><b>การตั้งค่ากราฟ</b> (ไม่บังคับ) — เลือกชนิดกราฟ ชื่อกราฟ โทนสี และ SQL กราฟที่ <b>คืน 2 คอลัมน์ (label, value)</b></li>
+                </ul>
+                <p>กด <b>ทดสอบ</b> ข้างช่อง SQL เพื่อดูผลก่อนบันทึก</p>
+              </div>
+            </section>
+
+            <section class="hic-panel mn-sec" id="admin-users">
+              <div class="hic-panel-head"><h2><i class="fas fa-users-gear" style="color:var(--heading)"></i>ผู้ใช้และสิทธิ์</h2></div>
+              <div class="hic-panel-body mn-body">
+                <p>ที่ <a href="/admin/users" class="mn-path"><i class="fas fa-users-gear"></i>จัดการผู้ใช้</a></p>
+                <ul>
+                  <li><b>เพิ่มผู้ใช้</b> — ชื่อผู้ใช้ รหัสผ่าน (อย่างน้อย 6 ตัว) ชื่อ-นามสกุล แผนก สิทธิ์ และสถานะ</li>
+                  <li><b>อนุมัติบัญชีที่สมัครเอง</b> — กดแก้ไข แล้วเปลี่ยนสถานะเป็น <b>ใช้งาน</b> (บัญชีที่ “ปิดใช้งาน” เข้าระบบไม่ได้)</li>
+                  <li><b>สิทธิ์</b> — <b>ผู้ใช้ทั่วไป</b> ใช้แดชบอร์ด รายงาน และส่งคำขอ / <b>ผู้ดูแลระบบ</b> เข้าการตั้งค่าและจัดการคำขอได้ทั้งหมด</li>
+                  <li><b>รีเซ็ตรหัสผ่าน</b> — ตั้งรหัสใหม่ให้ผู้ใช้ที่ลืมรหัส</li>
+                  <li><b>ตั้งค่า 2FA / ปลดล็อก</b> — กำหนดนโยบาย 2FA รายคน (ตามค่าระบบ / บังคับ / ยกเว้น), <b>รีเซ็ต 2FA</b> เมื่อผู้ใช้ทำโทรศัพท์หาย และ <b>ปลดล็อกการเข้าสู่ระบบ</b></li>
+                  <li><b>ลบผู้ใช้</b> — ย้อนกลับไม่ได้ ถ้าเพียงต้องการระงับ ให้ใช้สถานะ “ปิดใช้งาน” แทน</li>
+                </ul>
+              </div>
+            </section>
+
+            <section class="hic-panel mn-sec" id="admin-his">
+              <div class="hic-panel-head"><h2><i class="fas fa-database" style="color:var(--heading)"></i>HIS Database</h2></div>
+              <div class="hic-panel-body mn-body">
+                <p>ที่ <a href="/admin/his-settings" class="mn-path"><i class="fas fa-database"></i>ตั้งค่า HIS Database</a> กำหนดฐานข้อมูล HIS ที่รายงานและแดชบอร์ดดึงข้อมูล</p>
+                <ol>
+                  <li>กรอกโฮสต์ (หรือ IP) พอร์ต (ค่าเริ่มต้น 3306) ชื่อฐานข้อมูล ชื่อผู้ใช้ และรหัสผ่าน</li>
+                  <li>กด <b>ทดสอบการเชื่อมต่อ</b> ให้ผ่านก่อน แล้วกด <b>บันทึกการตั้งค่า</b></li>
+                  <li>ครั้งต่อไปถ้าไม่เปลี่ยนรหัสผ่าน ให้ปล่อยช่องรหัสผ่านว่าง ระบบใช้รหัสเดิม</li>
+                </ol>
+                <div class="hic-alert hic-alert-info"><i class="fas fa-circle-info"></i><span>ควรใช้ user ฐานข้อมูลที่มีสิทธิ์ <b>อ่านอย่างเดียว</b> สถานะการเชื่อมต่อแสดงที่ด้านบนของหน้านี้และในหน้าภาพรวมการตั้งค่า</span></div>
+              </div>
+            </section>
+
+            <section class="hic-panel mn-sec" id="admin-notifications">
+              <div class="hic-panel-head"><h2><i class="fas fa-bullhorn" style="color:var(--heading)"></i>ตั้งค่าการแจ้งเตือน</h2></div>
+              <div class="hic-panel-body mn-body">
+                <p>ที่ <a href="/admin/notification-settings" class="mn-path"><i class="fas fa-bell"></i>การแจ้งเตือน</a></p>
+                <h3>เหตุการณ์ที่จะแจ้ง</h3>
+                <ul>
+                  <li><b>มีคำขอข้อมูลใหม่</b> → ผู้ดูแลระบบทุกคน</li>
+                  <li><b>คำขอได้รับอนุมัติ / ไม่อนุมัติ / เสร็จสิ้น / ไฟล์ถูกลบ</b> → ผู้ขอข้อมูล</li>
+                  <li><b>ปิดงานคำขอข้อมูล</b> → ห้อง LINE งานสารสนเทศ</li>
+                </ul>
+                <p>ระบบไม่แจ้งเตือนผู้ที่เป็นคนกระทำเอง เช่น admin ที่กดอนุมัติจะไม่ได้รับแจ้งเตือนของตัวเอง</p>
+                <h3>ตั้งค่า LINE (MOPH Notify / หมอพร้อม)</h3>
+                <ol>
+                  <li>ขอ client-key และ secret-key ของห้อง LINE งานสารสนเทศจากระบบ MOPH Notify (ใช้ห้องเดียวกับ KNHLinemoph ได้)</li>
+                  <li>วาง key ทั้งสองช่อง เลือกรูปแบบข้อความ (ข้อความธรรมดา หรือการ์ด Flex) และกรอก URL ของระบบเพื่อทำลิงก์/ปุ่มในข้อความ</li>
+                  <li>กด <b>ส่งข้อความทดสอบ</b> แล้ว <b>เปิดห้อง LINE ดูด้วยตา</b> ว่าข้อความเข้าจริง (API อาจตอบสำเร็จแม้ข้อความไม่เข้า)</li>
+                  <li>เปิดสวิตช์ <b>เปิดใช้งาน</b> แล้วกดบันทึก</li>
+                </ol>
+                <h3>ระยะเวลาเก็บไฟล์ข้อมูลรายบุคคล (PDPA)</h3>
+                <p>กำหนดจำนวนวันหลังปิดงาน (ค่าเริ่มต้น 30 วัน) ระบบจะลบไฟล์ผลลัพธ์ของคำขอข้อมูลรายบุคคลและแจ้งผู้ขอ การลบทำงานผ่านคำสั่ง <code>node ace requests:purge-files</code> — ต้องตั้ง Windows Task Scheduler / cron ให้รันวันละครั้ง</p>
+              </div>
+            </section>
+
+            <section class="hic-panel mn-sec" id="admin-security">
+              <div class="hic-panel-head"><h2><i class="fas fa-shield-halved" style="color:var(--heading)"></i>ตั้งค่าความปลอดภัย</h2></div>
+              <div class="hic-panel-body mn-body">
+                <p>ที่ <a href="/admin/security-settings" class="mn-path"><i class="fas fa-shield-halved"></i>ความปลอดภัย</a></p>
+                <h3>จำกัดการเข้าสู่ระบบผิดพลาด</h3>
+                <ul>
+                  <li><b>ผิดได้กี่ครั้งต่อชื่อผู้ใช้</b> (นับรวมรหัส 2FA ผิด) และ <b>ล็อกนานกี่นาที</b></li>
+                  <li><b>ผิดได้กี่ครั้งต่อเครื่อง (IP)</b> — กันการไล่เดาหลายชื่อผู้ใช้จากเครื่องเดียว ตั้ง 0 เพื่อปิด ถ้าระบบอยู่หลัง reverse proxy ที่ไม่ส่ง IP จริง ให้ตั้งสูง ๆ หรือ 0</li>
+                  <li>ตาราง <b>ถูกล็อกอยู่ตอนนี้</b> ด้านล่างหน้า กด <b>ปลดล็อก</b> ได้ทันที</li>
+                </ul>
+                <h3>ยืนยันตัวตน 2 ขั้นตอน (2FA)</h3>
+                <ul>
+                  <li><b>สวิตช์หลัก</b> — ปิดแล้วจะไม่ถามรหัส 2FA ใครเลย เปิดแล้วผู้ที่ผูกไว้จะถูกถามทุกครั้ง</li>
+                  <li><b>บังคับให้ต้องใช้ 2FA</b> แยกสำหรับผู้ดูแลระบบ (แนะนำ) และผู้ใช้ทั่วไป — ผู้ที่ถูกบังคับแต่ยังไม่ผูกจะต้องตั้งค่าทันทีหลังกรอกรหัสผ่าน</li>
+                  <li>กำหนดรายคน (บังคับ / ยกเว้น) ได้ที่หน้า <a href="#admin-users">ผู้ใช้และสิทธิ์</a></li>
+                  <li><b>LINE ผ่าน MOPH Alert</b> (ไม่บังคับ) — ส่ง OTP ถึงผู้ใช้ทาง LINE หมอพร้อมด้วยเลขบัตรประชาชน ใช้ key คนละชุดกับ MOPH Notify ในหน้าการแจ้งเตือน ถ้าไม่ตั้ง ผู้ใช้จะเลือกได้เฉพาะแอป Authenticator</li>
+                </ul>
+              </div>
+            </section>
+          @end
+        </div>
+      </div>
+    </div>
+  @end
+
+  @slot('scripts')
+    <script>
+      (function () {
+        const links = Array.from(document.querySelectorAll('[data-toc]'))
+        const sections = links.map((a) => document.getElementById(a.dataset.toc)).filter(Boolean)
+
+        // Highlight the TOC entry of the section currently in view
+        const setOn = (id) => links.forEach((a) => a.classList.toggle('is-on', a.dataset.toc === id))
+        if ('IntersectionObserver' in window) {
+          const io = new IntersectionObserver(
+            (entries) => {
+              const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+              if (visible[0]) setOn(visible[0].target.id)
+            },
+            { rootMargin: '-80px 0px -60% 0px' }
+          )
+          sections.forEach((s) => io.observe(s))
+        }
+        if (location.hash) setOn(location.hash.slice(1))
+
+        // Filter: hide sections (and their TOC links) that don't contain the query
+        const input = document.getElementById('mnFilter')
+        const noMatch = document.getElementById('mnNoMatch')
+        const adminHead = document.getElementById('mnAdminHead')
+        input?.addEventListener('input', () => {
+          const q = input.value.trim().toLowerCase()
+          let shown = 0
+          let adminShown = 0
+          sections.forEach((s) => {
+            const hit = !q || s.textContent.toLowerCase().includes(q)
+            s.hidden = !hit
+            links.find((a) => a.dataset.toc === s.id).hidden = !hit
+            if (hit) {
+              shown++
+              if (s.id.startsWith('admin-')) adminShown++
+            }
+          })
+          if (adminHead) adminHead.hidden = adminShown === 0
+          noMatch.style.display = shown === 0 ? 'flex' : 'none'
+        })
+      })()
+    </script>
+  @end
+@end

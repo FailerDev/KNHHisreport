@@ -66,6 +66,9 @@ router
     router.post('/reports/:id', [ReportsController, 'run']).as('reports.run')
     router.post('/reports/:id/export', [ReportsController, 'export']).as('reports.export')
 
+    // In-app user manual (admin chapters are shown to admins only)
+    router.get('/manual', async ({ view }) => view.render('pages/manual')).as('manual')
+
     // Data/report requests (requester side)
     // The signed-in user's own 2FA
     router.get('/account/security', [AccountSecurityController, 'show']).as('account.security')
