@@ -63,5 +63,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   MOPH_NOTIFY_SECRET_KEY: Env.schema.string.optional(),
   // Days to keep result files of identifiable (PDPA) requests after completion (default 30)
   REQUEST_FILE_RETENTION_DAYS: Env.schema.number.optional(),
+  // Folder for uploaded/generated request files; keep it outside build/ in production
+  REQUEST_STORAGE_PATH: Env.schema.string.optional(),
 })
 

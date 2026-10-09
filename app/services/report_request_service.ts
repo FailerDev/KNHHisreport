@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, rm, unlink, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import type { HttpContext } from '@adonisjs/core/http'
 import type { MultipartFile } from '@adonisjs/core/bodyparser'
 import app from '@adonisjs/core/services/app'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { DateTime } from 'luxon'
+import env from '#start/env'
 import { notificationSettings } from '#services/app_settings'
 import AuditLog from '#models/audit_log'
 import ReportHead from '#models/report_head'
@@ -42,8 +43,18 @@ export interface NewRequestData {
   dueDate: DateTime | null
 }
 
+/**
+ * Root folder for request files. Set REQUEST_STORAGE_PATH in production so the
+ * files live outside `build/` (which `node ace build` wipes on every rebuild).
+ */
+function storageRoot(): string {
+  const configured = env.get('REQUEST_STORAGE_PATH')
+  if (!configured) return app.makePath('storage')
+  return isAbsolute(configured) ? configured : app.makePath(configured)
+}
+
 export function requestStorageDir(requestId: number): string {
-  return app.makePath('storage', 'report_requests', String(requestId))
+  return join(storageRoot(), 'report_requests', String(requestId))
 }
 
 export function requestFilePath(file: ReportRequestFile): string {
