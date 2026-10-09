@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ยืนยันตัวตน · HisReport</title>
+  @include('partials/head')
+</head>
+<body class="hic-body font-thai">
+  @include('partials/auth_shell_start')
+
+    <div class="mb-6">
+      <span class="hic-metric-icon hic-tone-blue mb-4" style="width:52px;height:52px;border-radius:16px;font-size:22px"><i class="fas fa-shield-halved"></i></span>
+      <h2 class="text-[26px] leading-9 font-bold" style="color:var(--ink-strong)">ยืนยันตัวตนอีกขั้น</h2>
+      <p class="text-[15px] mt-1" style="color:var(--ink-subtle)">
+        @if(method === 'totp')
+          เปิดแอป Authenticator แล้วกรอกรหัส 6 หลักของบัญชี <b>{{ username }}</b>
+        @else
+          กดส่งรหัส OTP ไปทาง LINE (หมอพร้อม) แล้วกรอกรหัส 6 หลักที่ได้รับ
+        @end
+      </p>
+    </div>
+
+    @include('partials/auth_alerts')
+
+    @if(method === 'line')
+      @if(lineAvailable)
+        <form method="POST" action="/2fa/verify/line" class="mb-5">
+          {{ csrfField() }}
+          <button type="submit" class="hic-btn hic-btn-secondary hic-btn-block">
+            <i class="fab fa-line" style="color:#06c755"></i><span>{{ lineOtpPending ? 'ส่งรหัสอีกครั้ง' : 'ส่งรหัส OTP ทาง LINE' }}</span>
+          </button>
+        </form>
+      @else
+        <div class="hic-alert hic-alert-bad mb-5" role="alert">
+          <i class="fas fa-triangle-exclamation"></i>
+          <span>ระบบส่ง OTP ทาง LINE ยังไม่พร้อมใช้งาน — ใช้รหัสสำรองแทน หรือติดต่อผู้ดูแลระบบ</span>
+        </div>
+      @end
+    @end
+
+    <form method="POST" action="/2fa/verify" class="space-y-5" id="verifyForm">
+      {{ csrfField() }}
+      <div>
+        <label for="code" class="hic-label">รหัสยืนยัน</label>
+        <input type="text" id="code" name="code" required autofocus autocomplete="one-time-code"
+          maxlength="20" placeholder="000000" class="hic-input hic-mono text-center"
+          style="height:56px;font-size:24px;letter-spacing:.3em" />
+        <div class="hic-help">ใช้โทรศัพท์ไม่ได้? กรอก <b>รหัสสำรอง</b> 10 ตัวอักษรที่บันทึกไว้แทนได้ (ใช้ได้รหัสละครั้ง)</div>
+      </div>
+      <button type="submit" class="hic-btn hic-btn-primary hic-btn-lg hic-btn-block" id="verifyBtn">
+        <span>ยืนยัน</span><i class="fas fa-arrow-right"></i>
+      </button>
+    </form>
+
+    <form method="POST" action="/2fa/cancel" class="mt-8 pt-6 text-sm text-center" style="border-top:1px solid var(--border)">
+      {{ csrfField() }}
+      <button type="submit" class="font-semibold hover:underline" style="color:var(--ink-subtle)">
+        <i class="fas fa-arrow-left"></i> ยกเลิกและกลับไปหน้าเข้าสู่ระบบ
+      </button>
+    </form>
+
+  @include('partials/auth_shell_end')
+
+  <script src="/ui/hic.js" defer></script>
+  <script>
+    document.getElementById('verifyForm').addEventListener('submit', () => {
+      const btn = document.getElementById('verifyBtn')
+      btn.disabled = true
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>กำลังตรวจสอบ…</span>'
+    })
+  </script>
+</body>
+</html>

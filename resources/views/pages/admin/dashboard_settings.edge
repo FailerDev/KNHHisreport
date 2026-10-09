@@ -8,6 +8,8 @@
 })
   @slot('main')
     <div class="flex flex-col gap-6">
+      @let(settingsTab = 'dashboard-settings')
+      @include('partials/settings_nav')
       <div class="hic-pagehead" style="margin-bottom:0">
         <div class="hic-pagehead-title hic-tone-teal">
           <span class="hic-pagehead-icon"><i class="fas fa-chart-line"></i></span>
@@ -29,7 +31,7 @@
       <div class="hic-metrics">
         <div class="hic-metric hic-tone-blue hic-rise" style="--i:0">
           <span class="hic-metric-icon"><i class="fas fa-list"></i></span>
-          <div><div class="hic-metric-label">รายการทั้งหมด</div><div class="hic-metric-value">{{ stats.total }}</div></div>
+          <div><div class="hic-metric-label">รายการทั้งหมด{{ stats.hidden ? ' · ซ่อน ' + stats.hidden : '' }}</div><div class="hic-metric-value">{{ stats.total }}</div></div>
         </div>
         <div class="hic-metric hic-tone-yellow hic-rise" style="--i:1">
           <span class="hic-metric-icon"><i class="fas fa-chart-pie"></i></span>
@@ -92,7 +94,13 @@
                         <span style="color:var(--ink-muted)">—</span>
                       @end
                     </td>
-                    <td style="text-align:center">{{ it.sort ?? '—' }}</td>
+                    <td style="text-align:center">
+                      @if(it.sort === null)
+                        <span class="hic-badge hic-badge-muted" title="ไม่แสดงบนแดชบอร์ด (ลำดับว่าง)"><i class="fas fa-eye-slash"></i>ซ่อน</span>
+                      @else
+                        {{ it.sort }}
+                      @end
+                    </td>
                     <td>
                       <div class="flex justify-end gap-1">
                         <button type="button" title="แก้ไข" class="hic-act is-brand"
@@ -122,6 +130,9 @@
           {{ csrfField() }}
           <input type="hidden" name="id" id="item_id" />
           <div class="hic-modal-body">
+            <div id="itemFormError" class="hic-alert hic-alert-bad hidden" role="alert">
+              <i class="fas fa-circle-exclamation"></i><span class="flex-1 break-all" id="itemFormErrorText"></span>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-[1fr_8rem] gap-4">
               <div>
                 <label class="hic-label" for="item_detail">ชื่อรายการ <span class="hic-req">*</span></label>
@@ -129,7 +140,8 @@
               </div>
               <div>
                 <label class="hic-label" for="item_sort">ลำดับ</label>
-                <input type="number" name="sort" id="item_sort" value="1" min="1" class="hic-input" />
+                <input type="number" name="sort" id="item_sort" value="1" min="0" step="1" class="hic-input" />
+                <div class="hic-help">เว้นว่าง = ซ่อน</div>
               </div>
             </div>
 
@@ -149,6 +161,7 @@
                 <div>
                   <label class="hic-label" for="item_icons">ไอคอน <small>(Font Awesome)</small></label>
                   <input name="icons" id="item_icons" value="ti-bar-chart" placeholder="fa-users" class="hic-input hic-mono" />
+                  <div class="hic-help">เช่น <code>users</code> หรือ <code>fa-users</code></div>
                 </div>
                 <div>
                   <label class="hic-label" for="item_color1">สี</label>
@@ -164,7 +177,7 @@
                   <select name="link_id" id="item_link_id" class="hic-input">
                     <option value="">— ไม่ลิงก์ —</option>
                     @each(r in availableReports)
-                      <option value="{{ r.id }}">{{ stripTitleHtml(r.detail) }}</option>
+                      <option value="{{ r.id }}">{{ stripTitleHtml(r.detail) }}{{ r.status === 1 ? '' : ' (ปิดใช้งาน)' }}</option>
                     @end
                   </select>
                 </div>
@@ -230,7 +243,7 @@
           </div>
           <div class="hic-modal-foot">
             <button type="button" onclick="hide('itemModal')" class="hic-btn hic-btn-ghost">ยกเลิก</button>
-            <button type="submit" class="hic-btn hic-btn-primary"><i class="fas fa-floppy-disk"></i>บันทึก</button>
+            <button type="submit" id="itemSubmit" class="hic-btn hic-btn-primary"><i class="fas fa-floppy-disk"></i>บันทึก</button>
           </div>
         </form>
       </div>
@@ -249,12 +262,19 @@
       }
 
       const TONES = { 'icon-success': 'green', 'icon-warning': 'yellow', 'icon-danger': 'red', 'icon-info': 'sky' }
+      // Mirrors normalizeIcon() in app/services/dashboard_item_form.ts
+      function normalizeIcon(v) {
+        v = String(v || '').trim()
+        if (!v) return 'ti-bar-chart'
+        if (/\s/.test(v) || v.startsWith('fa-') || v.startsWith('ti-')) return v
+        return 'fa-' + v
+      }
       function updatePreview() {
-        const icon = document.getElementById('item_icons').value.trim()
+        const icon = normalizeIcon(document.getElementById('item_icons').value)
         const color = document.getElementById('item_color1').value
         const title = document.getElementById('item_detail').value.trim()
         document.getElementById('tilePreview').className = 'hic-card hic-tone-' + (TONES[color] || 'blue')
-        document.getElementById('tilePreviewIcon').className = 'fas ' + (icon && !icon.startsWith('ti-') ? icon : 'fa-chart-bar')
+        document.getElementById('tilePreviewIcon').className = 'fas ' + (!icon.startsWith('ti-') ? icon : 'fa-chart-bar')
         document.getElementById('tilePreviewTitle').textContent = title.replace(/<[^>]+>/g, '') || 'ชื่อรายการ'
       }
       ;['item_icons', 'item_color1', 'item_detail'].forEach(id => {
@@ -266,14 +286,23 @@
         const f = document.getElementById('itemForm')
         f.reset()
         document.getElementById('sqlTestResult').classList.add('hidden')
+        document.getElementById('itemFormError').classList.add('hidden')
+        document.querySelectorAll('#item_link_id option[data-legacy]').forEach(o => o.remove())
         if (it && it.id) {
           f.action = '/admin/dashboard-settings/update'
           document.getElementById('itemModalTitle').textContent = 'แก้ไขรายการแดชบอร์ด'
           document.getElementById('item_id').value = it.id
           document.getElementById('item_detail').value = it.detail || ''
           document.getElementById('item_sql1').value = it.sql1 || ''
-          document.getElementById('item_sort').value = it.sort || 1
-          document.getElementById('item_link_id').value = it.link_id || ''
+          document.getElementById('item_sort').value = it.sort ?? ''
+          const link = document.getElementById('item_link_id')
+          if (it.link_id && ![...link.options].some(o => o.value === String(it.link_id))) {
+            // Linked report no longer exists — keep the link instead of silently dropping it.
+            const o = new Option('ลิงก์เดิม: /reports/' + it.link_id + ' (ไม่พบรายงาน)', it.link_id)
+            o.dataset.legacy = '1'
+            link.add(o)
+          }
+          link.value = it.link_id || ''
           document.getElementById('item_icons').value = it.icons || 'ti-bar-chart'
           document.getElementById('item_color1').value = it.color1 || 'icon-info'
           document.getElementById('item_chart_type').value = it.chart_type || 'none'
@@ -299,6 +328,37 @@
         document.getElementById('deleteForm').submit()
       }
 
+      document.getElementById('itemForm').addEventListener('submit', async e => {
+        e.preventDefault()
+        const f = e.currentTarget
+        const btn = document.getElementById('itemSubmit')
+        const box = document.getElementById('itemFormError')
+        const btnHtml = btn.innerHTML
+        box.classList.add('hidden')
+        btn.disabled = true
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>กำลังบันทึก…'
+        try {
+          const res = await fetch(f.action, {
+            method: 'POST',
+            body: new FormData(f),
+            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+          })
+          const r = await res.json().catch(() => ({ success: false, message: 'เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง (HTTP ' + res.status + ') — ลองรีเฟรชหน้าแล้วบันทึกใหม่' }))
+          if (r.success) {
+            window.location.href = '/admin/dashboard-settings'
+            return
+          }
+          document.getElementById('itemFormErrorText').textContent = r.message || 'เกิดข้อผิดพลาด'
+          box.classList.remove('hidden')
+        } catch (ex) {
+          document.getElementById('itemFormErrorText').textContent = 'ส่งข้อมูลไม่สำเร็จ: ' + (ex.message || ex)
+          box.classList.remove('hidden')
+        }
+        btn.disabled = false
+        btn.innerHTML = btnHtml
+        box.scrollIntoView({ block: 'nearest' })
+      })
+
       async function testSql(kind) {
         const sql = (kind === 'chart' ? document.getElementById('item_chart_sql') : document.getElementById('item_sql1')).value
         const tr = document.getElementById('sqlTestResult')
@@ -316,7 +376,7 @@
             const cols = (r.columns || []).slice(0, 6).join(', ') + ((r.columns || []).length > 6 ? '…' : '')
             tr.className = 'hic-alert hic-alert-ok'
             tr.innerHTML = '<i class="fas fa-circle-check"></i><div>'
-              + '<div class="font-bold">ทดสอบสำเร็จ ' + esc(r.rows) + ' แถว · ' + esc(r.exec_ms) + 'ms</div>'
+              + '<div class="font-bold">ทดสอบสำเร็จ ' + (r.truncated ? 'มากกว่า ' + esc(r.row_limit) : esc(r.rows)) + ' แถว · ' + esc(r.exec_ms) + 'ms</div>'
               + '<div class="text-xs mt-1">คอลัมน์: ' + esc(cols) + '</div>'
               + (r.warning ? '<div class="text-xs mt-1" style="color:var(--warn)"><i class="fas fa-triangle-exclamation"></i> ' + esc(r.warning) + '</div>' : '')
               + (r.detected_value ? '<div class="text-xs mt-1">ใช้คอลัมน์ <code>' + esc(r.detected_label) + '</code> เป็น label, <code>' + esc(r.detected_value) + '</code> เป็น value</div>' : '')

@@ -3,6 +3,7 @@ import vine from '@vinejs/vine'
 import db from '@adonisjs/lucid/services/db'
 import ReportHead from '#models/report_head'
 import ReportHeadDetail from '#models/report_head_detail'
+import { assertReadOnlySql, describeHisError, PROBE_ROW_LIMIT, probeQuery } from '#services/his_sql_guard'
 
 const headValidator = vine.compile(
   vine.object({
@@ -45,11 +46,15 @@ const testSqlValidator = vine.compile(
   })
 )
 
-const FORBIDDEN_SQL = /\b(DROP|DELETE|TRUNCATE|ALTER|CREATE|INSERT|UPDATE|GRANT|REVOKE|EXEC)\b/i
+/** Report SQL can be heavy; give the test button more room than dashboard tiles. */
+const TEST_SQL_TIMEOUT_MS = 60_000
 
-function assertSafeSql(sql: string): void {
-  if (FORBIDDEN_SQL.test(sql)) {
-    throw new Error('SQL นี้มีคำสั่งที่ไม่ปลอดภัย (อนุญาตเฉพาะ SELECT / SHOW)')
+/** Read-only check (see his_sql_guard) with the field name in the message. */
+function assertSafeSql(sql: string, label = 'SQL'): void {
+  try {
+    assertReadOnlySql(sql)
+  } catch (e: any) {
+    throw new Error(`${label}: ${e.message}`)
   }
 }
 
@@ -125,8 +130,8 @@ export default class ReportSettingsController {
   async storeDetail({ request, session, response }: HttpContext) {
     try {
       const payload = await detailValidator.validate(request.all())
-      assertSafeSql(payload.sql1)
-      if (payload.sql2) assertSafeSql(payload.sql2)
+      assertSafeSql(payload.sql1, 'SQL หลัก')
+      if (payload.sql2?.trim()) assertSafeSql(payload.sql2, 'SQL 2')
       await ReportHeadDetail.create({
         headId: payload.head_id,
         detail: payload.detail,
@@ -146,8 +151,8 @@ export default class ReportSettingsController {
   async updateDetail({ request, session, response }: HttpContext) {
     try {
       const payload = await detailUpdateValidator.validate(request.all())
-      assertSafeSql(payload.sql1)
-      if (payload.sql2) assertSafeSql(payload.sql2)
+      assertSafeSql(payload.sql1, 'SQL หลัก')
+      if (payload.sql2?.trim()) assertSafeSql(payload.sql2, 'SQL 2')
       const r = await ReportHeadDetail.find(payload.id)
       if (!r) throw new Error('ไม่พบรายงาน')
       r.headId = payload.head_id
@@ -180,7 +185,8 @@ export default class ReportSettingsController {
 
   /**
    * POST /admin/report-settings/test-sql — AJAX SQL test against the chosen
-   * connection. Returns JSON. Refuses dangerous statements before executing.
+   * connection. Returns JSON. Refuses non-read-only SQL before executing,
+   * fetches at most PROBE_ROW_LIMIT rows and cancels after 60 s.
    */
   async testSql({ request, response }: HttpContext) {
     try {
@@ -196,24 +202,26 @@ export default class ReportSettingsController {
         })
       }
 
-      const start = Date.now()
       try {
-        const result = (await db.connection(connection).rawQuery(payload.sql1)) as any
-        const rows: any[] = Array.isArray(result?.[0]) ? result[0] : Array.isArray(result) ? result : []
-        const elapsed = ((Date.now() - start) / 1000).toFixed(3)
+        const { rows, truncated, execMs } = await probeQuery(connection, payload.sql1, {
+          timeoutMs: TEST_SQL_TIMEOUT_MS,
+        })
+        const found = truncated ? `มากกว่า ${PROBE_ROW_LIMIT}` : String(rows.length)
         return response.json({
           success: true,
-          message: `ทดสอบ SQL สำเร็จ — พบข้อมูล ${rows.length} แถว`,
+          message: `ทดสอบ SQL สำเร็จ — พบข้อมูล ${found} แถว`,
           row_count: rows.length,
+          truncated,
+          row_limit: PROBE_ROW_LIMIT,
           columns: rows[0] ? Object.keys(rows[0]) : [],
           sample: rows.slice(0, 5),
-          execution_time: Number(elapsed),
+          execution_time: Number((execMs / 1000).toFixed(3)),
           source: payload.database_source,
         })
       } catch (err: any) {
         return response.json({
           success: false,
-          message: `ทดสอบ SQL ล้มเหลว: ${err?.message ?? String(err)}`,
+          message: `ทดสอบ SQL ล้มเหลว: ${describeHisError(err, TEST_SQL_TIMEOUT_MS)}`,
           source: payload.database_source,
         })
       }

@@ -14,12 +14,7 @@
       <p class="text-[15px] mt-1" style="color:var(--ink-subtle)">ยินดีต้อนรับกลับ กรุณากรอกข้อมูลเพื่อเข้าใช้งาน</p>
     </div>
 
-    @if(typeof error !== 'undefined' && error)
-      <div class="hic-alert hic-alert-bad mb-5" role="alert">
-        <i class="fas fa-circle-exclamation"></i>
-        <span>{{ error }}</span>
-      </div>
-    @end
+    @include('partials/auth_alerts')
 
     <form method="POST" action="/login" class="space-y-5" novalidate id="loginForm">
       {{ csrfField() }}

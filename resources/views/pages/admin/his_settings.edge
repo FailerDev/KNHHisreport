@@ -16,6 +16,8 @@
     @let(hasSavedPwd = current && current.dbPassword)
 
     <div class="max-w-5xl mx-auto flex flex-col gap-6">
+      @let(settingsTab = 'his-settings')
+      @include('partials/settings_nav')
       <div class="hic-pagehead" style="margin-bottom:0">
         <div class="hic-pagehead-title hic-tone-yellow">
           <span class="hic-pagehead-icon"><i class="fas fa-database"></i></span>

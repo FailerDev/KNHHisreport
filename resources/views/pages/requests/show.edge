@@ -1,0 +1,42 @@
+@component('layouts/app', {
+  title: req.reqNo + ' · คำขอข้อมูล · HisReport',
+  showSidebar: true,
+  isAdmin: auth.user.userLevel === 'admin',
+  fullname: auth.user.fullname || auth.user.username,
+  department: auth.user.department,
+  currentPage: 'requests',
+})
+  @slot('main')
+    <div class="flex flex-col gap-6">
+      <div>
+        <nav class="hic-crumb" aria-label="breadcrumb">
+          <a href="/requests">คำขอข้อมูล/รายงาน</a><i class="fas fa-chevron-right"></i><span class="hic-mono">{{ req.reqNo }}</span>
+        </nav>
+        <div class="hic-pagehead" style="margin-bottom:0">
+          <div class="hic-pagehead-title hic-tone-indigo">
+            <span class="hic-pagehead-icon"><i class="fas fa-file-signature"></i></span>
+            <div>
+              <h1>{{ req.title }}</h1>
+              <p class="hic-mono">{{ req.reqNo }}</p>
+            </div>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            @if(auth.user.userLevel === 'admin')
+              <a href="/admin/requests/{{ req.id }}" class="hic-btn hic-btn-secondary"><i class="fas fa-screwdriver-wrench"></i><span>จัดการคำขอนี้</span></a>
+            @end
+            @if(isOwner && req.status === 'pending')
+              <form method="POST" action="/requests/{{ req.id }}/cancel" onsubmit="return confirm('ยืนยันยกเลิกคำขอ {{ req.reqNo }}?')">
+                {{ csrfField() }}
+                <button type="submit" class="hic-btn hic-btn-ghost" style="color:var(--bad)"><i class="fas fa-ban"></i><span>ยกเลิกคำขอ</span></button>
+              </form>
+            @end
+          </div>
+        </div>
+      </div>
+
+      @include('partials/flash')
+
+      @include('partials/request_detail')
+    </div>
+  @end
+@end

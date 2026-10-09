@@ -1,0 +1,21 @@
+{{--
+  Sub-navigation shared by every admin settings page.
+  Expects local: settingsTab — 'overview' | 'report-settings' | 'dashboard-settings' | 'users' | 'his-settings' | 'notification-settings' | 'security-settings'
+--}}
+@let(snTab = (typeof settingsTab !== 'undefined' && settingsTab) ? settingsTab : '')
+@let(snItems = [
+  { key: 'overview', href: '/admin/settings', icon: 'fa-gear', label: 'ภาพรวม' },
+  { key: 'report-settings', href: '/admin/report-settings', icon: 'fa-sliders', label: 'รายงาน' },
+  { key: 'dashboard-settings', href: '/admin/dashboard-settings', icon: 'fa-chart-line', label: 'แดชบอร์ด' },
+  { key: 'users', href: '/admin/users', icon: 'fa-users-gear', label: 'ผู้ใช้และสิทธิ์' },
+  { key: 'his-settings', href: '/admin/his-settings', icon: 'fa-database', label: 'HIS Database' },
+  { key: 'notification-settings', href: '/admin/notification-settings', icon: 'fa-bell', label: 'การแจ้งเตือน' },
+  { key: 'security-settings', href: '/admin/security-settings', icon: 'fa-shield-halved', label: 'ความปลอดภัย' },
+])
+<nav class="flex gap-2 overflow-x-auto pb-1" aria-label="เมนูตั้งค่าระบบ" style="scrollbar-width:thin">
+  @each(it in snItems)
+    <a href="{{ it.href }}" class="hic-chip {{ snTab === it.key ? 'is-on' : '' }}" style="white-space:nowrap" {{ snTab === it.key ? 'aria-current=page' : '' }}>
+      <i class="fas {{ it.icon }}"></i>{{ it.label }}
+    </a>
+  @end
+</nav>

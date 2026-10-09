@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ตั้งค่า 2FA · HisReport</title>
+  @include('partials/head')
+</head>
+<body class="hic-body font-thai">
+  @include('partials/auth_shell_start')
+
+    <div class="mb-6">
+      <span class="hic-metric-icon hic-tone-green mb-4" style="width:52px;height:52px;border-radius:16px;font-size:22px"><i class="fas fa-shield-halved"></i></span>
+      <h2 class="text-[26px] leading-9 font-bold" style="color:var(--ink-strong)">ตั้งค่ายืนยันตัวตน 2 ขั้นตอน</h2>
+      <p class="text-[15px] mt-1" style="color:var(--ink-subtle)">
+        @if(pending)
+          บัญชี <b>{{ username }}</b> ต้องเปิดใช้ 2FA ก่อนเข้าใช้งานระบบ
+        @else
+          เพิ่มความปลอดภัยให้บัญชี <b>{{ username }}</b> — นอกจากรหัสผ่านแล้วต้องใช้รหัสจากโทรศัพท์ด้วย
+        @end
+      </p>
+    </div>
+
+    @include('partials/auth_alerts')
+
+    @if(lineAvailable)
+      <nav class="flex gap-2 mb-5" aria-label="วิธียืนยันตัวตน">
+        <a href="/2fa/setup" class="hic-chip {{ method === 'totp' ? 'is-on' : '' }}"><i class="fas fa-mobile-screen"></i>แอป Authenticator</a>
+        <a href="/2fa/setup?method=line" class="hic-chip {{ method === 'line' ? 'is-on' : '' }}"><i class="fab fa-line"></i>LINE (หมอพร้อม)</a>
+      </nav>
+    @end
+
+    @if(method === 'totp')
+      <ol class="list-decimal pl-5 flex flex-col gap-2 text-sm mb-5" style="color:var(--ink)">
+        <li>ติดตั้งแอป <b>Google Authenticator</b> หรือ <b>Microsoft Authenticator</b> บนโทรศัพท์</li>
+        <li>ในแอปกด <b>+</b> แล้วสแกน QR code ด้านล่าง</li>
+        <li>กรอกรหัส 6 หลักที่แอปแสดง</li>
+      </ol>
+      <div class="flex flex-col items-center gap-3 mb-5">
+        <img src="{{ qrDataUrl }}" alt="QR code สำหรับแอป Authenticator" width="220" height="220"
+          style="border-radius:14px;background:#fff;padding:8px;border:1px solid var(--border)" />
+        <details class="text-sm w-full" style="color:var(--ink-subtle)">
+          <summary class="cursor-pointer text-center">สแกนไม่ได้? กรอกรหัสนี้ในแอปแทน</summary>
+          <div class="hic-mono mt-2 p-3 text-center break-all" style="background:var(--surface-sunken);border-radius:10px;font-size:14px;letter-spacing:.08em">{{ secret }}</div>
+        </details>
+      </div>
+      <form method="POST" action="/2fa/setup/totp" class="space-y-4">
+        {{ csrfField() }}
+        <div>
+          <label for="code" class="hic-label">รหัส 6 หลักจากแอป</label>
+          <input type="text" id="code" name="code" required autofocus autocomplete="one-time-code" inputmode="numeric"
+            pattern="[0-9]{6}" maxlength="6" placeholder="000000" class="hic-input hic-mono text-center"
+            style="height:56px;font-size:24px;letter-spacing:.4em" />
+        </div>
+        <button type="submit" class="hic-btn hic-btn-primary hic-btn-lg hic-btn-block"><i class="fas fa-check"></i><span>ยืนยันและเปิดใช้งาน</span></button>
+      </form>
+    @else
+      @if(lineSetupMessage)
+        <div class="hic-alert hic-alert-info mb-5"><i class="fas fa-circle-info"></i><span>{{ lineSetupMessage }}</span></div>
+      @end
+      <form method="POST" action="/2fa/setup/line/send" class="space-y-4 mb-6">
+        {{ csrfField() }}
+        <div>
+          <label for="citizen_id" class="hic-label">เลขบัตรประชาชน <small>(ที่ผูกกับ LINE หมอพร้อม)</small></label>
+          <input type="text" id="citizen_id" name="citizen_id" required inputmode="numeric" pattern="[0-9]{13}" maxlength="13"
+            value="{{ citizenId }}" placeholder="13 หลัก" class="hic-input hic-mono" autocomplete="off" />
+          <div class="hic-help">ระบบเก็บเลขบัตรแบบเข้ารหัส และใช้เพื่อส่ง OTP เท่านั้น</div>
+        </div>
+        <button type="submit" class="hic-btn hic-btn-secondary hic-btn-block">
+          <i class="fab fa-line" style="color:#06c755"></i><span>{{ lineOtpPending ? 'ส่งรหัสอีกครั้ง' : 'ส่งรหัส OTP' }}</span>
+        </button>
+      </form>
+      @if(lineOtpPending)
+        <form method="POST" action="/2fa/setup/line" class="space-y-4">
+          {{ csrfField() }}
+          <div>
+            <label for="code" class="hic-label">รหัส OTP ที่ได้รับทาง LINE</label>
+            <input type="text" id="code" name="code" required autofocus autocomplete="one-time-code" inputmode="numeric"
+              pattern="[0-9]{6}" maxlength="6" placeholder="000000" class="hic-input hic-mono text-center"
+              style="height:56px;font-size:24px;letter-spacing:.4em" />
+          </div>
+          <button type="submit" class="hic-btn hic-btn-primary hic-btn-lg hic-btn-block"><i class="fas fa-check"></i><span>ยืนยันและเปิดใช้งาน</span></button>
+        </form>
+      @end
+    @end
+
+    <div class="mt-8 pt-6 text-sm text-center" style="border-top:1px solid var(--border)">
+      @if(pending)
+        <form method="POST" action="/2fa/cancel">
+          {{ csrfField() }}
+          <button type="submit" class="font-semibold hover:underline" style="color:var(--ink-subtle)"><i class="fas fa-arrow-left"></i> ยกเลิกและกลับไปหน้าเข้าสู่ระบบ</button>
+        </form>
+      @else
+        <a href="/account/security" class="font-semibold hover:underline" style="color:var(--ink-subtle)"><i class="fas fa-arrow-left"></i> กลับไปหน้าความปลอดภัยบัญชี</a>
+      @end
+    </div>
+
+  @include('partials/auth_shell_end')
+  <script src="/ui/hic.js" defer></script>
+</body>
+</html>

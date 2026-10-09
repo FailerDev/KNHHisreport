@@ -1,5 +1,6 @@
 import { test } from '@japa/runner'
 import ReportRunner from '#services/report_runner'
+import { assertReadOnlySql, stripLiteralsAndComments } from '#services/his_sql_guard'
 import type ReportParameter from '#models/report_parameter'
 
 /**
@@ -60,6 +61,18 @@ test.group('ReportRunner.processSql', () => {
   test('generic param: string value gets quoted + escaped', ({ assert }) => {
     const out = ReportRunner.processSql("AND name = @name", { name: "it's" })
     assert.equal(out, "AND name = 'it''s'")
+  })
+
+  test('backslash in a value cannot break out of the quoted literal', ({ assert }) => {
+    const out = ReportRunner.processSql('SELECT * FROM t WHERE name = @name', { name: "x\\' OR 1=1 -- " })
+    assert.equal(out, "SELECT * FROM t WHERE name = 'x\\\\'' OR 1=1 -- '")
+    assert.notInclude(stripLiteralsAndComments(out), 'OR')
+    assert.doesNotThrow(() => assertReadOnlySql(out))
+  })
+
+  test('raw @dayofweek cannot smuggle a second statement past the guard', ({ assert }) => {
+    const out = ReportRunner.processSql('SELECT 1 FROM t WHERE d IN (@dayofweek)', { dayofweek: '1); DELETE FROM users; -- ' })
+    assert.throws(() => assertReadOnlySql(out))
   })
 
   test('generic param: empty value → empty quoted string', ({ assert }) => {

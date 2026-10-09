@@ -8,6 +8,8 @@
 })
   @slot('main')
     <div class="flex flex-col gap-6">
+      @let(settingsTab = 'users')
+      @include('partials/settings_nav')
       <div class="hic-pagehead" style="margin-bottom:0">
         <div class="hic-pagehead-title hic-tone-pink">
           <span class="hic-pagehead-icon"><i class="fas fa-users-gear"></i></span>
@@ -76,6 +78,7 @@
                   <th>แผนก</th>
                   <th>สิทธิ์</th>
                   <th>สถานะ</th>
+                  <th>2FA</th>
                   <th>เข้าระบบล่าสุด</th>
                   <th style="text-align:right">จัดการ</th>
                 </tr>
@@ -85,6 +88,8 @@
                   @let(rowIsAdmin = u.userLevel === 'admin')
                   @let(rowIsActive = u.status === 1)
                   @let(rowInitial = (u.fullname || u.username || '?').substring(0, 2))
+                  @let(row2fa = twofa[u.id] || { method: null, force: 'default' })
+                  @let(rowLocked = lockedUsernames.includes(String(u.username).toLowerCase()))
                   <tr
                     data-search="{{ ((u.username || '') + ' ' + (u.fullname || '') + ' ' + (u.email || '') + ' ' + (u.department || '')).toLowerCase() }}"
                     data-level="{{ rowIsAdmin ? 'admin' : 'user' }}"
@@ -109,6 +114,21 @@
                       <span class="hic-badge {{ rowIsActive ? 'hic-badge-ok' : 'hic-badge-muted' }}">
                         <span class="hic-dot"></span>{{ rowIsActive ? 'ใช้งาน' : 'ปิดใช้งาน' }}
                       </span>
+                      @if(rowLocked)
+                        <span class="hic-badge hic-badge-bad" title="เข้าสู่ระบบผิดหลายครั้ง"><i class="fas fa-lock"></i>ถูกล็อก</span>
+                      @end
+                    </td>
+                    <td style="white-space:nowrap">
+                      @if(row2fa.method)
+                        <span class="hic-badge hic-badge-ok"><i class="fas {{ row2fa.method === 'line' ? 'fa-comment' : 'fa-mobile-screen' }}"></i>{{ row2fa.method === 'line' ? 'LINE' : 'แอป' }}</span>
+                      @else
+                        <span class="hic-badge hic-badge-muted">ไม่ได้ผูก</span>
+                      @end
+                      @if(row2fa.force === 'require')
+                        <span class="hic-badge hic-badge-warn">บังคับ</span>
+                      @elseif(row2fa.force === 'exempt')
+                        <span class="hic-badge hic-badge-violet">ยกเว้น</span>
+                      @end
                     </td>
                     <td style="color:var(--ink-subtle);font-size:13px;white-space:nowrap">
                       {{ u.lastLogin ? u.lastLogin.toFormat('dd/MM/yyyy HH:mm') : '—' }}
@@ -118,6 +138,10 @@
                         <button type="button" title="แก้ไข" class="hic-act is-brand"
                           onclick="openEditModal({{ JSON.stringify({ id: u.id, username: u.username, fullname: u.fullname, email: u.email, department: u.department, user_level: u.userLevel, status: u.status }) }})">
                           <i class="fas fa-pen"></i>
+                        </button>
+                        <button type="button" title="ตั้งค่า 2FA / ปลดล็อก" class="hic-act is-ok"
+                          onclick="openTwofaModal({{ JSON.stringify({ id: u.id, username: u.username, method: row2fa.method, force: row2fa.force, locked: rowLocked }) }})">
+                          <i class="fas fa-shield-halved"></i>
                         </button>
                         <button type="button" title="รีเซ็ตรหัสผ่าน" class="hic-act is-warn"
                           onclick="openResetModal({{ u.id }}, '{{ u.username }}')">
@@ -239,6 +263,47 @@
       </div>
     </div>
 
+    {{-- 2FA modal --}}
+    <div id="twofaModal" class="hic-modal hidden" role="dialog" aria-modal="true">
+      <div class="hic-modal-box is-sm hic-tone-green">
+        <div class="hic-modal-head">
+          <span class="hic-modal-icon"><i class="fas fa-shield-halved"></i></span>
+          <h3>2FA และการล็อก</h3>
+          <button type="button" onclick="closeTwofaModal()" class="hic-iconbtn" aria-label="ปิด"><i class="fas fa-xmark"></i></button>
+        </div>
+        <form method="POST" action="/admin/users/two-factor" class="contents">
+          {{ csrfField() }}
+          <input type="hidden" name="user_id" id="twofaUserId" />
+          <div class="hic-modal-body">
+            <div class="hic-alert hic-alert-info">
+              <i class="fas fa-circle-info"></i>
+              <span>บัญชี <b id="twofaUsername"></b> · <span id="twofaState"></span></span>
+            </div>
+            <div>
+              <label class="hic-label" for="twofaForce">นโยบาย 2FA ของผู้ใช้นี้</label>
+              <select name="force" id="twofaForce" class="hic-input">
+                <option value="default">ตามค่าระบบ</option>
+                <option value="require">บังคับต้องใช้</option>
+                <option value="exempt">ยกเว้น (ไม่ถามรหัส)</option>
+              </select>
+            </div>
+            <label id="twofaResetRow" class="flex items-start gap-2 text-sm cursor-pointer">
+              <input type="checkbox" name="reset" value="1" class="mt-1" />
+              <span><b>รีเซ็ต 2FA</b> — ลบการผูกโทรศัพท์และรหัสสำรอง (ใช้เมื่อผู้ใช้ทำโทรศัพท์หาย) หากถูกบังคับ ครั้งถัดไปจะต้องผูกใหม่</span>
+            </label>
+            <label id="twofaUnlockRow" class="flex items-start gap-2 text-sm cursor-pointer">
+              <input type="checkbox" name="unlock" value="1" class="mt-1" />
+              <span><b>ปลดล็อกการเข้าสู่ระบบ</b> — ล้างจำนวนครั้งที่กรอกผิด</span>
+            </label>
+          </div>
+          <div class="hic-modal-foot">
+            <button type="button" onclick="closeTwofaModal()" class="hic-btn hic-btn-ghost">ยกเลิก</button>
+            <button type="submit" class="hic-btn hic-btn-primary"><i class="fas fa-floppy-disk"></i>บันทึก</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     {{-- Hidden delete form --}}
     <form id="deleteForm" method="POST" action="/admin/users/delete" class="hidden">
       {{ csrfField() }}
@@ -293,6 +358,19 @@
       }
       function closeResetModal() { hideModal('resetModal') }
 
+      function openTwofaModal(u) {
+        document.querySelector('#twofaModal form').reset()
+        document.getElementById('twofaUserId').value = u.id
+        document.getElementById('twofaUsername').textContent = u.username
+        document.getElementById('twofaState').textContent =
+          (u.method ? 'ผูก 2FA แล้ว (' + (u.method === 'line' ? 'LINE' : 'แอป Authenticator') + ')' : 'ยังไม่ได้ผูก 2FA') + (u.locked ? ' · ถูกล็อกอยู่' : '')
+        document.getElementById('twofaForce').value = u.force || 'default'
+        document.getElementById('twofaResetRow').classList.toggle('hidden', !u.method)
+        document.getElementById('twofaUnlockRow').classList.toggle('hidden', !u.locked)
+        showModal('twofaModal')
+      }
+      function closeTwofaModal() { hideModal('twofaModal') }
+
       function confirmDelete(userId, username) {
         if (!confirm('ยืนยันลบผู้ใช้ "' + username + '"? การดำเนินการนี้ไม่สามารถย้อนกลับได้')) return
         document.getElementById('deleteUserId').value = userId
@@ -307,7 +385,7 @@
         if (e.target.id === 'resetModal') closeResetModal()
       })
       document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') { closeUserModal(); closeResetModal() }
+        if (e.key === 'Escape') { closeUserModal(); closeResetModal(); closeTwofaModal() }
       })
 
       // Search + filter

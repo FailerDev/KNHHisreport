@@ -1,0 +1,156 @@
+{{--
+  Report-request detail: request info, result files and status timeline.
+  Shared by pages/requests/show and pages/admin/requests/show.
+  Expects locals:
+    - req (ReportRequest with requester, assignee, files, logs loaded)
+    - canDeleteFiles (boolean) — admin while the request is in_progress
+--}}
+@let(rdMeta = requestStatusMeta(req.status))
+@let(rdCanDelete = (typeof canDeleteFiles !== 'undefined' && canDeleteFiles) ? true : false)
+
+<div class="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
+  <div class="flex flex-col gap-6">
+    <section class="hic-panel">
+      <div class="hic-panel-head">
+        <h2><i class="fas fa-file-signature" style="color:var(--heading)"></i>รายละเอียดคำขอ</h2>
+        <span class="hic-badge {{ rdMeta.badge }}"><i class="fas {{ rdMeta.icon }}"></i>{{ rdMeta.label }}</span>
+      </div>
+      <div class="hic-panel-body flex flex-col gap-5">
+        <dl class="hic-kv">
+          <dt>เลขที่คำขอ</dt><dd class="hic-mono">{{ req.reqNo }}</dd>
+          <dt>เรื่อง</dt><dd>{{ req.title }}</dd>
+          <dt>ผู้ขอ</dt><dd>{{ req.requester ? (req.requester.fullname || req.requester.username) : '—' }}{{ req.requester && req.requester.department ? ' · ' + req.requester.department : '' }}</dd>
+          <dt>วันที่ส่งคำขอ</dt><dd>{{ thaiDate(req.createdAt, true) }}</dd>
+          <dt>ระดับข้อมูล</dt>
+          <dd>
+            <span class="hic-badge {{ req.dataLevel === 'identifiable' ? 'hic-badge-bad' : 'hic-badge-muted' }}">
+              <i class="fas {{ req.dataLevel === 'identifiable' ? 'fa-user-lock' : 'fa-chart-simple' }}"></i>{{ dataLevelLabel(req.dataLevel) }}
+            </span>
+          </dd>
+          <dt>ช่วงข้อมูล</dt><dd>{{ req.dateFrom || req.dateTo ? thaiDate(req.dateFrom) + ' – ' + thaiDate(req.dateTo) : 'ไม่ระบุ' }}</dd>
+          <dt>รูปแบบไฟล์</dt><dd>{{ outputFormatLabel(req.outputFormat) }}</dd>
+          <dt>ต้องการภายใน</dt>
+          <dd>
+            {{ req.dueDate ? thaiDate(req.dueDate) : 'ไม่ระบุ' }}
+            @if(req.isOverdue)
+              <span class="hic-badge hic-badge-bad ml-1"><i class="fas fa-clock"></i>เกินกำหนด</span>
+            @end
+          </dd>
+          <dt>ผู้รับผิดชอบ</dt><dd>{{ req.assignee ? (req.assignee.fullname || req.assignee.username) : '—' }}</dd>
+        </dl>
+
+        <div>
+          <div class="hic-label">รายละเอียดข้อมูลที่ต้องการ</div>
+          <div class="whitespace-pre-line text-sm" style="color:var(--ink)">{{ req.description }}</div>
+        </div>
+        @if(req.purpose)
+          <div>
+            <div class="hic-label">วัตถุประสงค์การนำข้อมูลไปใช้</div>
+            <div class="whitespace-pre-line text-sm" style="color:var(--ink)">{{ req.purpose }}</div>
+          </div>
+        @end
+
+        @if(req.status === 'rejected' && req.rejectReason)
+          <div class="hic-alert hic-alert-bad">
+            <i class="fas fa-circle-xmark"></i>
+            <span class="flex-1"><b>เหตุผลที่ไม่อนุมัติ:</b> <span class="whitespace-pre-line">{{ req.rejectReason }}</span></span>
+          </div>
+        @end
+        @if(req.status === 'completed' && req.completionNote)
+          <div class="hic-alert hic-alert-ok">
+            <i class="fas fa-circle-check"></i>
+            <span class="flex-1"><b>หมายเหตุจากผู้จัดทำ:</b> <span class="whitespace-pre-line">{{ req.completionNote }}</span></span>
+          </div>
+        @end
+      </div>
+    </section>
+
+    <section class="hic-panel overflow-hidden">
+      <div class="hic-panel-head">
+        <h2><i class="fas fa-paperclip" style="color:var(--heading)"></i>ไฟล์ผลลัพธ์ <span class="hic-pill">{{ req.files.length }}</span></h2>
+      </div>
+      @if(typeof purgeDate !== 'undefined' && purgeDate && req.files.length > 0)
+        <div class="hic-alert hic-alert-info" style="margin:12px 16px 0">
+          <i class="fas fa-user-lock"></i>
+          <span class="flex-1">ข้อมูลรายบุคคล — ไฟล์จะถูกลบอัตโนมัติวันที่ <b>{{ thaiDate(purgeDate) }}</b> ตามนโยบายคุ้มครองข้อมูลส่วนบุคคล กรุณาดาวน์โหลดก่อนวันดังกล่าว</span>
+        </div>
+      @end
+      @if(req.filesPurgedAt)
+        <div class="hic-empty">
+          <span class="hic-empty-icon"><i class="fas fa-shield-halved"></i></span>
+          <b>ไฟล์ถูกลบแล้วตามระยะเวลาจัดเก็บ</b>
+          <span>ลบเมื่อ {{ thaiDate(req.filesPurgedAt, true) }} — หากต้องการข้อมูลอีกครั้งกรุณาส่งคำขอใหม่</span>
+        </div>
+      @elseif(req.files.length === 0)
+        <div class="hic-empty">
+          <span class="hic-empty-icon"><i class="fas fa-folder-open"></i></span>
+          <b>ยังไม่มีไฟล์</b>
+          <span>ไฟล์จะปรากฏที่นี่เมื่อเจ้าหน้าที่จัดทำข้อมูลเสร็จ</span>
+        </div>
+      @else
+        <div class="hic-table-wrap" style="max-height:none">
+          <table class="hic-table">
+            <thead>
+              <tr>
+                <th>ไฟล์</th>
+                <th>ขนาด</th>
+                <th>ที่มา</th>
+                <th>เวลา</th>
+                <th style="text-align:right">ดาวน์โหลด</th>
+              </tr>
+            </thead>
+            <tbody>
+              @each(f in req.files)
+                <tr>
+                  <td class="break-all">
+                    <i class="fas {{ f.originalName.endsWith('.pdf') ? 'fa-file-pdf' : (f.originalName.endsWith('.csv') ? 'fa-file-csv' : 'fa-file-excel') }} mr-1" style="color:var(--ink-subtle)"></i>
+                    {{ f.originalName }}
+                  </td>
+                  <td style="white-space:nowrap">{{ f.sizeLabel }}</td>
+                  <td>
+                    <span class="hic-badge {{ f.source === 'generated' ? 'hic-badge-violet' : 'hic-badge-muted' }}">{{ f.source === 'generated' ? 'สร้างจากระบบ' : 'อัปโหลด' }}</span>
+                  </td>
+                  <td style="white-space:nowrap;color:var(--ink-subtle);font-size:13px">{{ thaiDate(f.createdAt, true) }}</td>
+                  <td>
+                    <div class="flex justify-end gap-1">
+                      <a href="/requests/files/{{ f.id }}" class="hic-act is-brand" title="ดาวน์โหลด ({{ f.downloadCount }} ครั้ง)"><i class="fas fa-download"></i></a>
+                      @if(rdCanDelete)
+                        <form method="POST" action="/admin/requests/{{ req.id }}/files/{{ f.id }}/delete" onsubmit="return confirm('ลบไฟล์นี้?')">
+                          {{ csrfField() }}
+                          <button type="submit" class="hic-act is-bad" title="ลบไฟล์"><i class="fas fa-trash"></i></button>
+                        </form>
+                      @end
+                    </div>
+                  </td>
+                </tr>
+              @end
+            </tbody>
+          </table>
+        </div>
+      @end
+    </section>
+  </div>
+
+  <section class="hic-panel">
+    <div class="hic-panel-head">
+      <h2><i class="fas fa-timeline" style="color:var(--heading)"></i>ประวัติการดำเนินการ</h2>
+    </div>
+    <ol class="hic-panel-body flex flex-col gap-4">
+      @each(log in req.logs)
+        @let(logMeta = log.toStatus ? requestStatusMeta(log.toStatus) : null)
+        <li class="flex gap-3">
+          <span class="hic-badge {{ logMeta ? logMeta.badge : 'hic-badge-muted' }}" style="height:28px;width:28px;justify-content:center;padding:0;flex:none">
+            <i class="fas {{ logMeta ? logMeta.icon : ({ delete_file: 'fa-trash', purge: 'fa-shield-halved', promote: 'fa-bookmark', generate: 'fa-file-excel' }[log.action] || 'fa-paperclip') }}"></i>
+          </span>
+          <div class="min-w-0">
+            <div class="font-semibold text-sm" style="color:var(--ink-strong)">{{ requestLogLabel(log.action) }}</div>
+            <div class="text-xs" style="color:var(--ink-subtle)">{{ thaiDate(log.createdAt, true) }} · {{ log.username || 'ระบบ' }}</div>
+            @if(log.note)
+              <div class="text-sm mt-1 whitespace-pre-line break-words" style="color:var(--ink)">{{ log.note }}</div>
+            @end
+          </div>
+        </li>
+      @end
+    </ol>
+  </section>
+</div>

@@ -5,7 +5,9 @@
     - fullname (string)
     - department (string)
     - currentPage (string)  // 'home' | 'dashboard' | 'index_dashboard' | 'mainreport' |
-                            // 'report-settings' | 'dashboard-settings' | 'users' | 'his-settings'
+                            // 'requests' | 'admin-requests' | 'settings' | 'report-settings' |
+                            // 'dashboard-settings' | 'users' | 'his-settings'
+  Shared (auth middleware): notifications, pendingRequests (admins only)
 --}}
 @let(tbIsAdmin = (typeof isAdmin !== 'undefined' && isAdmin) ? true : false)
 @let(tbFullname = (typeof fullname !== 'undefined' && fullname) ? fullname : (tbIsAdmin ? 'ผู้ดูแลระบบ' : 'ผู้ใช้'))
@@ -13,8 +15,11 @@
 @let(tbPage = (typeof currentPage !== 'undefined' && currentPage) ? currentPage : '')
 @let(tbInitial = tbFullname.substring(0, 2))
 @let(tbHome = tbIsAdmin ? '/admin/dashboard' : '/')
-@let(tbAdminPages = ['report-settings', 'dashboard-settings', 'users', 'his-settings'])
-@let(tbInAdmin = tbAdminPages.includes(tbPage))
+@let(tbSettingsPages = ['settings', 'report-settings', 'dashboard-settings', 'users', 'his-settings', 'notification-settings', 'security-settings'])
+@let(tbInSettings = tbSettingsPages.includes(tbPage))
+@let(tbInRequests = tbPage === 'requests' || tbPage === 'admin-requests')
+@let(tbRequestsHref = tbIsAdmin ? '/admin/requests' : '/requests')
+@let(tbPending = (tbIsAdmin && typeof pendingRequests !== 'undefined' && pendingRequests) ? pendingRequests : 0)
 
 <header class="hic-header">
   <a class="hic-brand" href="{{ tbHome }}" aria-label="HisReport หน้าหลัก">
@@ -32,23 +37,56 @@
     <a href="/reports" class="{{ tbPage === 'mainreport' ? 'is-active' : '' }}">
       <i class="fas fa-file-lines"></i>รายงาน
     </a>
+    <a href="{{ tbRequestsHref }}" class="{{ tbInRequests ? 'is-active' : '' }}">
+      <i class="fas fa-inbox"></i>คำขอข้อมูล
+      @if(tbPending > 0)
+        <span class="hic-badge hic-badge-warn" style="padding:0 7px;min-height:20px" title="รอตรวจสอบ">{{ tbPending }}</span>
+      @end
+    </a>
     @if(tbIsAdmin)
-      <div class="hic-menu">
-        <button type="button" data-menu-toggle aria-haspopup="menu" aria-expanded="false" class="{{ tbInAdmin ? 'is-active' : '' }}">
-          <i class="fas fa-screwdriver-wrench"></i>จัดการระบบ<i class="fas fa-chevron-down hic-caret"></i>
-        </button>
-        <div class="hic-dropdown" role="menu">
-          <a href="/admin/report-settings" role="menuitem" class="{{ tbPage === 'report-settings' ? 'is-active' : '' }}"><i class="fas fa-sliders"></i>ตั้งค่ารายงาน</a>
-          <a href="/admin/dashboard-settings" role="menuitem" class="{{ tbPage === 'dashboard-settings' ? 'is-active' : '' }}"><i class="fas fa-chart-line"></i>ตั้งค่าแดชบอร์ด</a>
-          <a href="/admin/users" role="menuitem" class="{{ tbPage === 'users' ? 'is-active' : '' }}"><i class="fas fa-users-gear"></i>จัดการผู้ใช้</a>
-          <hr />
-          <a href="/admin/his-settings" role="menuitem" class="{{ tbPage === 'his-settings' ? 'is-active' : '' }}"><i class="fas fa-database"></i>ตั้งค่า HIS Database</a>
-        </div>
-      </div>
+      <a href="/admin/settings" class="{{ tbInSettings ? 'is-active' : '' }}">
+        <i class="fas fa-gear"></i>ตั้งค่าระบบ
+      </a>
     @end
   </nav>
 
   <div class="hic-header-actions">
+    {{-- Notification bell (data shared by the auth middleware) --}}
+    @if(typeof notifications !== 'undefined' && notifications)
+      <div class="hic-menu">
+        <button class="hic-iconbtn" type="button" data-menu-toggle aria-haspopup="menu" aria-expanded="false" aria-label="การแจ้งเตือน" title="การแจ้งเตือน">
+          <i class="fas fa-bell"></i>
+          @if(notifications.count > 0)
+            <span style="position:absolute;top:3px;right:3px;min-width:18px;height:18px;padding:0 4px;border-radius:9999px;background:var(--bad);color:#fff;font:700 11px/18px var(--font-thai);text-align:center">{{ notifications.count > 99 ? '99+' : notifications.count }}</span>
+          @end
+        </button>
+        <div class="hic-dropdown hic-dropdown--right" role="menu" style="width:320px;max-width:calc(100vw - 32px)">
+          <div class="hic-dropdown-head"><b>การแจ้งเตือน</b></div>
+          <hr />
+          @each(n in notifications.items)
+            <a href="/notifications/{{ n.id }}" role="menuitem" style="align-items:flex-start">
+              <i class="fas fa-circle" style="font-size:8px;margin-top:6px;color:var(--brand-from)"></i>
+              <span class="min-w-0">
+                <b class="block" style="color:var(--ink-strong)">{{ n.title }}</b>
+                @if(n.body)
+                  <span class="block truncate text-xs" style="color:var(--ink-subtle)">{{ n.body }}</span>
+                @end
+                <span class="block text-xs" style="color:var(--ink-muted)">{{ thaiDate(n.createdAt, true) }}</span>
+              </span>
+            </a>
+          @else
+            <div class="text-sm" style="padding:10px 12px;color:var(--ink-subtle)">ไม่มีการแจ้งเตือนใหม่</div>
+          @end
+          @if(notifications.count > 0)
+            <hr />
+            <form method="POST" action="/notifications/read-all">
+              {{ csrfField() }}
+              <button type="submit" role="menuitem"><i class="fas fa-check-double"></i>อ่านทั้งหมดแล้ว</button>
+            </form>
+          @end
+        </div>
+      </div>
+    @end
     <button class="hic-iconbtn" type="button" data-theme-toggle aria-label="สลับโหมดสว่าง/มืด" title="สลับโหมดสว่าง/มืด">
       <i class="fas fa-moon" data-theme-icon></i>
     </button>
@@ -72,6 +110,11 @@
         <hr />
         <a href="/dashboard" role="menuitem"><i class="fas fa-chart-pie"></i>แดชบอร์ดรายงาน</a>
         <a href="/reports" role="menuitem"><i class="fas fa-file-lines"></i>รายงานทั้งหมด</a>
+        <a href="/requests" role="menuitem"><i class="fas fa-inbox"></i>คำขอข้อมูลของฉัน</a>
+        <a href="/account/security" role="menuitem"><i class="fas fa-shield-halved"></i>ความปลอดภัยบัญชี (2FA)</a>
+        @if(tbIsAdmin)
+          <a href="/admin/settings" role="menuitem"><i class="fas fa-gear"></i>ตั้งค่าระบบ</a>
+        @end
         <hr />
         <form method="POST" action="/logout">
           {{ csrfField() }}
@@ -90,11 +133,17 @@
   <a href="{{ tbHome }}" class="{{ (tbPage === 'home' || tbPage === 'dashboard') ? 'is-active' : '' }}"><i class="fas fa-house"></i>หน้าหลัก</a>
   <a href="/dashboard" class="{{ tbPage === 'index_dashboard' ? 'is-active' : '' }}"><i class="fas fa-chart-pie"></i>แดชบอร์ด</a>
   <a href="/reports" class="{{ tbPage === 'mainreport' ? 'is-active' : '' }}"><i class="fas fa-file-lines"></i>รายงาน</a>
+  <a href="{{ tbRequestsHref }}" class="{{ tbPage === (tbIsAdmin ? 'admin-requests' : 'requests') ? 'is-active' : '' }}"><i class="fas fa-inbox"></i>คำขอข้อมูล{{ tbPending > 0 ? ' (' + tbPending + ')' : '' }}</a>
   @if(tbIsAdmin)
-    <div class="hic-drawer-label">จัดการระบบ</div>
+    <a href="/requests" class="{{ tbPage === 'requests' ? 'is-active' : '' }}"><i class="fas fa-paper-plane"></i>คำขอข้อมูลของฉัน</a>
+    <div class="hic-drawer-label">ตั้งค่าระบบ</div>
+    <a href="/admin/settings" class="{{ tbPage === 'settings' ? 'is-active' : '' }}"><i class="fas fa-gear"></i>ภาพรวมการตั้งค่า</a>
     <a href="/admin/report-settings" class="{{ tbPage === 'report-settings' ? 'is-active' : '' }}"><i class="fas fa-sliders"></i>ตั้งค่ารายงาน</a>
     <a href="/admin/dashboard-settings" class="{{ tbPage === 'dashboard-settings' ? 'is-active' : '' }}"><i class="fas fa-chart-line"></i>ตั้งค่าแดชบอร์ด</a>
-    <a href="/admin/users" class="{{ tbPage === 'users' ? 'is-active' : '' }}"><i class="fas fa-users-gear"></i>จัดการผู้ใช้</a>
-    <a href="/admin/his-settings" class="{{ tbPage === 'his-settings' ? 'is-active' : '' }}"><i class="fas fa-database"></i>ตั้งค่า HIS Database</a>
+    <a href="/admin/users" class="{{ tbPage === 'users' ? 'is-active' : '' }}"><i class="fas fa-users-gear"></i>ผู้ใช้และสิทธิ์</a>
+    <a href="/admin/his-settings" class="{{ tbPage === 'his-settings' ? 'is-active' : '' }}"><i class="fas fa-database"></i>HIS Database</a>
+    <a href="/admin/notification-settings" class="{{ tbPage === 'notification-settings' ? 'is-active' : '' }}"><i class="fas fa-bell"></i>การแจ้งเตือน</a>
+    <a href="/admin/security-settings" class="{{ tbPage === 'security-settings' ? 'is-active' : '' }}"><i class="fas fa-shield-halved"></i>ความปลอดภัย</a>
   @end
+  <a href="/account/security" class="{{ tbPage === 'account-security' ? 'is-active' : '' }}"><i class="fas fa-user-shield"></i>ความปลอดภัยบัญชี (2FA)</a>
 </div>
