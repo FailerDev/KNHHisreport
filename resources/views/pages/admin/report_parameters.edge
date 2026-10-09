@@ -9,6 +9,8 @@
   @slot('main')
     @let(typeIcons = { text: 'fa-font', number: 'fa-hashtag', date: 'fa-calendar-day', datetime: 'fa-clock', select: 'fa-list', textarea: 'fa-align-left' })
     <div class="max-w-6xl mx-auto flex flex-col gap-6">
+      @let(settingsTab = 'report-settings')
+      @include('partials/settings_nav')
       <div>
         <nav class="hic-crumb" aria-label="breadcrumb">
           <a href="/admin/report-settings"><i class="fas fa-sliders"></i> ตั้งค่ารายงาน</a>

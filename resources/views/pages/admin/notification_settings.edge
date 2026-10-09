@@ -1,0 +1,179 @@
+@component('layouts/app', {
+  title: 'ตั้งค่าการแจ้งเตือน · HisReport',
+  showSidebar: true,
+  isAdmin: true,
+  fullname: auth.user.fullname || auth.user.username,
+  department: auth.user.department,
+  currentPage: 'notification-settings',
+})
+  @slot('main')
+    @let(settingsTab = 'notification-settings')
+    @let(ev = settings.events)
+    @let(eventRows = [
+      { name: 'event_admin_new_request', on: ev.adminNewRequest, channel: 'bell', label: 'มีคำขอข้อมูลใหม่', who: 'ผู้ดูแลระบบทุกคน' },
+      { name: 'event_requester_updates', on: ev.requesterUpdates, channel: 'bell', label: 'คำขอได้รับอนุมัติ / ไม่อนุมัติ / เสร็จสิ้น / ไฟล์ถูกลบ', who: 'ผู้ขอข้อมูล' },
+      { name: 'event_line_new_request', on: ev.lineNewRequest, channel: 'line', label: 'มีคำขอข้อมูลใหม่', who: 'ห้อง LINE งานสารสนเทศ' },
+      { name: 'event_line_completed', on: ev.lineCompleted, channel: 'line', label: 'ปิดงานคำขอข้อมูล', who: 'ห้อง LINE งานสารสนเทศ' },
+    ])
+    <div class="max-w-5xl mx-auto flex flex-col gap-6">
+      @include('partials/settings_nav')
+
+      <div class="hic-pagehead" style="margin-bottom:0">
+        <div class="hic-pagehead-title hic-tone-sky">
+          <span class="hic-pagehead-icon"><i class="fas fa-bell"></i></span>
+          <div>
+            <h1>การแจ้งเตือน</h1>
+            <p>เลือกว่าจะแจ้งใคร เมื่อไร และทางช่องทางไหน · รวมถึงระยะเวลาเก็บไฟล์ข้อมูลรายบุคคล</p>
+          </div>
+        </div>
+        <span class="hic-badge {{ settings.lineEnabled ? 'hic-badge-ok' : 'hic-badge-muted' }}">
+          <i class="fab fa-line"></i>LINE {{ settings.lineEnabled ? 'เปิดอยู่' : 'ปิด' }}
+        </span>
+      </div>
+
+      @include('partials/flash')
+
+      <form method="POST" action="/admin/notification-settings" class="flex flex-col gap-6">
+        {{ csrfField() }}
+
+        {{-- Events --}}
+        <section class="hic-panel overflow-hidden">
+          <div class="hic-panel-head">
+            <h2><i class="fas fa-list-check" style="color:var(--heading)"></i>เหตุการณ์ที่จะแจ้งเตือน</h2>
+          </div>
+          <div class="hic-table-wrap" style="max-height:none">
+            <table class="hic-table">
+              <thead>
+                <tr>
+                  <th style="width:90px">เปิด/ปิด</th>
+                  <th>เมื่อ</th>
+                  <th>แจ้งถึง</th>
+                  <th>ช่องทาง</th>
+                </tr>
+              </thead>
+              <tbody>
+                @each(row in eventRows)
+                  <tr>
+                    <td>
+                      <label class="hic-switch" aria-label="{{ row.label }}">
+                        <input type="checkbox" name="{{ row.name }}" value="1" {{ row.on ? 'checked' : '' }} />
+                        <span class="track"></span>
+                      </label>
+                    </td>
+                    <td class="font-semibold" style="color:var(--ink-strong)">{{ row.label }}</td>
+                    <td>{{ row.who }}</td>
+                    <td>
+                      @if(row.channel === 'bell')
+                        <span class="hic-badge hic-badge-brand"><i class="fas fa-bell"></i>กระดิ่งในระบบ</span>
+                      @else
+                        <span class="hic-badge hic-badge-ok"><i class="fab fa-line"></i>LINE</span>
+                      @end
+                    </td>
+                  </tr>
+                @end
+              </tbody>
+            </table>
+          </div>
+          <div class="hic-panel-body hic-help" style="padding-top:12px">ระบบไม่แจ้งเตือนคนที่เป็นผู้กระทำเอง เช่น admin ที่กดอนุมัติจะไม่ได้รับแจ้งเตือนของตัวเอง</div>
+        </section>
+
+        {{-- LINE via MOPH Notify --}}
+        @let(fmt = flashMessages.get('line_format', settings.lineFormat))
+        <section class="hic-panel">
+          <div class="hic-panel-head">
+            <h2><i class="fab fa-line" style="color:#06c755"></i>LINE ผ่าน MOPH Notify (หมอพร้อม)</h2>
+            <label class="hic-switch">
+              <input type="checkbox" name="line_enabled" value="1" {{ settings.lineEnabled ? 'checked' : '' }} />
+              <span class="track"></span>
+              <span>เปิดใช้งาน</span>
+            </label>
+          </div>
+          <div class="hic-panel-body flex flex-col gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="hic-label" for="moph_client_key">client-key</label>
+                <input type="password" name="moph_client_key" id="moph_client_key" class="hic-input hic-mono" autocomplete="off"
+                  placeholder="{{ hasKeys ? 'บันทึกไว้แล้ว (…' + clientKeyTail + ') — เว้นว่างเพื่อใช้ค่าเดิม' : 'client-key ของห้อง' }}" />
+              </div>
+              <div>
+                <label class="hic-label" for="moph_secret_key">secret-key</label>
+                <input type="password" name="moph_secret_key" id="moph_secret_key" class="hic-input hic-mono" autocomplete="off"
+                  placeholder="{{ hasKeys ? 'บันทึกไว้แล้ว (…' + secretKeyTail + ') — เว้นว่างเพื่อใช้ค่าเดิม' : 'secret-key ของห้อง' }}" />
+              </div>
+            </div>
+            @if(hasKeys)
+              <label class="flex items-center gap-2 text-sm cursor-pointer" style="color:var(--ink-subtle)">
+                <input type="checkbox" name="clear_moph_keys" value="1" /> ลบ key ที่บันทึกไว้
+              </label>
+            @end
+
+            <div>
+              <span class="hic-label">รูปแบบข้อความ</span>
+              <div class="flex flex-col gap-2 text-sm">
+                <label class="flex items-start gap-2 cursor-pointer">
+                  <input type="radio" name="line_format" value="text" {{ fmt !== 'flex' ? 'checked' : '' }} class="mt-1" />
+                  <span><b>ข้อความธรรมดา</b> — ส่งได้แน่นอนที่สุด มีลิงก์เปิดระบบท้ายข้อความ</span>
+                </label>
+                <label class="flex items-start gap-2 cursor-pointer">
+                  <input type="radio" name="line_format" value="flex" {{ fmt === 'flex' ? 'checked' : '' }} class="mt-1" />
+                  <span><b>การ์ด Flex</b> — หัวการ์ดสี + รายละเอียด + ปุ่ม "เปิดในระบบ" (ต้องตั้ง URL ของระบบด้านล่าง ปุ่มจึงจะแสดง)</span>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label class="hic-label" for="app_url">URL ของระบบ <small>(ใช้ทำลิงก์/ปุ่มในข้อความ LINE)</small></label>
+              <input name="app_url" id="app_url" class="hic-input hic-mono" maxlength="255" placeholder="http://hisreport.hospital.local"
+                value="{{ flashMessages.get('app_url', settings.appUrl || '') }}" />
+            </div>
+
+            <details class="text-sm" style="color:var(--ink-subtle)">
+              <summary class="cursor-pointer font-semibold" style="color:var(--ink)">ขั้นสูง: API URL</summary>
+              <div class="mt-2">
+                <input name="moph_api_url" id="moph_api_url" class="hic-input hic-mono" maxlength="255" placeholder="{{ defaultApiUrl }}"
+                  value="{{ flashMessages.get('moph_api_url', settings.mophApiUrl === defaultApiUrl ? '' : settings.mophApiUrl) }}" />
+                <div class="hic-help">เว้นว่าง = ใช้ค่ามาตรฐาน {{ defaultApiUrl }}</div>
+              </div>
+            </details>
+
+            <details class="text-sm" style="color:var(--ink-subtle)">
+              <summary class="cursor-pointer font-semibold" style="color:var(--ink)">วิธีตั้งค่า (แนวทางเดียวกับระบบ KNHLinemoph)</summary>
+              <ol class="list-decimal pl-5 mt-2 flex flex-col gap-1">
+                <li>ขอ client-key และ secret-key ของห้อง LINE งานสารสนเทศจากระบบ MOPH Notify (หมอพร้อม) — ห้องเดียวกับที่ใช้ใน KNHLinemoph ได้</li>
+                <li>วาง key ทั้งสองช่อง เลือกรูปแบบข้อความ แล้วกด "ส่งข้อความทดสอบ"</li>
+                <li><b>เปิดห้อง LINE ดูด้วยตาว่าข้อความเข้าจริง</b> — MOPH ตอบ "สำเร็จ" ได้แม้ข้อความไม่เข้าห้อง (โดยเฉพาะการ์ด Flex)</li>
+                <li>เปิดสวิตช์ "เปิดใช้งาน" แล้วกดบันทึก</li>
+              </ol>
+            </details>
+
+            <div>
+              <button type="submit" formaction="/admin/notification-settings/test-line" formnovalidate class="hic-btn hic-btn-secondary">
+                <i class="fas fa-paper-plane"></i>ส่งข้อความทดสอบ
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {{-- PDPA retention --}}
+        <section class="hic-panel">
+          <div class="hic-panel-head">
+            <h2><i class="fas fa-user-lock" style="color:var(--heading)"></i>ระยะเวลาเก็บไฟล์ข้อมูลรายบุคคล (PDPA)</h2>
+          </div>
+          <div class="hic-panel-body flex flex-col gap-3">
+            <div class="flex items-center gap-3 flex-wrap">
+              <input type="number" name="retention_days" id="retention_days" min="1" max="3650" required class="hic-input" style="width:120px"
+                value="{{ flashMessages.get('retention_days', settings.retentionDays) }}" aria-label="จำนวนวัน" />
+              <span>วัน หลังปิดงาน ระบบจะลบไฟล์ผลลัพธ์ของคำขอที่เป็นข้อมูลรายบุคคล และแจ้งผู้ขอ</span>
+            </div>
+            <div class="hic-help">การลบทำงานผ่านคำสั่ง <code>node ace requests:purge-files</code> — ตั้ง Windows Task Scheduler / cron ให้รันวันละครั้ง</div>
+          </div>
+        </section>
+
+        <div class="flex justify-end gap-2">
+          <a href="/admin/settings" class="hic-btn hic-btn-ghost">ยกเลิก</a>
+          <button type="submit" class="hic-btn hic-btn-primary"><i class="fas fa-floppy-disk"></i>บันทึกการตั้งค่า</button>
+        </div>
+      </form>
+    </div>
+  @end
+@end

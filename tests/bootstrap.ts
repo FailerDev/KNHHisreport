@@ -17,7 +17,8 @@ import testUtils from '@adonisjs/core/services/test_utils'
 export const plugins: Config['plugins'] = [
   assert(),
   pluginAdonisJS(app),
-  apiClient({ baseURL: 'http://localhost:3333' }),
+  // PORT can be overridden (e.g. PORT=3344) when a dev server already holds 3333
+  apiClient({ baseURL: `http://localhost:${process.env.PORT ?? 3333}` }),
   sessionApiClient(app),
   authApiClient(app),
 ]

@@ -10,9 +10,19 @@ const ReportParametersController = () => import('#controllers/report_parameters_
 const DashboardController = () => import('#controllers/dashboard_controller')
 const DashboardSettingsController = () => import('#controllers/dashboard_settings_controller')
 const HealthController = () => import('#controllers/health_controller')
+const ReportRequestsController = () => import('#controllers/report_requests_controller')
+const AdminReportRequestsController = () => import('#controllers/admin_report_requests_controller')
+const NotificationsController = () => import('#controllers/notifications_controller')
+const SettingsController = () => import('#controllers/settings_controller')
+const NotificationSettingsController = () => import('#controllers/notification_settings_controller')
 
 router.get('/', async ({ view, auth }) => {
   await auth.check()
+  // Not behind the auth middleware, so feed the topbar bell here too.
+  if (auth.user) {
+    const { unreadNotifications } = await import('#services/notifier')
+    view.share({ notifications: await unreadNotifications(auth.user.id) })
+  }
   return view.render('pages/home', { user: auth.user })
 })
 router.get('/health', [HealthController, 'show']).as('health')
@@ -40,6 +50,16 @@ router
     router.get('/reports/:id', [ReportsController, 'show']).as('reports.show')
     router.post('/reports/:id', [ReportsController, 'run']).as('reports.run')
     router.post('/reports/:id/export', [ReportsController, 'export']).as('reports.export')
+
+    // Data/report requests (requester side)
+    router.get('/requests', [ReportRequestsController, 'index']).as('requests.index')
+    router.get('/requests/create', [ReportRequestsController, 'create']).as('requests.create')
+    router.post('/requests', [ReportRequestsController, 'store']).as('requests.store')
+    router.get('/requests/files/:fileId', [ReportRequestsController, 'download']).as('requests.download').where('fileId', router.matchers.number())
+    router.get('/requests/:id', [ReportRequestsController, 'show']).as('requests.show').where('id', router.matchers.number())
+    router.get('/notifications/:id', [NotificationsController, 'open']).as('notifications.open').where('id', router.matchers.number())
+    router.post('/notifications/read-all', [NotificationsController, 'readAll']).as('notifications.readAll')
+    router.post('/requests/:id/cancel', [ReportRequestsController, 'cancel']).as('requests.cancel').where('id', router.matchers.number())
   })
   .use(middleware.auth())
 
@@ -78,5 +98,28 @@ router
     router.post('/admin/reports/:reportId/parameters/auto-detect', [ReportParametersController, 'autoDetect'])
     router.post('/admin/parameters/update', [ReportParametersController, 'update'])
     router.post('/admin/parameters/delete', [ReportParametersController, 'destroy'])
+
+    // Data/report requests (admin / งานสารสนเทศ)
+    router.get('/admin/settings', [SettingsController, 'index']).as('admin.settings')
+    router.get('/admin/notification-settings', [NotificationSettingsController, 'show']).as('admin.notificationSettings')
+    router.post('/admin/notification-settings', [NotificationSettingsController, 'save'])
+    router.post('/admin/notification-settings/test-line', [NotificationSettingsController, 'testLine'])
+
+    router.get('/admin/requests', [AdminReportRequestsController, 'index']).as('admin.requests.index')
+    router.get('/admin/requests/report-params/:reportId', [AdminReportRequestsController, 'reportParams']).where('reportId', router.matchers.number())
+    router
+      .group(() => {
+        router.get('/', [AdminReportRequestsController, 'show']).as('admin.requests.show')
+        router.post('/approve', [AdminReportRequestsController, 'approve'])
+        router.post('/reject', [AdminReportRequestsController, 'reject'])
+        router.post('/upload', [AdminReportRequestsController, 'upload'])
+        router.post('/generate', [AdminReportRequestsController, 'generate'])
+        router.post('/run-sql', [AdminReportRequestsController, 'runSql'])
+        router.post('/promote', [AdminReportRequestsController, 'promote'])
+        router.post('/complete', [AdminReportRequestsController, 'complete'])
+        router.post('/files/:fileId/delete', [AdminReportRequestsController, 'destroyFile'])
+      })
+      .prefix('/admin/requests/:id')
+      .where('id', router.matchers.number())
   })
   .use([middleware.auth(), middleware.admin()])

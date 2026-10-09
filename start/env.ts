@@ -49,5 +49,19 @@ export default await Env.create(new URL('../', import.meta.url), {
   HIS_DB_USER: Env.schema.string.optional(),
   HIS_DB_PASSWORD: Env.schema.string.optional(),
   HIS_DB_DATABASE: Env.schema.string.optional(),
+
+  /*
+  |----------------------------------------------------------
+  | Report-request module
+  |----------------------------------------------------------
+  */
+  // Public base URL used in links sent outside the app (LINE), e.g. http://hisreport.local
+  APP_URL: Env.schema.string.optional(),
+  // LINE via MOPH Notify (หมอพร้อม) — fallback when not set on the notification settings page
+  MOPH_NOTIFY_API_URL: Env.schema.string.optional(),
+  MOPH_NOTIFY_CLIENT_KEY: Env.schema.string.optional(),
+  MOPH_NOTIFY_SECRET_KEY: Env.schema.string.optional(),
+  // Days to keep result files of identifiable (PDPA) requests after completion (default 30)
+  REQUEST_FILE_RETENTION_DAYS: Env.schema.number.optional(),
 })
 

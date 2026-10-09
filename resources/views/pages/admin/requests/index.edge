@@ -1,0 +1,123 @@
+@component('layouts/app', {
+  title: 'จัดการคำขอข้อมูล · HisReport',
+  showSidebar: true,
+  isAdmin: true,
+  fullname: auth.user.fullname || auth.user.username,
+  department: auth.user.department,
+  currentPage: 'admin-requests',
+})
+  @slot('main')
+    @let(filters = [
+      { key: 'open', label: 'งานค้าง', count: counts.open },
+      { key: 'pending', label: 'รอตรวจสอบ', count: counts.pending },
+      { key: 'in_progress', label: 'กำลังจัดทำ', count: counts.in_progress },
+      { key: 'completed', label: 'เสร็จสิ้น', count: counts.completed },
+      { key: 'rejected', label: 'ไม่อนุมัติ', count: counts.rejected },
+      { key: 'cancelled', label: 'ยกเลิก', count: counts.cancelled },
+      { key: 'all', label: 'ทั้งหมด', count: counts.all },
+    ])
+    <div class="flex flex-col gap-6">
+      <div class="hic-pagehead" style="margin-bottom:0">
+        <div class="hic-pagehead-title hic-tone-indigo">
+          <span class="hic-pagehead-icon"><i class="fas fa-list-check"></i></span>
+          <div>
+            <h1>จัดการคำขอข้อมูล</h1>
+            <p>ตรวจสอบ อนุมัติ จัดทำ และส่งมอบไฟล์ให้ผู้ขอ</p>
+          </div>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <a href="/requests" class="hic-btn hic-btn-secondary"><i class="fas fa-paper-plane"></i><span>คำขอของฉัน</span></a>
+          <a href="/requests/create" class="hic-btn hic-btn-primary"><i class="fas fa-plus"></i><span>ส่งคำขอใหม่</span></a>
+        </div>
+      </div>
+
+      @include('partials/flash')
+
+      <div class="hic-metrics">
+        <div class="hic-metric hic-tone-yellow hic-rise" style="--i:0">
+          <span class="hic-metric-icon"><i class="fas fa-hourglass-half"></i></span>
+          <div><div class="hic-metric-label">รอตรวจสอบ</div><div class="hic-metric-value">{{ counts.pending }}</div></div>
+        </div>
+        <div class="hic-metric hic-tone-blue hic-rise" style="--i:1">
+          <span class="hic-metric-icon"><i class="fas fa-gears"></i></span>
+          <div><div class="hic-metric-label">กำลังจัดทำ</div><div class="hic-metric-value">{{ counts.in_progress }}</div></div>
+        </div>
+        <div class="hic-metric hic-tone-green hic-rise" style="--i:2">
+          <span class="hic-metric-icon"><i class="fas fa-circle-check"></i></span>
+          <div><div class="hic-metric-label">เสร็จสิ้น</div><div class="hic-metric-value">{{ counts.completed }}</div></div>
+        </div>
+        <div class="hic-metric hic-tone-red hic-rise" style="--i:3">
+          <span class="hic-metric-icon"><i class="fas fa-circle-xmark"></i></span>
+          <div><div class="hic-metric-label">ไม่อนุมัติ / ยกเลิก</div><div class="hic-metric-value">{{ counts.rejected + counts.cancelled }}</div></div>
+        </div>
+      </div>
+
+      <div class="flex gap-3 flex-wrap items-center justify-between">
+        <div class="flex gap-2 flex-wrap">
+          @each(f in filters)
+            <a href="/admin/requests?status={{ f.key }}{{ search ? '&q=' + encodeURIComponent(search) : '' }}" class="hic-chip {{ status === f.key ? 'is-on' : '' }}">{{ f.label }} <span class="hic-pill">{{ f.count }}</span></a>
+          @end
+        </div>
+        <form method="GET" action="/admin/requests" class="hic-search" style="width:280px">
+          <input type="hidden" name="status" value="{{ status }}" />
+          <i class="fas fa-magnifying-glass" style="font-size:13px"></i>
+          <input type="search" name="q" value="{{ search }}" placeholder="ค้นหาเลข REQ หรือเรื่อง…" style="font-size:14px" />
+        </form>
+      </div>
+
+      <div class="hic-panel overflow-hidden">
+        @if(requests.length === 0)
+          <div class="hic-empty">
+            <span class="hic-empty-icon"><i class="fas fa-inbox"></i></span>
+            <b>ไม่มีคำขอในหมวดนี้</b>
+          </div>
+        @else
+          <div class="hic-table-wrap" style="max-height:none">
+            <table class="hic-table">
+              <thead>
+                <tr>
+                  <th>เลขที่คำขอ</th>
+                  <th>เรื่อง</th>
+                  <th>ผู้ขอ</th>
+                  <th>วันที่ส่ง</th>
+                  <th>ต้องการภายใน</th>
+                  <th>สถานะ</th>
+                  <th>ผู้รับผิดชอบ</th>
+                  <th style="text-align:center">ไฟล์</th>
+                </tr>
+              </thead>
+              <tbody>
+                @each(r in requests)
+                  @let(meta = requestStatusMeta(r.status))
+                  <tr class="cursor-pointer" onclick="location.href='/admin/requests/{{ r.id }}'">
+                    <td class="hic-mono" style="white-space:nowrap"><a href="/admin/requests/{{ r.id }}" class="hover:underline">{{ r.reqNo }}</a></td>
+                    <td>
+                      <div class="font-semibold" style="color:var(--ink-strong)">{{ r.title }}</div>
+                      @if(r.dataLevel === 'identifiable')
+                        <span class="hic-badge hic-badge-bad mt-1"><i class="fas fa-user-lock"></i>รายบุคคล</span>
+                      @end
+                    </td>
+                    <td>
+                      <div>{{ r.requester ? (r.requester.fullname || r.requester.username) : '—' }}</div>
+                      <div class="text-xs" style="color:var(--ink-subtle)">{{ r.requester && r.requester.department ? r.requester.department : '' }}</div>
+                    </td>
+                    <td style="white-space:nowrap">{{ thaiDate(r.createdAt) }}</td>
+                    <td style="white-space:nowrap">
+                      {{ r.dueDate ? thaiDate(r.dueDate) : '—' }}
+                      @if(r.isOverdue)
+                        <span class="hic-badge hic-badge-bad ml-1">เกินกำหนด</span>
+                      @end
+                    </td>
+                    <td><span class="hic-badge {{ meta.badge }}"><i class="fas {{ meta.icon }}"></i>{{ meta.label }}</span></td>
+                    <td>{{ r.assignee ? (r.assignee.fullname || r.assignee.username) : '—' }}</td>
+                    <td style="text-align:center">{{ r.$extras.files_count || '—' }}</td>
+                  </tr>
+                @end
+              </tbody>
+            </table>
+          </div>
+        @end
+      </div>
+    </div>
+  @end
+@end

@@ -36,3 +36,6 @@ ux ui/
 
 # Database dumps
 01 DB/
+
+# Uploaded/generated report-request files (served via controller only)
+storage
