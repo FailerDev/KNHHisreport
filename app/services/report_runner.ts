@@ -1,6 +1,7 @@
 import db from '@adonisjs/lucid/services/db'
 import ReportHeadDetail from '#models/report_head_detail'
 import ReportParameter from '#models/report_parameter'
+import { assertReadOnlySql } from '#services/his_sql_guard'
 
 const RESERVED_PARAMS = new Set([
   'start_d',
@@ -182,7 +183,6 @@ export class ReportRunner {
     const source: 'system' | 'his' = (report.databaseSource ?? 'system') === 'his' ? 'his' : 'system'
     const sql = this.processSql(report.sql1 ?? '', parameters)
 
-    this.assertSingleStatement(sql)
     this.assertReadOnly(sql)
 
     const connection = source === 'his' ? 'his' : 'mysql'
@@ -213,35 +213,27 @@ export class ReportRunner {
     return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`
   }
 
-  private static escapeSql(value: string): string {
-    return value.replace(/'/g, "''")
-  }
-
   /**
-   * Block multi-statement payloads by checking for a semicolon outside of
-   * string literals. Defense-in-depth — the substitution layer already
-   * escapes single quotes, but this catches templates that mistakenly use
-   * raw unquoted user input.
+   * Escape a value for a single-quoted MySQL literal. Backslashes must be
+   * doubled too — otherwise `x\' OR 1=1 -- ` turns the doubled quote into an
+   * escaped quote plus a closing one and breaks out of the literal.
    */
-  private static assertSingleStatement(sql: string): void {
-    const stripped = sql.replace(/'(?:[^'\\]|\\.)*'/g, '').replace(/"(?:[^"\\]|\\.)*"/g, '')
-    const idx = stripped.indexOf(';')
-    if (idx !== -1 && stripped.slice(idx + 1).trim() !== '') {
-      throw new ReportRunnerError(
-        'รายงานมีคำสั่ง SQL หลายคำสั่ง ไม่อนุญาตให้รัน (ตรวจสอบ template)',
-        sql
-      )
-    }
+  private static escapeSql(value: string): string {
+    return value.replace(/\\/g, '\\\\').replace(/'/g, "''")
   }
 
   /**
-   * Refuse anything that isn't an obvious read-only query. Same allow-list
-   * as the PHP `validateSQL` but enforced on every run (not just admin test).
+   * Refuse anything that isn't a single read-only SELECT. Runs on the
+   * substituted SQL, so user-supplied values (already quoted) are ignored by
+   * the keyword scan, while raw substitutions such as `@dayofweek` are still
+   * checked for `;` / write statements. Enforced on every run, not just the
+   * admin test button.
    */
   private static assertReadOnly(sql: string): void {
-    const forbidden = /\b(DROP|DELETE|TRUNCATE|ALTER|CREATE|INSERT|UPDATE|GRANT|REVOKE|EXEC)\b/i
-    if (forbidden.test(sql)) {
-      throw new ReportRunnerError('รายงานนี้มีคำสั่ง SQL ที่ไม่อนุญาต (เฉพาะ SELECT/SHOW)', sql)
+    try {
+      assertReadOnlySql(sql)
+    } catch (e: any) {
+      throw new ReportRunnerError(`รายงานนี้มีคำสั่ง SQL ที่ไม่อนุญาต — ${e.message}`, sql)
     }
   }
 }

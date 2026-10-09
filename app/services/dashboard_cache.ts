@@ -11,6 +11,9 @@
 class DashboardCache<T> {
   private payload: T | null = null
   private timestamp = 0
+  // Bumped on every invalidate() so a payload computed from pre-edit data
+  // can't be written back after an admin edit (see set()).
+  private generation = 0
   public readonly ttlMs: number
 
   constructor(ttlSeconds = 90) {
@@ -24,14 +27,23 @@ class DashboardCache<T> {
     return { data: this.payload, ageSeconds: Math.floor(age / 1000) }
   }
 
-  set(payload: T): void {
+  /** Capture before computing a payload; pass to set(). */
+  currentGeneration(): number {
+    return this.generation
+  }
+
+  /** Stores the payload unless the cache was invalidated since `generation`. */
+  set(payload: T, generation = this.generation): boolean {
+    if (generation !== this.generation) return false
     this.payload = payload
     this.timestamp = Date.now()
+    return true
   }
 
   invalidate(): void {
     this.payload = null
     this.timestamp = 0
+    this.generation++
   }
 }
 

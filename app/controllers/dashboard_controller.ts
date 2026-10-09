@@ -3,6 +3,7 @@ import db from '@adonisjs/lucid/services/db'
 import DashboardItem from '#models/dashboard_item'
 import hisDb from '#services/his_db'
 import dashboardDataCache from '#services/dashboard_cache'
+import { runHisQuery } from '#services/his_sql_guard'
 
 interface ItemMeta {
   id: number
@@ -89,6 +90,7 @@ export default class DashboardController {
     }
 
     try {
+      const generation = dashboardDataCache.currentGeneration()
       const his_status = await hisDb.checkStatus()
       const items = await DashboardItem.query()
         .whereNotNull('sort')
@@ -127,7 +129,7 @@ export default class DashboardController {
         generated_ts: Math.floor(Date.now() / 1000),
       }
 
-      dashboardDataCache.set(payload)
+      dashboardDataCache.set(payload, generation)
       return response.json({ ...payload, from_cache: false, age_seconds: 0 })
     } catch (err: any) {
       return response.internalServerError({
@@ -154,8 +156,7 @@ export default class DashboardController {
     if (!sql || !sql.trim()) return null
     if (!db.manager.has('his')) return null
     try {
-      const result = (await db.connection('his').rawQuery(sql)) as any
-      const rows: any[] = Array.isArray(result?.[0]) ? result[0] : Array.isArray(result) ? result : []
+      const rows = await runHisQuery(sql)
       const first = rows[0]
       if (!first || typeof first !== 'object') return null
       const val = first[Object.keys(first)[0]]
@@ -184,8 +185,7 @@ export default class DashboardController {
       return entry
     }
     try {
-      const result = (await db.connection('his').rawQuery(item.chartSql!)) as any
-      const rows: any[] = Array.isArray(result?.[0]) ? result[0] : Array.isArray(result) ? result : []
+      const rows = await runHisQuery(item.chartSql!)
       if (rows.length === 0) {
         entry.message = 'ยังไม่มีข้อมูลตามเงื่อนไข'
         return entry
