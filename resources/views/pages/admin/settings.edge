@@ -22,6 +22,7 @@
         icon: 'fa-users',
         cards: [
           { href: '/admin/users', icon: 'fa-users-gear', tone: 'pink', label: 'จัดการผู้ใช้', desc: 'เพิ่มผู้ใช้ กำหนดสิทธิ์ อนุมัติบัญชี และรีเซ็ตรหัสผ่าน', status: stats.users + ' คน · ผู้ดูแล ' + stats.admins + ' คน', state: 'muted' },
+          { href: '/admin/security-settings', icon: 'fa-shield-halved', tone: 'green', label: 'ความปลอดภัย', desc: 'จำกัดการเข้าสู่ระบบผิดพลาด และยืนยันตัวตน 2 ขั้นตอน (2FA)', status: (security.twofaEnabled ? '2FA เปิด' : '2FA ปิด') + ' · ล็อกหลังผิด ' + security.loginMaxAttempts + ' ครั้ง', state: security.twofaEnabled ? 'ok' : 'muted' },
         ],
       },
       {

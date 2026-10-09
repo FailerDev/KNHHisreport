@@ -1,6 +1,6 @@
 {{--
   Sub-navigation shared by every admin settings page.
-  Expects local: settingsTab — 'overview' | 'report-settings' | 'dashboard-settings' | 'users' | 'his-settings' | 'notification-settings'
+  Expects local: settingsTab — 'overview' | 'report-settings' | 'dashboard-settings' | 'users' | 'his-settings' | 'notification-settings' | 'security-settings'
 --}}
 @let(snTab = (typeof settingsTab !== 'undefined' && settingsTab) ? settingsTab : '')
 @let(snItems = [
@@ -10,6 +10,7 @@
   { key: 'users', href: '/admin/users', icon: 'fa-users-gear', label: 'ผู้ใช้และสิทธิ์' },
   { key: 'his-settings', href: '/admin/his-settings', icon: 'fa-database', label: 'HIS Database' },
   { key: 'notification-settings', href: '/admin/notification-settings', icon: 'fa-bell', label: 'การแจ้งเตือน' },
+  { key: 'security-settings', href: '/admin/security-settings', icon: 'fa-shield-halved', label: 'ความปลอดภัย' },
 ])
 <nav class="flex gap-2 overflow-x-auto pb-1" aria-label="เมนูตั้งค่าระบบ" style="scrollbar-width:thin">
   @each(it in snItems)

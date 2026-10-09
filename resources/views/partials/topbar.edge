@@ -15,7 +15,7 @@
 @let(tbPage = (typeof currentPage !== 'undefined' && currentPage) ? currentPage : '')
 @let(tbInitial = tbFullname.substring(0, 2))
 @let(tbHome = tbIsAdmin ? '/admin/dashboard' : '/')
-@let(tbSettingsPages = ['settings', 'report-settings', 'dashboard-settings', 'users', 'his-settings', 'notification-settings'])
+@let(tbSettingsPages = ['settings', 'report-settings', 'dashboard-settings', 'users', 'his-settings', 'notification-settings', 'security-settings'])
 @let(tbInSettings = tbSettingsPages.includes(tbPage))
 @let(tbInRequests = tbPage === 'requests' || tbPage === 'admin-requests')
 @let(tbRequestsHref = tbIsAdmin ? '/admin/requests' : '/requests')
@@ -111,6 +111,7 @@
         <a href="/dashboard" role="menuitem"><i class="fas fa-chart-pie"></i>แดชบอร์ดรายงาน</a>
         <a href="/reports" role="menuitem"><i class="fas fa-file-lines"></i>รายงานทั้งหมด</a>
         <a href="/requests" role="menuitem"><i class="fas fa-inbox"></i>คำขอข้อมูลของฉัน</a>
+        <a href="/account/security" role="menuitem"><i class="fas fa-shield-halved"></i>ความปลอดภัยบัญชี (2FA)</a>
         @if(tbIsAdmin)
           <a href="/admin/settings" role="menuitem"><i class="fas fa-gear"></i>ตั้งค่าระบบ</a>
         @end
@@ -142,5 +143,7 @@
     <a href="/admin/users" class="{{ tbPage === 'users' ? 'is-active' : '' }}"><i class="fas fa-users-gear"></i>ผู้ใช้และสิทธิ์</a>
     <a href="/admin/his-settings" class="{{ tbPage === 'his-settings' ? 'is-active' : '' }}"><i class="fas fa-database"></i>HIS Database</a>
     <a href="/admin/notification-settings" class="{{ tbPage === 'notification-settings' ? 'is-active' : '' }}"><i class="fas fa-bell"></i>การแจ้งเตือน</a>
+    <a href="/admin/security-settings" class="{{ tbPage === 'security-settings' ? 'is-active' : '' }}"><i class="fas fa-shield-halved"></i>ความปลอดภัย</a>
   @end
+  <a href="/account/security" class="{{ tbPage === 'account-security' ? 'is-active' : '' }}"><i class="fas fa-user-shield"></i>ความปลอดภัยบัญชี (2FA)</a>
 </div>

@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
-import { notificationSettings } from '#services/app_settings'
+import { notificationSettings, securitySettings } from '#services/app_settings'
 import hisDb from '#services/his_db'
 import { statusCounts } from '#services/report_request_service'
 
@@ -33,6 +33,7 @@ export default class SettingsController {
       requests,
       his,
       notify: await notificationSettings(),
+      security: await securitySettings(),
     })
   }
 }
