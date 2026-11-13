@@ -2,10 +2,10 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
 import ReportHead from '#models/report_head'
 import ReportHeadDetail from '#models/report_head_detail'
-import ReportParameter from '#models/report_parameter'
 import ReportRunner, { ReportRunnerError } from '#services/report_runner'
 import { stripTitleHtml } from '#services/title_html'
 import { buildReportXlsx, collectReportParams, reportXlsxFilename } from '#services/report_excel'
+import { loadEffectiveParameters } from '#services/report_params'
 
 export default class ReportsController {
   async index({ view, request }: HttpContext) {
@@ -39,10 +39,8 @@ export default class ReportsController {
     const id = Number(params.id)
     const report = await this.findActiveReport(id)
     if (!report) return response.redirect('/reports')
-    const configured = await this.loadParameters(report.id)
-    const detected = ReportRunner.detectParameters(report.sql1 ?? '')
-    const hasPlaceholders = detected.length > 0
-    const useDynamic = configured.length > 0
+    const configured = await loadEffectiveParameters(report)
+    const hasPlaceholders = configured.length > 0
 
     const values: Record<string, string> = {}
     for (const p of configured) {
@@ -68,7 +66,6 @@ export default class ReportsController {
       report,
       head: await report.related('head').query().first(),
       configured,
-      useDynamic,
       hasPlaceholders,
       values,
       validationErrors: [],
@@ -82,10 +79,9 @@ export default class ReportsController {
     const report = await this.findActiveReport(id)
     if (!report) return response.redirect('/reports')
 
-    const configured = await this.loadParameters(report.id)
-    const useDynamic = configured.length > 0
-    const raw = collectReportParams(request, configured, useDynamic)
-    const validationErrors = useDynamic ? ReportRunner.validate(raw, configured) : []
+    const configured = await loadEffectiveParameters(report)
+    const raw = collectReportParams(request, configured)
+    const validationErrors = ReportRunner.validate(raw, configured)
 
     let runResult = null
     let error: string | null = null
@@ -107,8 +103,7 @@ export default class ReportsController {
       report,
       head: await report.related('head').query().first(),
       configured,
-      useDynamic,
-      hasPlaceholders: ReportRunner.detectParameters(report.sql1 ?? '').length > 0,
+      hasPlaceholders: configured.length > 0,
       values,
       validationErrors,
       runResult,
@@ -125,10 +120,9 @@ export default class ReportsController {
     const report = await this.findActiveReport(id)
     if (!report) return response.redirect('/reports')
 
-    const configured = await this.loadParameters(report.id)
-    const useDynamic = configured.length > 0
-    const raw = collectReportParams(request, configured, useDynamic)
-    const validationErrors = useDynamic ? ReportRunner.validate(raw, configured) : []
+    const configured = await loadEffectiveParameters(report)
+    const raw = collectReportParams(request, configured)
+    const validationErrors = ReportRunner.validate(raw, configured)
     if (validationErrors.length > 0) {
       return response.badRequest({ errors: validationErrors })
     }
@@ -158,12 +152,5 @@ export default class ReportsController {
   private async findActiveReport(id: number): Promise<ReportHeadDetail | null> {
     if (!Number.isFinite(id) || id <= 0) return null
     return await ReportHeadDetail.query().where('id', id).where('status', 1).first()
-  }
-
-  private async loadParameters(reportId: number): Promise<ReportParameter[]> {
-    return await ReportParameter.query()
-      .where('reportId', reportId)
-      .orderBy('sortOrder', 'asc')
-      .orderBy('paramName', 'asc')
   }
 }

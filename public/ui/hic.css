@@ -547,6 +547,17 @@ textarea.hic-input { height: auto; min-height: 90px; padding: 10px 14px; }
 .hic-table tbody tr:hover td { background: var(--brand-soft); }
 .hic-table .num { text-align: center; color: var(--ink-muted); width: 56px; font-variant-numeric: tabular-nums; }
 
+/* sortable headers */
+.hic-table thead th.hic-th-sort { vertical-align: top; }
+.hic-th-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none;
+  font: inherit; color: inherit; letter-spacing: inherit; cursor: pointer; white-space: nowrap;
+}
+.hic-th-btn:hover { color: var(--ink-strong); }
+.hic-th-btn .hic-th-icon { font-size: 11px; opacity: .45; }
+.hic-th-btn[aria-sort="ascending"], .hic-th-btn[aria-sort="descending"] { color: var(--brand-from); }
+.hic-th-btn[aria-sort="ascending"] .hic-th-icon, .hic-th-btn[aria-sort="descending"] .hic-th-icon { opacity: 1; }
+
 /* ---------- empty / skeleton ---------- */
 .hic-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 56px 16px; text-align: center; color: var(--ink-subtle); font-size: 14px; }
 .hic-empty-icon { display: grid; place-items: center; width: 64px; height: 64px; margin-bottom: 8px; border-radius: 20px; background: var(--surface-sunken); color: var(--ink-muted); font-size: 26px; }

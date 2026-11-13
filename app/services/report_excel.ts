@@ -10,44 +10,15 @@ import type { RawParams, ReportRunResult } from '#services/report_runner'
  */
 
 /**
- * Read report parameters from a submitted form. Dynamic reports post
- * `param_<name>`; legacy reports post the PHP-era fixed field names.
+ * Read report parameters (`param_<name>`) from a submitted form. `params`
+ * comes from `loadEffectiveParameters`, so it covers every `@token`.
  */
-export function collectReportParams(
-  request: HttpContext['request'],
-  configured: ReportParameter[],
-  useDynamic: boolean
-): RawParams {
+export function collectReportParams(request: HttpContext['request'], params: ReportParameter[]): RawParams {
   const raw: RawParams = {}
-  if (useDynamic) {
-    for (const p of configured) {
-      const v = request.input(`param_${p.paramName}`)
-      raw[p.paramName] = typeof v === 'string' ? v.trim() : v
-    }
-    return raw
+  for (const p of params) {
+    const v = request.input(`param_${p.paramName}`)
+    raw[p.paramName] = typeof v === 'string' ? v.trim() : v
   }
-  const grab = (k: string, fb = '') => {
-    const v = request.input(k)
-    return typeof v === 'string' ? v : fb
-  }
-  raw.start_d = grab('datepick1')
-  raw.end_d = grab('datepick2')
-  raw.start_t = grab('start_t', '08.00')
-  raw.end_t = grab('end_t', '16.00')
-  raw.an = grab('an')
-  raw.main_dep = grab('main_dep')
-  raw.spclty = grab('spclty')
-  raw.drug1 = grab('drug1')
-  raw.drug2 = grab('drug2')
-  raw.fbs1 = grab('fbs1')
-  raw.fbs2 = grab('fbs2')
-
-  const days: string[] = []
-  for (let i = 1; i <= 7; i++) {
-    const v = request.input(`chk0${i}`)
-    if (v) days.push(String(v))
-  }
-  raw.dayofweek = days.length === 0 ? '1,2,3,4,5,6,7' : days.join(',')
   return raw
 }
 
