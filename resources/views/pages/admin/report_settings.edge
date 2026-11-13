@@ -138,7 +138,7 @@
                       @let(src = r.databaseSource || 'system')
                       @let(t = reportTitleParts(r.detail))
                       <tr id="report-row-{{ r.id }}" class="rs-row" data-report-id="{{ r.id }}" data-name="{{ stripTitleHtml(r.detail).toLowerCase() }}"
-                        data-report="{{ JSON.stringify({ id: r.id, head_id: r.headId, detail: r.detail, sql1: r.sql1, sql2: r.sql2, database_source: src, sort: r.sort }) }}">
+                        data-report="{{ JSON.stringify({ id: r.id, head_id: r.headId, detail: r.detail, sql1: r.sql1, sql2: r.sql2, database_source: src, sort: r.sort, params: paramsByReport[r.id] || [] }) }}">
                         <td>
                           @if(t.no)
                             <span class="rp-num">{{ t.no }}</span>
@@ -200,6 +200,13 @@
       .rs-title { color: var(--ink-strong); text-decoration: none; }
       .rs-title:hover { color: var(--tone-ink); text-decoration: underline; }
       .rs-sql { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 760px; color: var(--ink-muted); font-size: 12px; }
+      .rs-dbdef { font-size: 11.5px; font-weight: 600; color: var(--ink-muted); background: none; border: 0; padding: 0 0 6px; cursor: pointer; white-space: nowrap; }
+      .rs-dbdef:hover:not(:disabled) { color: var(--tone-ink); text-decoration: underline; }
+      .rs-dbdef:disabled { cursor: default; color: var(--ok, #16a34a); }
+      .pm-table td { vertical-align: top; }
+      .pm-table .hic-input { height: 36px; padding: 6px 10px; font-size: 13px; }
+      .pm-table .pm-opts { margin-top: 6px; }
+      .pm-table tr.is-new td:first-child .hic-mono::after { content: 'ใหม่'; margin-left: 6px; font: 600 10.5px var(--font-thai); color: var(--warn); }
       .rs-row.is-flash td { background: var(--warn-soft) !important; transition: background-color .4s ease; }
     </style>
 
@@ -244,6 +251,7 @@
         <form id="reportForm" method="POST" action="/admin/report-settings/reports" class="contents">
           {{ csrfField() }}
           <input type="hidden" name="id" id="report_id" />
+          <input type="hidden" name="params_json" id="report_params_json" value="" />
           <div class="hic-modal-body">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div class="md:col-span-2">
@@ -261,8 +269,12 @@
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label class="hic-label" for="report_db">ฐานข้อมูล <span class="hic-req">*</span></label>
-                <select name="database_source" id="report_db" required class="hic-input">
+                <div class="flex items-center justify-between gap-2">
+                  <label class="hic-label" for="report_db">ฐานข้อมูล <span class="hic-req">*</span></label>
+                  <button type="button" id="dbDefaultBtn" class="rs-dbdef" onclick="setDefaultDb()"
+                    title="ใช้ฐานข้อมูลนี้เป็นค่าเริ่มต้นเมื่อเพิ่มรายงานใหม่"></button>
+                </div>
+                <select name="database_source" id="report_db" required class="hic-input" onchange="renderDbDefault()">
                   <option value="system">ระบบ (system)</option>
                   <option value="his">HIS</option>
                 </select>
@@ -278,7 +290,14 @@
                 <button type="button" onclick="testSql()" id="testSqlBtn" class="hic-btn hic-btn-warn hic-btn-sm"><i class="fas fa-vial"></i>ทดสอบ SQL</button>
               </div>
               <textarea name="sql1" id="report_sql1" rows="9" required placeholder="SELECT … FROM … WHERE vstdate BETWEEN @start_d AND @end_d" class="hic-code" spellcheck="false"></textarea>
-              <div class="hic-help">ใช้ token เช่น <code class="hic-mono">@start_d</code> <code class="hic-mono">@end_d</code> <code class="hic-mono">@main_dep</code> — อนุญาตเฉพาะคำสั่ง SELECT คำสั่งเดียว</div>
+              <div class="flex items-start justify-between gap-3 flex-wrap">
+                <div class="hic-help" style="margin:0">ใช้ token เช่น <code class="hic-mono">@start_d</code> <code class="hic-mono">@end_d</code> <code class="hic-mono">@main_dep</code> — อนุญาตเฉพาะคำสั่ง SELECT คำสั่งเดียว</div>
+                <button type="button" onclick="openParamModal()" class="hic-btn hic-btn-secondary hic-btn-sm"
+                  title="ตั้งค่าช่องกรอกของ @token ใน SQL — บันทึกพร้อมรายงาน">
+                  <i class="fas fa-list-check"></i>ตั้งค่าพารามิเตอร์
+                  <span id="paramBtnBadge" class="hic-badge hic-badge-warn hidden" style="margin-left:2px">ยังไม่บันทึก</span>
+                </button>
+              </div>
             </div>
             <details class="rounded-2xl" style="border:1px solid var(--border)">
               <summary class="px-4 py-3 text-sm cursor-pointer font-semibold" style="color:var(--ink)">SQL สำรอง (sql2) — ใช้สำหรับ count/aggregate <small style="color:var(--ink-muted);font-weight:400">(ไม่บังคับ)</small></summary>
@@ -291,6 +310,48 @@
             <button type="submit" class="hic-btn hic-btn-primary"><i class="fas fa-floppy-disk"></i>บันทึก</button>
           </div>
         </form>
+      </div>
+    </div>
+
+    {{-- Parameter popup (stacked on the report modal; saved with the report) --}}
+    <div id="paramModal" class="hic-modal hidden" role="dialog" aria-modal="true" style="z-index:70">
+      <div class="hic-modal-box is-lg hic-tone-yellow" style="max-width:1080px">
+        <div class="hic-modal-head">
+          <span class="hic-modal-icon"><i class="fas fa-list-check"></i></span>
+          <h3>ตั้งค่าพารามิเตอร์ <small id="paramModalSub" style="font-weight:400;color:var(--ink-muted);font-size:13px"></small></h3>
+          <button type="button" onclick="closeParamModal()" class="hic-iconbtn" aria-label="ปิด"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="hic-modal-body">
+          <div class="hic-help" style="margin:0">
+            สร้างจาก <code class="hic-mono">{{ '@' }}token</code> ใน SQL หลักตอนนี้ — แก้ SQL แล้วเปิดหน้านี้ใหม่ได้ ค่าที่ตั้งจะไม่หาย
+            · ข้อมูลจะถูกบันทึกจริงเมื่อกด <b>บันทึก</b> ที่หน้าต่างรายงาน
+          </div>
+          <div id="paramEmpty" class="hic-empty hidden" style="padding:32px 16px">
+            <span class="hic-empty-icon"><i class="fas fa-circle-info"></i></span>
+            <b>ไม่พบ {{ '@' }}token ใน SQL หลัก</b>
+            <span>รายงานนี้จะไม่มีช่องให้ผู้ใช้กรอก</span>
+          </div>
+          <div id="paramTableWrap" class="overflow-x-auto">
+            <table class="hic-table pm-table">
+              <thead>
+                <tr>
+                  <th style="width:130px">Token</th>
+                  <th>ชื่อที่แสดง <span class="hic-req">*</span></th>
+                  <th style="width:130px">ชนิด</th>
+                  <th>ค่าเริ่มต้น / ตัวเลือก</th>
+                  <th style="width:64px;text-align:center">บังคับ</th>
+                  <th style="width:78px">ลำดับ</th>
+                </tr>
+              </thead>
+              <tbody id="paramRows"></tbody>
+            </table>
+          </div>
+          <div id="paramStale" class="hic-alert hic-alert-warn hidden"></div>
+        </div>
+        <div class="hic-modal-foot">
+          <button type="button" onclick="closeParamModal()" class="hic-btn hic-btn-ghost">ยกเลิก</button>
+          <button type="button" onclick="applyParams()" class="hic-btn hic-btn-primary"><i class="fas fa-check"></i>ใช้ค่านี้</button>
+        </div>
       </div>
     </div>
 
@@ -309,6 +370,122 @@
       function hide(id) { const m = document.getElementById(id); m.classList.add('hidden'); m.classList.remove('flex'); document.body.style.overflow = '' }
       function esc(s) {
         return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+      }
+
+      let defaultDb = {{{ JSON.stringify(defaultDatabaseSource) }}}
+
+      function renderDbDefault() {
+        const btn = document.getElementById('dbDefaultBtn')
+        const isDefault = document.getElementById('report_db').value === defaultDb
+        btn.disabled = isDefault
+        btn.innerHTML = isDefault
+          ? '<i class="fas fa-star"></i> ค่าเริ่มต้น'
+          : '<i class="far fa-star"></i> ตั้งเป็นค่าเริ่มต้น'
+      }
+
+      async function setDefaultDb() {
+        const btn = document.getElementById('dbDefaultBtn')
+        const src = document.getElementById('report_db').value
+        const fd = new FormData()
+        fd.append('_csrf', document.querySelector('#reportForm input[name="_csrf"]').value)
+        fd.append('database_source', src)
+        btn.disabled = true
+        try {
+          const res = await fetch('/admin/report-settings/default-db', { method: 'POST', body: fd })
+          const result = await res.json()
+          if (!result.success) throw new Error(result.message)
+          defaultDb = result.database_source
+        } catch (e) {
+          alert('ตั้งค่าเริ่มต้นไม่สำเร็จ: ' + (e.message || e))
+        } finally {
+          renderDbDefault()
+        }
+      }
+
+      // ---- Parameter popup ----
+      const PARAM_PRESETS = {{{ JSON.stringify(paramPresets) }}}
+      const PARAM_TYPES = [['text', 'ข้อความ'], ['number', 'ตัวเลข'], ['date', 'วันที่'], ['datetime', 'วันเวลา'], ['select', 'ตัวเลือก'], ['textarea', 'ข้อความยาว']]
+      let paramState = new Map() // name -> { name, label, type, default, required, options, sort, saved }
+
+      /** Same rule as ReportRunner.detectParameters (server). */
+      function detectTokens(sql) {
+        const clean = String(sql || '').replace(/@@/g, '').replace(/'(?:[^'\\]|\\.)*'/g, '').replace(/"(?:[^"\\]|\\.)*"/g, '')
+        const out = []
+        for (const m of clean.matchAll(/@([a-zA-Z_][a-zA-Z0-9_]*)/g)) if (!out.includes(m[1])) out.push(m[1])
+        return out.filter(n => !PARAM_PRESETS.noInput.includes(n))
+      }
+
+      function resetParamState(saved) {
+        paramState = new Map((saved || []).map(p => [p.name, { ...p, saved: true }]))
+        document.getElementById('report_params_json').value = ''
+        document.getElementById('paramBtnBadge').classList.add('hidden')
+      }
+
+      function openParamModal() {
+        const tokens = detectTokens(document.getElementById('report_sql1').value)
+        let maxSort = 0
+        paramState.forEach(p => { maxSort = Math.max(maxSort, Number(p.sort) || 0) })
+        tokens.forEach(name => {
+          if (paramState.has(name)) return
+          const k = PARAM_PRESETS.known[name] || {}
+          paramState.set(name, { name, label: k.label || name, type: k.type || 'text', default: k.default || '', required: !!k.required, options: '', sort: ++maxSort, saved: false })
+        })
+        const rows = tokens.map(n => paramState.get(n)).sort((a, b) => (a.sort || 0) - (b.sort || 0))
+        const typeOpts = t => PARAM_TYPES.map(([v, l]) => '<option value="' + v + '"' + (v === t ? ' selected' : '') + '>' + l + '</option>').join('')
+        document.getElementById('paramRows').innerHTML = rows.map(p =>
+          '<tr data-name="' + esc(p.name) + '" class="' + (p.saved ? '' : 'is-new') + '">'
+          + '<td><span class="hic-mono" style="font-size:12.5px">@' + esc(p.name) + '</span></td>'
+          + '<td><input class="hic-input" data-f="label" maxlength="100" value="' + esc(p.label) + '" /></td>'
+          + '<td><select class="hic-input" data-f="type" onchange="toggleParamOpts(this)">' + typeOpts(p.type) + '</select></td>'
+          + '<td><input class="hic-input" data-f="default" maxlength="255" placeholder="ค่าเริ่มต้น (ไม่บังคับ)" value="' + esc(p.default) + '" />'
+          + '<input class="hic-input pm-opts' + (p.type === 'select' ? '' : ' hidden') + '" data-f="options" placeholder="ตัวเลือก คั่นด้วย , เช่น OPD, IPD" value="' + esc(p.options) + '" /></td>'
+          + '<td style="text-align:center;padding-top:16px"><input type="checkbox" data-f="required"' + (p.required ? ' checked' : '') + ' /></td>'
+          + '<td><input class="hic-input" data-f="sort" type="number" min="1" value="' + esc(p.sort) + '" /></td>'
+          + '</tr>').join('')
+        document.getElementById('paramEmpty').classList.toggle('hidden', rows.length > 0)
+        document.getElementById('paramTableWrap').classList.toggle('hidden', rows.length === 0)
+        const stale = [...paramState.values()].filter(p => p.saved && !tokens.includes(p.name))
+        const staleBox = document.getElementById('paramStale')
+        staleBox.classList.toggle('hidden', stale.length === 0)
+        staleBox.innerHTML = '<i class="fas fa-triangle-exclamation"></i><span>ไม่พบใน SQL แล้ว — จะถูกลบเมื่อบันทึก: <span class="hic-mono">'
+          + esc(stale.map(p => '@' + p.name).join(', ')) + '</span></span>'
+        const title = document.getElementById('report_detail').value.trim()
+        document.getElementById('paramModalSub').textContent = title ? '· ' + title : ''
+        const m = document.getElementById('paramModal'); m.classList.remove('hidden'); m.classList.add('flex')
+        document.querySelector('#paramRows input[data-f="label"]')?.focus()
+      }
+
+      function toggleParamOpts(sel) {
+        sel.closest('tr').querySelector('[data-f="options"]').classList.toggle('hidden', sel.value !== 'select')
+      }
+
+      // Close only this popup — the report modal underneath stays open.
+      function closeParamModal() {
+        const m = document.getElementById('paramModal'); m.classList.add('hidden'); m.classList.remove('flex')
+      }
+
+      function applyParams() {
+        const rows = Array.from(document.querySelectorAll('#paramRows tr'))
+        for (const tr of rows) {
+          const label = tr.querySelector('[data-f="label"]')
+          if (!label.value.trim()) { label.focus(); label.reportValidity?.(); alert('กรุณากรอกชื่อที่แสดงของ @' + tr.dataset.name); return }
+        }
+        const list = rows.map(tr => {
+          const get = f => tr.querySelector('[data-f="' + f + '"]')
+          const p = paramState.get(tr.dataset.name)
+          Object.assign(p, {
+            label: get('label').value.trim(),
+            type: get('type').value,
+            default: get('default').value.trim(),
+            options: get('options').value.trim(),
+            required: get('required').checked,
+            sort: Math.max(1, Number(get('sort').value) || 1),
+          })
+          return { name: p.name, label: p.label, type: p.type, default: p.default || null, required: p.required, options: p.type === 'select' ? p.options : null, sort: p.sort }
+        })
+        document.getElementById('report_params_json').value = JSON.stringify(list)
+        document.getElementById('paramBtnBadge').classList.remove('hidden')
+        closeParamModal()
       }
 
       function openHeadModal(h) {
@@ -348,8 +525,11 @@
           document.getElementById('reportModalTitle').textContent = 'เพิ่มรายงาน'
           document.getElementById('report_id').value = ''
           document.getElementById('report_sort').value = 1
+          document.getElementById('report_db').value = defaultDb
           if (r && r.head_id) document.getElementById('report_head_id').value = String(r.head_id)
         }
+        resetParamState(r && r.id ? r.params : [])
+        renderDbDefault()
         show('reportModal')
       }
 
@@ -399,7 +579,12 @@
 
       document.getElementById('headModal').addEventListener('click', e => { if (e.target.id === 'headModal') hide('headModal') })
       document.getElementById('reportModal').addEventListener('click', e => { if (e.target.id === 'reportModal') hide('reportModal') })
-      document.addEventListener('keydown', e => { if (e.key === 'Escape') { hide('headModal'); hide('reportModal') } })
+      document.getElementById('paramModal').addEventListener('click', e => { if (e.target.id === 'paramModal') closeParamModal() })
+      document.addEventListener('keydown', e => {
+        if (e.key !== 'Escape') return
+        if (!document.getElementById('paramModal').classList.contains('hidden')) { closeParamModal(); return }
+        hide('headModal'); hide('reportModal')
+      })
 
       // Category dropdown + search (one category at a time; search spans all)
       ;(function () {

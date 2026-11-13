@@ -121,6 +121,10 @@ export interface SecuritySettings {
   mophAlertClientKey: string | null
   mophAlertSecretKey: string | null
   lineSetupMessage: string | null
+  /** Allow signing in with a HIS (HOSxP opduser) account */
+  hisLoginEnabled: boolean
+  /** New HIS users can use the system at once (off = wait for admin approval) */
+  hisLoginAutoApprove: boolean
 }
 
 const int = (v: string | null | undefined, fallback: number, min: number, max: number) => {
@@ -146,6 +150,22 @@ export async function securitySettings(): Promise<SecuritySettings> {
     mophAlertClientKey: s.get('twofa.moph_alert_client_key') || null,
     mophAlertSecretKey: s.get('twofa.moph_alert_secret_key') || null,
     lineSetupMessage: s.get('twofa.line_setup_message') || null,
+    hisLoginEnabled: flag(s.get('auth.his_login_enabled'), false),
+    hisLoginAutoApprove: flag(s.get('auth.his_login_auto_approve'), true),
+  }
+}
+
+export type ReportDatabaseSource = 'system' | 'his'
+
+export interface ReportSettings {
+  /** Database preselected when an admin adds a new report */
+  defaultDatabaseSource: ReportDatabaseSource
+}
+
+export async function reportSettings(): Promise<ReportSettings> {
+  const s = await loadAll()
+  return {
+    defaultDatabaseSource: s.get('report.default_database_source') === 'his' ? 'his' : 'system',
   }
 }
 

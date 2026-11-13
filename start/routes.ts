@@ -111,6 +111,7 @@ router
     router.post('/admin/report-settings/reports', [ReportSettingsController, 'storeDetail'])
     router.post('/admin/report-settings/reports/update', [ReportSettingsController, 'updateDetail'])
     router.post('/admin/report-settings/reports/delete', [ReportSettingsController, 'destroyDetail'])
+    router.post('/admin/report-settings/default-db', [ReportSettingsController, 'setDefaultDb'])
     router.post('/admin/report-settings/test-sql', [ReportSettingsController, 'testSql']).as('admin.reportSettings.testSql')
 
     // Dashboard settings (admin CRUD for the widget tiles)

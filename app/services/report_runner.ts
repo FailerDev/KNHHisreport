@@ -79,11 +79,13 @@ export class ReportRunner {
       processed = processed.replaceAll('@end_d', `'${this.normalizeDate(parameters.end_d as string)}'`)
     }
     if (parameters.start_t !== undefined) {
-      processed = processed.replaceAll('@start_t', `'${String(parameters.start_t).replace('.', ':')}'`)
+      processed = processed.replaceAll('@start_t', `'${this.escapeSql(String(parameters.start_t).replace('.', ':'))}'`)
     }
     if (parameters.end_t !== undefined) {
-      processed = processed.replaceAll('@end_t', `'${String(parameters.end_t).replace('.', ':')}'`)
+      processed = processed.replaceAll('@end_t', `'${this.escapeSql(String(parameters.end_t).replace('.', ':'))}'`)
     }
+    // Legacy `AND (@chknull)` slot: no user input — always "no extra filter".
+    processed = processed.replaceAll('@chknull', '1=1')
 
     for (const k of ['an', 'drug1', 'drug2', 'fbs1', 'fbs2'] as const) {
       const v = parameters[k]
@@ -160,6 +162,10 @@ export class ReportRunner {
       }
       if (isEmpty) continue
       const value = String(v)
+      if (p.paramName === 'dayofweek' && !/^\s*[1-7](\s*,\s*[1-7])*\s*$/.test(value)) {
+        errors.push(`พารามิเตอร์ '${p.paramLabel}' ต้องเป็นเลข 1-7 คั่นด้วย ,`)
+        continue
+      }
       switch (p.paramType) {
         case 'number':
           if (!/^-?\d+(\.\d+)?$/.test(value))

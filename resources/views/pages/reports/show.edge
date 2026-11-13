@@ -74,79 +74,46 @@
               <h2><i class="fas fa-filter" style="color:var(--heading)"></i>เงื่อนไขการค้นหา</h2>
               <p>กรอกค่าพารามิเตอร์เพื่อประมวลผลรายงาน</p>
             </div>
-            @if(useDynamic)
-              <span class="hic-badge hic-badge-muted">{{ configured.length }} พารามิเตอร์</span>
-            @end
+            <span class="hic-badge hic-badge-muted">{{ configured.length }} พารามิเตอร์</span>
           </div>
 
           <form id="reportForm" method="POST" action="/reports/{{ report.id }}" class="hic-panel-body">
             {{ csrfField() }}
 
-            @if(useDynamic)
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                @each(p in configured)
-                  @let(fieldId = 'param_' + p.paramName)
-                  @let(fieldNm = 'param_' + p.paramName)
-                  @let(value = values[p.paramName] || '')
-                  <div>
-                    <label for="{{ fieldId }}" class="hic-label">
-                      {{ p.paramLabel }}
-                      @if(p.paramRequired)
-                        <span style="color:var(--bad)">*</span>
-                      @end
-                      <small class="ml-1 font-mono">{{ '@' + p.paramName }}</small>
-                    </label>
-                    @if(p.paramType === 'select')
-                      <select id="{{ fieldId }}" name="{{ fieldNm }}" {{ p.paramRequired ? 'required' : '' }} class="hic-input">
-                        <option value="">-- เลือก {{ p.paramLabel }} --</option>
-                        @each(opt in p.parsedOptions)
-                          <option value="{{ opt }}" {{ String(value) === String(opt) ? 'selected' : '' }}>{{ opt }}</option>
-                        @end
-                      </select>
-                    @elseif(p.paramType === 'date')
-                      <input type="date" id="{{ fieldId }}" name="{{ fieldNm }}" value="{{ value }}" {{ p.paramRequired ? 'required' : '' }} class="hic-input" />
-                    @elseif(p.paramType === 'datetime')
-                      <input type="datetime-local" id="{{ fieldId }}" name="{{ fieldNm }}" value="{{ value }}" {{ p.paramRequired ? 'required' : '' }} class="hic-input" />
-                    @elseif(p.paramType === 'textarea')
-                      <textarea id="{{ fieldId }}" name="{{ fieldNm }}" {{ p.paramRequired ? 'required' : '' }}
-                        placeholder="กรอก {{ p.paramLabel }}" class="hic-input">{{ value }}</textarea>
-                    @else
-                      <input type="{{ p.paramType }}" id="{{ fieldId }}" name="{{ fieldNm }}" value="{{ value }}" {{ p.paramRequired ? 'required' : '' }}
-                        placeholder="กรอก {{ p.paramLabel }}" class="hic-input" />
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              @each(p in configured)
+                @let(fieldId = 'param_' + p.paramName)
+                @let(fieldNm = 'param_' + p.paramName)
+                @let(value = values[p.paramName] || '')
+                <div>
+                  <label for="{{ fieldId }}" class="hic-label">
+                    {{ p.paramLabel }}
+                    @if(p.paramRequired)
+                      <span style="color:var(--bad)">*</span>
                     @end
-                  </div>
-                @end
-              </div>
-            @else
-              {{-- Legacy non-dynamic fields. Show all common params; the backend
-                  will only consume the ones whose @tokens appear in the SQL. --}}
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <label class="hic-label">จากวันที่</label>
-                  <input type="date" name="datepick1" class="hic-input" />
+                    <small class="ml-1 font-mono">{{ '@' + p.paramName }}</small>
+                  </label>
+                  @if(p.paramType === 'select')
+                    <select id="{{ fieldId }}" name="{{ fieldNm }}" {{ p.paramRequired ? 'required' : '' }} class="hic-input">
+                      <option value="">-- เลือก {{ p.paramLabel }} --</option>
+                      @each(opt in p.parsedOptions)
+                        <option value="{{ opt }}" {{ String(value) === String(opt) ? 'selected' : '' }}>{{ opt }}</option>
+                      @end
+                    </select>
+                  @elseif(p.paramType === 'date')
+                    <input type="date" id="{{ fieldId }}" name="{{ fieldNm }}" value="{{ value }}" {{ p.paramRequired ? 'required' : '' }} class="hic-input" />
+                  @elseif(p.paramType === 'datetime')
+                    <input type="datetime-local" id="{{ fieldId }}" name="{{ fieldNm }}" value="{{ value }}" {{ p.paramRequired ? 'required' : '' }} class="hic-input" />
+                  @elseif(p.paramType === 'textarea')
+                    <textarea id="{{ fieldId }}" name="{{ fieldNm }}" {{ p.paramRequired ? 'required' : '' }}
+                      placeholder="กรอก {{ p.paramLabel }}" class="hic-input">{{ value }}</textarea>
+                  @else
+                    <input type="{{ p.paramType }}" id="{{ fieldId }}" name="{{ fieldNm }}" value="{{ value }}" {{ p.paramRequired ? 'required' : '' }}
+                      placeholder="กรอก {{ p.paramLabel }}" class="hic-input" />
+                  @end
                 </div>
-                <div>
-                  <label class="hic-label">ถึงวันที่</label>
-                  <input type="date" name="datepick2" class="hic-input" />
-                </div>
-                <div>
-                  <label class="hic-label">จากเวลา</label>
-                  <input type="text" name="start_t" value="08.00" placeholder="HH.MM" class="hic-input" />
-                </div>
-                <div>
-                  <label class="hic-label">ถึงเวลา</label>
-                  <input type="text" name="end_t" value="16.00" placeholder="HH.MM" class="hic-input" />
-                </div>
-                <div>
-                  <label class="hic-label">AN</label>
-                  <input type="text" name="an" class="hic-input" />
-                </div>
-                <div>
-                  <label class="hic-label">แผนก <small>(main_dep)</small></label>
-                  <input type="text" name="main_dep" class="hic-input" />
-                </div>
-              </div>
-            @end
+              @end
+            </div>
 
             <div class="mt-5 pt-5 flex justify-end" style="border-top:1px solid var(--border)">
               <button type="submit" id="runBtn" class="hic-btn hic-btn-primary hic-btn-lg">
@@ -173,10 +140,8 @@
               <form method="POST" action="/reports/{{ report.id }}/export" class="inline">
                 {{ csrfField() }}
                 {{-- re-submit the same param values that produced these results --}}
-                @if(useDynamic)
-                  @each(p in configured)
-                    <input type="hidden" name="{{ 'param_' + p.paramName }}" value="{{ values[p.paramName] || '' }}" />
-                  @end
+                @each(p in configured)
+                  <input type="hidden" name="{{ 'param_' + p.paramName }}" value="{{ values[p.paramName] || '' }}" />
                 @end
                 <button type="submit" class="hic-btn hic-btn-success" style="height:38px">
                   <i class="fas fa-file-excel"></i><span>Excel</span>
@@ -192,14 +157,18 @@
               <thead>
                 <tr>
                   <th class="num">#</th>
-                  @each(col in runResult.columns)
-                    <th>{{ col }}</th>
+                  @each((col, cIdx) in runResult.columns)
+                    <th class="hic-th-sort">
+                      <button type="button" class="hic-th-btn" data-col="{{ cIdx + 1 }}" aria-sort="none" title="คลิกเพื่อเรียงลำดับ">
+                        <span>{{ col }}</span><i class="fas fa-sort hic-th-icon"></i>
+                      </button>
+                    </th>
                   @end
                 </tr>
               </thead>
               <tbody>
                 @each((row, idx) in runResult.rows)
-                  <tr>
+                  <tr data-idx="{{ idx }}">
                     <td class="num">{{ idx + 1 }}</td>
                     @each(col in runResult.columns)
                       <td>{{ row[col] === null ? '' : row[col] }}</td>
@@ -240,16 +209,64 @@
           btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>กำลังประมวลผล…</span>'
         }
       })
-      document.getElementById('resultSearch')?.addEventListener('input', e => {
-        const q = e.target.value.toLowerCase()
-        let shown = 0
-        document.querySelectorAll('#resultsTable tbody tr').forEach(tr => {
-          const match = tr.textContent.toLowerCase().includes(q)
-          tr.style.display = match ? '' : 'none'
-          if (match) shown++
-        })
-        document.getElementById('resultEmpty')?.classList.toggle('hidden', shown > 0)
-      })
+      ;(() => {
+        const table = document.getElementById('resultsTable')
+        if (!table) return
+        const tbody = table.tBodies[0]
+        const rows = Array.from(tbody.rows)
+        const search = document.getElementById('resultSearch')
+        const sortBtns = Array.from(table.querySelectorAll('.hic-th-btn'))
+        const collator = new Intl.Collator('th', { numeric: true, sensitivity: 'base' })
+        const numRe = /^-?[\d,]*\.?\d+$/
+        const cellText = (tr, col) => (tr.cells[col]?.textContent || '').trim()
+        let sortCol = null
+        let sortDir = 0 // 1 = asc, -1 = desc, 0 = original order
+
+        // Global search, then renumber visible rows.
+        const applyFilter = () => {
+          const q = (search?.value || '').trim().toLowerCase()
+          let shown = 0
+          for (const tr of tbody.rows) {
+            const match = !q || tr.textContent.toLowerCase().includes(q)
+            tr.style.display = match ? '' : 'none'
+            if (match) tr.cells[0].textContent = ++shown
+          }
+          document.getElementById('resultEmpty')?.classList.toggle('hidden', shown > 0)
+        }
+
+        const compare = (a, b) => {
+          const x = cellText(a, sortCol)
+          const y = cellText(b, sortCol)
+          if (x === '' && y !== '') return 1 // blanks always last
+          if (y === '' && x !== '') return -1
+          if (numRe.test(x) && numRe.test(y)) {
+            return (parseFloat(x.replace(/,/g, '')) - parseFloat(y.replace(/,/g, ''))) * sortDir
+          }
+          return collator.compare(x, y) * sortDir
+        }
+
+        sortBtns.forEach(btn => btn.addEventListener('click', () => {
+          const col = Number(btn.dataset.col)
+          // cycle: ascending → descending → original order
+          sortDir = sortCol !== col ? 1 : sortDir === 1 ? -1 : sortDir === -1 ? 0 : 1
+          sortCol = sortDir ? col : null
+          sortBtns.forEach(b => {
+            const active = b === btn && sortDir !== 0
+            b.setAttribute('aria-sort', active ? (sortDir === 1 ? 'ascending' : 'descending') : 'none')
+            b.querySelector('.hic-th-icon').className =
+              'fas hic-th-icon ' + (active ? (sortDir === 1 ? 'fa-sort-up' : 'fa-sort-down') : 'fa-sort')
+          })
+          const ordered = sortDir
+            ? rows.slice().sort((a, b) => compare(a, b) || a.dataset.idx - b.dataset.idx)
+            : rows
+          const frag = document.createDocumentFragment()
+          ordered.forEach(tr => frag.appendChild(tr))
+          tbody.appendChild(frag)
+          applyFilter()
+        }))
+
+        search?.addEventListener('input', applyFilter)
+      })()
     </script>
   @end
 @end

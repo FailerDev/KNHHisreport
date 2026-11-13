@@ -55,6 +55,30 @@
           </div>
         </section>
 
+        {{-- HIS account login --}}
+        <section class="hic-panel">
+          <div class="hic-panel-head">
+            <h2><i class="fas fa-hospital-user" style="color:var(--heading)"></i>เข้าสู่ระบบด้วยบัญชี HIS</h2>
+            <label class="hic-switch">
+              <input type="checkbox" name="his_login_enabled" value="1" {{ settings.hisLoginEnabled ? 'checked' : '' }} />
+              <span class="track"></span>
+              <span>เปิดใช้งาน</span>
+            </label>
+          </div>
+          <div class="hic-panel-body flex flex-col gap-4">
+            <p class="text-sm" style="color:var(--ink-subtle)">
+              ให้เจ้าหน้าที่ใช้ชื่อผู้ใช้และรหัสผ่านเดียวกับ HOSxP (ตาราง <span class="hic-mono">opduser</span>) เข้าระบบได้โดยไม่ต้องสมัคร —
+              เข้าครั้งแรกระบบจะสร้างบัญชีให้อัตโนมัติ (สิทธิ์ผู้ใช้ทั่วไป) และดึงชื่อ/หน่วยงานจาก HIS ทุกครั้งที่เข้า ·
+              บัญชีที่ถูกระงับใน HIS (<span class="hic-mono">account_disable = Y</span>) จะเข้าไม่ได้
+            </p>
+            <label class="flex items-center gap-2 cursor-pointer text-sm">
+              <input type="checkbox" name="his_login_auto_approve" value="1" {{ settings.hisLoginAutoApprove ? 'checked' : '' }} />
+              <span><b>อนุมัติอัตโนมัติ</b> — ไม่ติ๊ก = บัญชีใหม่จาก HIS ต้องรอผู้ดูแลอนุมัติก่อน</span>
+            </label>
+            <div class="hic-help">ถ้ามีบัญชีในระบบนี้ชื่อซ้ำกับ HIS อยู่แล้ว บัญชีเดิมยังใช้รหัสผ่านเดิม (ไม่ถูกแทนด้วยบัญชี HIS) · ต้องตั้งค่า HIS Database ให้เชื่อมต่อได้ก่อน</div>
+          </div>
+        </section>
+
         {{-- 2FA policy --}}
         <section class="hic-panel">
           <div class="hic-panel-head">

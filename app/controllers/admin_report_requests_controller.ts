@@ -1,12 +1,12 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
 import ReportHeadDetail from '#models/report_head_detail'
-import ReportParameter from '#models/report_parameter'
 import ReportRequest from '#models/report_request'
 import ReportRequestFile from '#models/report_request_file'
 import type User from '#models/user'
 import ReportRunner, { ReportRunnerError } from '#services/report_runner'
 import { buildReportXlsx, collectReportParams, reportXlsxFilename } from '#services/report_excel'
+import { loadEffectiveParameters } from '#services/report_params'
 import { stripTitleHtml } from '#services/title_html'
 import ReportHead from '#models/report_head'
 import { REQUEST_STATUSES, UPLOAD_EXTNAMES, filePurgeDate } from '#services/report_request_flow'
@@ -28,25 +28,6 @@ import {
   rejectValidator,
   runSqlValidator,
 } from '#validators/report_request'
-
-/**
- * Legacy (non-dynamic) report placeholders → the PHP-era form field the
- * runner reads them from (see `collectReportParams`). `dayofweek` is left
- * out: it defaults to all days.
- */
-const LEGACY_FIELDS: Record<string, { field: string; label: string; type: 'date' | 'text' }> = {
-  start_d: { field: 'datepick1', label: 'วันที่เริ่มต้น', type: 'date' },
-  end_d: { field: 'datepick2', label: 'วันที่สิ้นสุด', type: 'date' },
-  start_t: { field: 'start_t', label: 'เวลาเริ่มต้น (HH.MM)', type: 'text' },
-  end_t: { field: 'end_t', label: 'เวลาสิ้นสุด (HH.MM)', type: 'text' },
-  an: { field: 'an', label: 'AN', type: 'text' },
-  main_dep: { field: 'main_dep', label: 'แผนก (main_dep / all)', type: 'text' },
-  spclty: { field: 'spclty', label: 'แผนก spclty (00 = ทั้งหมด)', type: 'text' },
-  drug1: { field: 'drug1', label: 'ยา 1', type: 'text' },
-  drug2: { field: 'drug2', label: 'ยา 2', type: 'text' },
-  fbs1: { field: 'fbs1', label: 'FBS 1', type: 'text' },
-  fbs2: { field: 'fbs2', label: 'FBS 2', type: 'text' },
-}
 
 /**
  * Admin / งานสารสนเทศ side: review, approve (= take on the job), reject,
@@ -165,10 +146,9 @@ export default class AdminReportRequestsController {
       const report = await ReportHeadDetail.query().where('id', reportId).where('status', 1).first()
       if (!report) throw new RequestFlowError('ไม่พบรายงานที่เลือก')
 
-      const configured = await this.loadParameters(report.id)
-      const useDynamic = configured.length > 0
-      const raw = collectReportParams(request, configured, useDynamic)
-      const errors = useDynamic ? ReportRunner.validate(raw, configured) : []
+      const configured = await loadEffectiveParameters(report)
+      const raw = collectReportParams(request, configured)
+      const errors = ReportRunner.validate(raw, configured)
       if (errors.length > 0) throw new RequestFlowError(errors.join(', '))
 
       let runResult
@@ -280,34 +260,17 @@ export default class AdminReportRequestsController {
       .first()
     if (!report) return response.notFound({ error: 'ไม่พบรายงาน' })
 
-    const configured = await this.loadParameters(report.id)
-    if (configured.length > 0) {
-      return response.json({
-        dynamic: true,
-        fields: configured.map((p) => ({
-          name: `param_${p.paramName}`,
-          label: p.paramLabel,
-          type: p.paramType,
-          required: p.paramRequired,
-          default: p.paramDefault ?? '',
-          options: p.parsedOptions,
-        })),
-      })
-    }
-
-    const detected = ReportRunner.detectParameters(report.sql1 ?? '')
+    const configured = await loadEffectiveParameters(report)
     return response.json({
-      dynamic: false,
-      fields: detected
-        .filter((name) => LEGACY_FIELDS[name])
-        .map((name) => ({
-          name: LEGACY_FIELDS[name].field,
-          label: LEGACY_FIELDS[name].label,
-          type: LEGACY_FIELDS[name].type,
-          required: false,
-          default: name === 'start_t' ? '08.00' : name === 'end_t' ? '16.00' : '',
-          options: [],
-        })),
+      dynamic: true,
+      fields: configured.map((p) => ({
+        name: `param_${p.paramName}`,
+        label: p.paramLabel,
+        type: p.paramType,
+        required: p.paramRequired,
+        default: p.paramDefault ?? '',
+        options: p.parsedOptions,
+      })),
     })
   }
 
@@ -315,13 +278,6 @@ export default class AdminReportRequestsController {
     const req = await ReportRequest.find(Number(id))
     if (!req) throw new RequestFlowError('ไม่พบคำขอ')
     return req
-  }
-
-  private async loadParameters(reportId: number): Promise<ReportParameter[]> {
-    return await ReportParameter.query()
-      .where('reportId', reportId)
-      .orderBy('sortOrder', 'asc')
-      .orderBy('paramName', 'asc')
   }
 
   /** Run an action, flash its result (or error), go back to the request page. */

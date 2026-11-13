@@ -99,7 +99,12 @@
                         <span class="hic-avatar-sm" style="{{ rowIsActive ? '' : 'filter:grayscale(1);opacity:.6' }}">{{ rowInitial }}</span>
                         <div>
                           <div class="font-semibold" style="color:var(--ink-strong)">{{ u.fullname || '—' }}</div>
-                          <div class="hic-mono" style="color:var(--ink-subtle)">{{ '@' + u.username }}</div>
+                          <div class="hic-mono" style="color:var(--ink-subtle)">
+                            {{ '@' + u.username }}
+                            @if(hisUserIds.includes(u.id))
+                              <span class="hic-badge hic-badge-brand" title="เข้าสู่ระบบด้วยรหัสผ่าน HIS (HOSxP)">HIS</span>
+                            @end
+                          </div>
                         </div>
                       </div>
                     </td>

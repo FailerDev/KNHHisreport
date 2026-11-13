@@ -4,6 +4,9 @@ import db from '@adonisjs/lucid/services/db'
 import ReportHead from '#models/report_head'
 import ReportHeadDetail from '#models/report_head_detail'
 import { assertReadOnlySql, describeHisError, PROBE_ROW_LIMIT, probeQuery } from '#services/his_sql_guard'
+import { reportSettings, setSettings } from '#services/app_settings'
+import ReportParameter from '#models/report_parameter'
+import { KNOWN, NO_INPUT, parseParamList, syncReportParameters } from '#services/report_params'
 
 const headValidator = vine.compile(
   vine.object({
@@ -39,6 +42,23 @@ const detailUpdateValidator = vine.compile(
   })
 )
 
+const defaultDbValidator = vine.compile(
+  vine.object({ database_source: vine.enum(['system', 'his']) })
+)
+
+/** Saved parameters in the shape the report-settings popup edits. */
+function paramView(p: ReportParameter) {
+  return {
+    name: p.paramName,
+    label: p.paramLabel,
+    type: p.paramType,
+    default: p.paramDefault ?? '',
+    required: p.paramRequired,
+    options: p.parsedOptions.join(', '),
+    sort: p.sortOrder,
+  }
+}
+
 const testSqlValidator = vine.compile(
   vine.object({
     sql1: vine.string().minLength(1),
@@ -72,9 +92,21 @@ export default class ReportSettingsController {
         .orderBy('sort', 'asc')
       reportsByHead[h.id] = list
     }
+    const reportIds = Object.values(reportsByHead).flat().map((r) => r.id)
+    const paramsByReport: Record<number, ReturnType<typeof paramView>[]> = {}
+    if (reportIds.length) {
+      const rows = await ReportParameter.query()
+        .whereIn('reportId', reportIds)
+        .orderBy('sortOrder', 'asc')
+        .orderBy('paramName', 'asc')
+      for (const p of rows) (paramsByReport[p.reportId] ??= []).push(paramView(p))
+    }
     return view.render('pages/admin/report_settings', {
       heads,
       reportsByHead,
+      paramsByReport,
+      paramPresets: { known: KNOWN, noInput: [...NO_INPUT] },
+      defaultDatabaseSource: (await reportSettings()).defaultDatabaseSource,
       message: session.flashMessages.get('message'),
       messageType: session.flashMessages.get('messageType'),
     })
@@ -132,7 +164,8 @@ export default class ReportSettingsController {
       const payload = await detailValidator.validate(request.all())
       assertSafeSql(payload.sql1, 'SQL หลัก')
       if (payload.sql2?.trim()) assertSafeSql(payload.sql2, 'SQL 2')
-      await ReportHeadDetail.create({
+      const params = await parseParamList(request.input('params_json'))
+      const created = await ReportHeadDetail.create({
         headId: payload.head_id,
         detail: payload.detail,
         sql1: payload.sql1,
@@ -141,6 +174,7 @@ export default class ReportSettingsController {
         sort: payload.sort ?? 1,
         status: 1,
       })
+      if (params) await syncReportParameters(created.id, created.sql1, params)
       this.flashOk(session, 'เพิ่มรายงานสำเร็จ')
     } catch (err: any) {
       this.flashErr(session, err)
@@ -153,6 +187,7 @@ export default class ReportSettingsController {
       const payload = await detailUpdateValidator.validate(request.all())
       assertSafeSql(payload.sql1, 'SQL หลัก')
       if (payload.sql2?.trim()) assertSafeSql(payload.sql2, 'SQL 2')
+      const params = await parseParamList(request.input('params_json'))
       const r = await ReportHeadDetail.find(payload.id)
       if (!r) throw new Error('ไม่พบรายงาน')
       r.headId = payload.head_id
@@ -162,6 +197,7 @@ export default class ReportSettingsController {
       r.databaseSource = payload.database_source
       r.sort = payload.sort ?? r.sort
       await r.save()
+      if (params) await syncReportParameters(r.id, r.sql1, params)
       this.flashOk(session, 'อัพเดทรายงานสำเร็จ')
     } catch (err: any) {
       this.flashErr(session, err)
@@ -181,6 +217,25 @@ export default class ReportSettingsController {
       this.flashErr(session, err)
     }
     return response.redirect().back()
+  }
+
+  /**
+   * POST /admin/report-settings/default-db — AJAX: which database a new
+   * report starts on. Returns JSON.
+   */
+  async setDefaultDb({ request, response, auth }: HttpContext) {
+    try {
+      const { database_source: src } = await defaultDbValidator.validate(
+        request.only(['database_source'])
+      )
+      await setSettings({ 'report.default_database_source': src }, auth.user?.id ?? null)
+      return response.json({ success: true, database_source: src })
+    } catch (err: any) {
+      return response.json({
+        success: false,
+        message: err?.messages?.[0]?.message ?? err?.message ?? 'เกิดข้อผิดพลาด',
+      })
+    }
   }
 
   /**

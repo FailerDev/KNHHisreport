@@ -533,6 +533,7 @@ textarea.hic-input { height: auto; min-height: 90px; padding: 10px 14px; }
 .hic-alert-bad { background: var(--bad-soft); color: var(--bad); border-color: color-mix(in srgb, var(--bad) 22%, transparent); }
 .hic-alert-ok { background: var(--ok-soft); color: var(--ok); border-color: color-mix(in srgb, var(--ok) 22%, transparent); }
 .hic-alert-info { background: var(--brand-soft); color: var(--brand-from); border-color: color-mix(in srgb, var(--brand-from) 18%, transparent); }
+.hic-alert-warn { background: var(--warn-soft); color: var(--warn); border-color: color-mix(in srgb, var(--warn) 22%, transparent); }
 
 /* ---------- table ---------- */
 .hic-table-wrap { overflow: auto; max-height: 70vh; }
@@ -546,6 +547,17 @@ textarea.hic-input { height: auto; min-height: 90px; padding: 10px 14px; }
 .hic-table tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--surface-sunken) 45%, transparent); }
 .hic-table tbody tr:hover td { background: var(--brand-soft); }
 .hic-table .num { text-align: center; color: var(--ink-muted); width: 56px; font-variant-numeric: tabular-nums; }
+
+/* sortable headers */
+.hic-table thead th.hic-th-sort { vertical-align: top; }
+.hic-th-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none;
+  font: inherit; color: inherit; letter-spacing: inherit; cursor: pointer; white-space: nowrap;
+}
+.hic-th-btn:hover { color: var(--ink-strong); }
+.hic-th-btn .hic-th-icon { font-size: 11px; opacity: .45; }
+.hic-th-btn[aria-sort="ascending"], .hic-th-btn[aria-sort="descending"] { color: var(--brand-from); }
+.hic-th-btn[aria-sort="ascending"] .hic-th-icon, .hic-th-btn[aria-sort="descending"] .hic-th-icon { opacity: 1; }
 
 /* ---------- empty / skeleton ---------- */
 .hic-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 56px 16px; text-align: center; color: var(--ink-subtle); font-size: 14px; }

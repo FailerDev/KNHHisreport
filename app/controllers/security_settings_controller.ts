@@ -28,13 +28,15 @@ const settingsValidator = vine.compile(
     moph_alert_secret_key: vine.string().trim().maxLength(255).optional(),
     clear_moph_alert_keys: checkbox(),
     line_setup_message: vine.string().trim().maxLength(500).optional(),
+    his_login_enabled: checkbox(),
+    his_login_auto_approve: checkbox(),
   })
 )
 
 const tail = (v: string | null) => (v ? v.slice(-4) : '')
 
 /**
- * /admin/security-settings — login rate limit + 2FA policy. Stored in
+ * /admin/security-settings — login rate limit, HIS-account login + 2FA policy. Stored in
  * `app_settings`; MOPH Alert keys encrypted with APP_KEY.
  */
 export default class SecuritySettingsController {
@@ -73,6 +75,8 @@ export default class SecuritySettingsController {
         'twofa.totp_issuer': p.twofa_totp_issuer || null,
         'twofa.moph_alert_api_url': p.moph_alert_api_url || null,
         'twofa.line_setup_message': p.line_setup_message || null,
+        'auth.his_login_enabled': p.his_login_enabled ? '1' : '0',
+        'auth.his_login_auto_approve': p.his_login_auto_approve ? '1' : '0',
       }
       // Blank key fields = keep the saved ones (they are never echoed back to the page)
       if (p.moph_alert_client_key) values['twofa.moph_alert_client_key'] = p.moph_alert_client_key
@@ -91,6 +95,8 @@ export default class SecuritySettingsController {
           ipMaxAttempts: p.ip_max_attempts,
           twofaEnabled: !!p.twofa_enabled,
           twofaRequiredLevels: levels,
+          hisLoginEnabled: !!p.his_login_enabled,
+          hisLoginAutoApprove: !!p.his_login_auto_approve,
           alertKeysChanged: !!(p.moph_alert_client_key || p.moph_alert_secret_key || p.clear_moph_alert_keys),
         },
       })
