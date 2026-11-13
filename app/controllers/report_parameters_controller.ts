@@ -3,8 +3,8 @@ import vine from '@vinejs/vine'
 import ReportHeadDetail from '#models/report_head_detail'
 import ReportParameter from '#models/report_parameter'
 import ReportRunner from '#services/report_runner'
+import { normalizeOptions, PARAM_TYPES } from '#services/report_params'
 
-const PARAM_TYPES = ['text', 'number', 'date', 'select', 'datetime', 'textarea'] as const
 
 const addValidator = vine.compile(
   vine.object({
@@ -34,21 +34,6 @@ const updateValidator = vine.compile(
 const idValidator = vine.compile(
   vine.object({ id: vine.string().trim().transform((v) => Number(v)) })
 )
-
-function normalizeOptions(type: string, raw: string | undefined): string | null {
-  if (type !== 'select' || !raw) return raw ? raw : null
-  const trimmed = raw.trim()
-  if (!trimmed) return null
-  // Accept either a JSON array or comma-separated values (legacy form).
-  try {
-    const parsed = JSON.parse(trimmed)
-    if (Array.isArray(parsed)) return JSON.stringify(parsed.map((o) => String(o)))
-  } catch {
-    /* fall through */
-  }
-  const arr = trimmed.split(',').map((s) => s.trim()).filter((s) => s !== '')
-  return JSON.stringify(arr)
-}
 
 export default class ReportParametersController {
   /**

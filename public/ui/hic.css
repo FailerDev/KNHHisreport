@@ -533,6 +533,7 @@ textarea.hic-input { height: auto; min-height: 90px; padding: 10px 14px; }
 .hic-alert-bad { background: var(--bad-soft); color: var(--bad); border-color: color-mix(in srgb, var(--bad) 22%, transparent); }
 .hic-alert-ok { background: var(--ok-soft); color: var(--ok); border-color: color-mix(in srgb, var(--ok) 22%, transparent); }
 .hic-alert-info { background: var(--brand-soft); color: var(--brand-from); border-color: color-mix(in srgb, var(--brand-from) 18%, transparent); }
+.hic-alert-warn { background: var(--warn-soft); color: var(--warn); border-color: color-mix(in srgb, var(--warn) 22%, transparent); }
 
 /* ---------- table ---------- */
 .hic-table-wrap { overflow: auto; max-height: 70vh; }
