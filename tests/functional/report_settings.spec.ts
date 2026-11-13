@@ -42,3 +42,33 @@ test.group('Report settings — test SQL', () => {
     }
   })
 })
+
+test.group('Report settings — default database', () => {
+  test('admin can change which database a new report starts on', async ({ client, assert }) => {
+    const { reportSettings, setSettings } = await import('#services/app_settings')
+    const before = (await reportSettings()).defaultDatabaseSource
+    const admin = await User.findByOrFail('username', 'admin')
+    const secret = await new Tokens().secret()
+    const post = (database_source: string) =>
+      client
+        .post('/admin/report-settings/default-db')
+        .loginAs(admin)
+        .withSession({ 'csrf-secret': secret })
+        .form({ _csrf: new Tokens().create(secret), database_source })
+    try {
+      const other = before === 'his' ? 'system' : 'his'
+      const res = await post(other)
+      assert.isTrue(res.body().success, res.body().message)
+      assert.equal((await reportSettings()).defaultDatabaseSource, other)
+
+      const page = await client.get('/admin/report-settings').loginAs(admin)
+      page.assertStatus(200)
+      assert.include(page.text(), `let defaultDb = "${other}"`)
+
+      const bad = await post('oracle')
+      assert.isFalse(bad.body().success)
+    } finally {
+      await setSettings({ 'report.default_database_source': before }, null)
+    }
+  })
+})

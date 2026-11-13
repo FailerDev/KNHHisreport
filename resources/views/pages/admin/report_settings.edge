@@ -200,6 +200,9 @@
       .rs-title { color: var(--ink-strong); text-decoration: none; }
       .rs-title:hover { color: var(--tone-ink); text-decoration: underline; }
       .rs-sql { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 760px; color: var(--ink-muted); font-size: 12px; }
+      .rs-dbdef { font-size: 11.5px; font-weight: 600; color: var(--ink-muted); background: none; border: 0; padding: 0 0 6px; cursor: pointer; white-space: nowrap; }
+      .rs-dbdef:hover:not(:disabled) { color: var(--tone-ink); text-decoration: underline; }
+      .rs-dbdef:disabled { cursor: default; color: var(--ok, #16a34a); }
       .rs-row.is-flash td { background: var(--warn-soft) !important; transition: background-color .4s ease; }
     </style>
 
@@ -244,6 +247,7 @@
         <form id="reportForm" method="POST" action="/admin/report-settings/reports" class="contents">
           {{ csrfField() }}
           <input type="hidden" name="id" id="report_id" />
+          <input type="hidden" name="after" id="report_after" value="" />
           <div class="hic-modal-body">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div class="md:col-span-2">
@@ -261,8 +265,12 @@
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label class="hic-label" for="report_db">ฐานข้อมูล <span class="hic-req">*</span></label>
-                <select name="database_source" id="report_db" required class="hic-input">
+                <div class="flex items-center justify-between gap-2">
+                  <label class="hic-label" for="report_db">ฐานข้อมูล <span class="hic-req">*</span></label>
+                  <button type="button" id="dbDefaultBtn" class="rs-dbdef" onclick="setDefaultDb()"
+                    title="ใช้ฐานข้อมูลนี้เป็นค่าเริ่มต้นเมื่อเพิ่มรายงานใหม่"></button>
+                </div>
+                <select name="database_source" id="report_db" required class="hic-input" onchange="renderDbDefault()">
                   <option value="system">ระบบ (system)</option>
                   <option value="his">HIS</option>
                 </select>
@@ -278,7 +286,13 @@
                 <button type="button" onclick="testSql()" id="testSqlBtn" class="hic-btn hic-btn-warn hic-btn-sm"><i class="fas fa-vial"></i>ทดสอบ SQL</button>
               </div>
               <textarea name="sql1" id="report_sql1" rows="9" required placeholder="SELECT … FROM … WHERE vstdate BETWEEN @start_d AND @end_d" class="hic-code" spellcheck="false"></textarea>
-              <div class="hic-help">ใช้ token เช่น <code class="hic-mono">@start_d</code> <code class="hic-mono">@end_d</code> <code class="hic-mono">@main_dep</code> — อนุญาตเฉพาะคำสั่ง SELECT คำสั่งเดียว</div>
+              <div class="flex items-start justify-between gap-3 flex-wrap">
+                <div class="hic-help" style="margin:0">ใช้ token เช่น <code class="hic-mono">@start_d</code> <code class="hic-mono">@end_d</code> <code class="hic-mono">@main_dep</code> — อนุญาตเฉพาะคำสั่ง SELECT คำสั่งเดียว</div>
+                <button type="button" onclick="saveAndOpenParams()" class="hic-btn hic-btn-secondary hic-btn-sm"
+                  title="บันทึกรายงาน แล้วไปหน้าตั้งค่าพารามิเตอร์ของรายงานนี้">
+                  <i class="fas fa-list-check"></i>ตั้งค่าพารามิเตอร์
+                </button>
+              </div>
             </div>
             <details class="rounded-2xl" style="border:1px solid var(--border)">
               <summary class="px-4 py-3 text-sm cursor-pointer font-semibold" style="color:var(--ink)">SQL สำรอง (sql2) — ใช้สำหรับ count/aggregate <small style="color:var(--ink-muted);font-weight:400">(ไม่บังคับ)</small></summary>
@@ -309,6 +323,43 @@
       function hide(id) { const m = document.getElementById(id); m.classList.add('hidden'); m.classList.remove('flex'); document.body.style.overflow = '' }
       function esc(s) {
         return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+      }
+
+      let defaultDb = {{{ JSON.stringify(defaultDatabaseSource) }}}
+
+      function renderDbDefault() {
+        const btn = document.getElementById('dbDefaultBtn')
+        const isDefault = document.getElementById('report_db').value === defaultDb
+        btn.disabled = isDefault
+        btn.innerHTML = isDefault
+          ? '<i class="fas fa-star"></i> ค่าเริ่มต้น'
+          : '<i class="far fa-star"></i> ตั้งเป็นค่าเริ่มต้น'
+      }
+
+      async function setDefaultDb() {
+        const btn = document.getElementById('dbDefaultBtn')
+        const src = document.getElementById('report_db').value
+        const fd = new FormData()
+        fd.append('_csrf', document.querySelector('#reportForm input[name="_csrf"]').value)
+        fd.append('database_source', src)
+        btn.disabled = true
+        try {
+          const res = await fetch('/admin/report-settings/default-db', { method: 'POST', body: fd })
+          const result = await res.json()
+          if (!result.success) throw new Error(result.message)
+          defaultDb = result.database_source
+        } catch (e) {
+          alert('ตั้งค่าเริ่มต้นไม่สำเร็จ: ' + (e.message || e))
+        } finally {
+          renderDbDefault()
+        }
+      }
+
+      function saveAndOpenParams() {
+        const f = document.getElementById('reportForm')
+        document.getElementById('report_after').value = 'params'
+        if (!f.reportValidity()) { document.getElementById('report_after').value = ''; return }
+        f.submit()
       }
 
       function openHeadModal(h) {
@@ -348,8 +399,11 @@
           document.getElementById('reportModalTitle').textContent = 'เพิ่มรายงาน'
           document.getElementById('report_id').value = ''
           document.getElementById('report_sort').value = 1
+          document.getElementById('report_db').value = defaultDb
           if (r && r.head_id) document.getElementById('report_head_id').value = String(r.head_id)
         }
+        document.getElementById('report_after').value = ''
+        renderDbDefault()
         show('reportModal')
       }
 

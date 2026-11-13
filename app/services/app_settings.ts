@@ -155,6 +155,20 @@ export async function securitySettings(): Promise<SecuritySettings> {
   }
 }
 
+export type ReportDatabaseSource = 'system' | 'his'
+
+export interface ReportSettings {
+  /** Database preselected when an admin adds a new report */
+  defaultDatabaseSource: ReportDatabaseSource
+}
+
+export async function reportSettings(): Promise<ReportSettings> {
+  const s = await loadAll()
+  return {
+    defaultDatabaseSource: s.get('report.default_database_source') === 'his' ? 'his' : 'system',
+  }
+}
+
 /** Drop the in-memory cache (after editing `app_settings` outside setSettings). */
 export function clearSettingsCache() {
   cache = null

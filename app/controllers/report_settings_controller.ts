@@ -4,6 +4,7 @@ import db from '@adonisjs/lucid/services/db'
 import ReportHead from '#models/report_head'
 import ReportHeadDetail from '#models/report_head_detail'
 import { assertReadOnlySql, describeHisError, PROBE_ROW_LIMIT, probeQuery } from '#services/his_sql_guard'
+import { reportSettings, setSettings } from '#services/app_settings'
 
 const headValidator = vine.compile(
   vine.object({
@@ -38,6 +39,18 @@ const detailUpdateValidator = vine.compile(
     sort: vine.string().trim().transform((v) => Math.max(1, Number(v) || 1)).optional(),
   })
 )
+
+const defaultDbValidator = vine.compile(
+  vine.object({ database_source: vine.enum(['system', 'his']) })
+)
+
+/** "Save & set parameters" posts `after=params` — land on the report's parameter page. */
+function afterSave(request: HttpContext['request'], response: HttpContext['response'], id: number) {
+  if (request.input('after') === 'params') {
+    return response.redirect(`/admin/reports/${id}/parameters`)
+  }
+  return response.redirect().back()
+}
 
 const testSqlValidator = vine.compile(
   vine.object({
@@ -75,6 +88,7 @@ export default class ReportSettingsController {
     return view.render('pages/admin/report_settings', {
       heads,
       reportsByHead,
+      defaultDatabaseSource: (await reportSettings()).defaultDatabaseSource,
       message: session.flashMessages.get('message'),
       messageType: session.flashMessages.get('messageType'),
     })
@@ -132,7 +146,7 @@ export default class ReportSettingsController {
       const payload = await detailValidator.validate(request.all())
       assertSafeSql(payload.sql1, 'SQL หลัก')
       if (payload.sql2?.trim()) assertSafeSql(payload.sql2, 'SQL 2')
-      await ReportHeadDetail.create({
+      const created = await ReportHeadDetail.create({
         headId: payload.head_id,
         detail: payload.detail,
         sql1: payload.sql1,
@@ -142,6 +156,7 @@ export default class ReportSettingsController {
         status: 1,
       })
       this.flashOk(session, 'เพิ่มรายงานสำเร็จ')
+      return afterSave(request, response, created.id)
     } catch (err: any) {
       this.flashErr(session, err)
     }
@@ -163,6 +178,7 @@ export default class ReportSettingsController {
       r.sort = payload.sort ?? r.sort
       await r.save()
       this.flashOk(session, 'อัพเดทรายงานสำเร็จ')
+      return afterSave(request, response, r.id)
     } catch (err: any) {
       this.flashErr(session, err)
     }
@@ -181,6 +197,25 @@ export default class ReportSettingsController {
       this.flashErr(session, err)
     }
     return response.redirect().back()
+  }
+
+  /**
+   * POST /admin/report-settings/default-db — AJAX: which database a new
+   * report starts on. Returns JSON.
+   */
+  async setDefaultDb({ request, response, auth }: HttpContext) {
+    try {
+      const { database_source: src } = await defaultDbValidator.validate(
+        request.only(['database_source'])
+      )
+      await setSettings({ 'report.default_database_source': src }, auth.user?.id ?? null)
+      return response.json({ success: true, database_source: src })
+    } catch (err: any) {
+      return response.json({
+        success: false,
+        message: err?.messages?.[0]?.message ?? err?.message ?? 'เกิดข้อผิดพลาด',
+      })
+    }
   }
 
   /**
