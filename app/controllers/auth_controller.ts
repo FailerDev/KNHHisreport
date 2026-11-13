@@ -1,7 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import vine from '@vinejs/vine'
 import User from '#models/user'
-import { securitySettings } from '#services/app_settings'
+import { securitySettings, type SecuritySettings } from '#services/app_settings'
+import { hisLinkFor, upsertHisUser, verifyHisCredentials } from '#services/his_login'
 import { checkLockout, ipKey, recordFailedAttempt, userKey } from '#services/login_lockout'
 import { isTwoFactorRequired, twoFactorRecord } from '#services/two_factor'
 import {
@@ -65,10 +66,14 @@ export default class AuthController {
       )
     }
 
-    let user: User
-    try {
-      user = await User.verifyCredentials(payload.username, payload.password)
-    } catch {
+    const result = await this.authenticate(ctx, payload.username, payload.password, security)
+    if (result === 'his-unavailable') {
+      return fail('ไม่สามารถตรวจสอบบัญชี HIS ได้ในขณะนี้ กรุณาลองใหม่ภายหลัง หรือติดต่อผู้ดูแลระบบ')
+    }
+    if (result === 'his-disabled') {
+      return fail('บัญชี HIS นี้ถูกระงับการใช้งาน')
+    }
+    if (result === null) {
       const lockedFor = await recordFailedAttempt(uKey, security.loginMaxAttempts, security.loginLockoutMinutes)
       const ipLockedFor =
         security.ipMaxAttempts > 0
@@ -88,6 +93,7 @@ export default class AuthController {
       return fail('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง')
     }
 
+    const user = result
     if (user.status !== 1) {
       return fail('บัญชีของคุณยังไม่ได้รับการอนุมัติจากผู้ดูแลระบบ')
     }
@@ -99,6 +105,49 @@ export default class AuthController {
     }
 
     return completeLogin(ctx, user)
+  }
+
+  /**
+   * Password check. A local account (no HIS link) uses its bcrypt password.
+   * A HIS-linked user — or an unknown username while HIS login is on — is
+   * checked against HOSxP `opduser`; a first HIS login creates the local user.
+   * A local account is never taken over by a HIS account of the same name.
+   */
+  private async authenticate(
+    ctx: HttpContext,
+    username: string,
+    password: string,
+    security: SecuritySettings
+  ): Promise<User | null | 'his-unavailable' | 'his-disabled'> {
+    const existing = await User.findBy('username', username)
+    const link = existing ? await hisLinkFor(existing.id) : null
+
+    if (existing && !link) {
+      try {
+        return await User.verifyCredentials(username, password)
+      } catch {
+        return null
+      }
+    }
+
+    if (!security.hisLoginEnabled) return null
+
+    const his = await verifyHisCredentials(link?.hisLoginname ?? username, password)
+    if (!his.ok) {
+      if (his.reason === 'invalid') return null
+      return his.reason === 'disabled' ? 'his-disabled' : 'his-unavailable'
+    }
+
+    const { user, created } = await upsertHisUser(his.account, existing, security.hisLoginAutoApprove)
+    if (created) {
+      await writeAudit(ctx, {
+        action: 'user.his_create',
+        entity: 'user',
+        entityId: user.id,
+        summary: `created user ${user.username} from HIS opduser (status=${user.status})`,
+      })
+    }
+    return user
   }
 
   async logout(ctx: HttpContext) {

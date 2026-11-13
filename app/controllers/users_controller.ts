@@ -3,8 +3,10 @@ import vine from '@vinejs/vine'
 import User from '#models/user'
 import { writeAudit } from '#services/audit'
 import UserTwoFactor from '#models/user_two_factor'
+import UserHisLink from '#models/user_his_link'
 import { clearLockout, lockedUsernames, userKey } from '#services/login_lockout'
 import { disableTwoFactor, setForce } from '#services/two_factor'
+import { hisLinkedUserIds } from '#services/his_login'
 
 const idField = () => vine.string().trim().transform((v) => Number(v))
 
@@ -57,7 +59,11 @@ const deleteUserValidator = vine.compile(
 export default class UsersController {
   async index({ view, session }: HttpContext) {
     const users = await User.query().orderBy('id', 'desc')
-    const [twofaRows, locked] = await Promise.all([UserTwoFactor.all(), lockedUsernames()])
+    const [twofaRows, locked, hisIds] = await Promise.all([
+      UserTwoFactor.all(),
+      lockedUsernames(),
+      hisLinkedUserIds(),
+    ])
     const twofa = Object.fromEntries(
       twofaRows.map((r) => [r.userId, { method: r.method, force: r.force }])
     )
@@ -71,6 +77,7 @@ export default class UsersController {
       users,
       twofa,
       lockedUsernames: [...locked],
+      hisUserIds: [...hisIds],
       stats: { total, active, admins, inactive },
       message: session.flashMessages.get('message'),
       messageType: session.flashMessages.get('messageType'),
@@ -237,6 +244,7 @@ export default class UsersController {
       await user.delete()
       await disableTwoFactor(user.id)
       await UserTwoFactor.query().where('user_id', user.id).delete()
+      await UserHisLink.query().where('user_id', user.id).delete()
       await clearLockout(userKey(usernameBefore))
       await writeAudit(ctx, {
         action: 'user.delete',
