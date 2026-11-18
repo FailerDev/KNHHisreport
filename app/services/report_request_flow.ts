@@ -6,8 +6,8 @@ import { DateTime } from 'luxon'
  *
  *   pending ──approve──▶ in_progress ──complete──▶ completed
  *      │                     │
- *      ├──reject──▶ rejected ◀──reject (ทำไม่ได้)──┘
- *      └──cancel (ผู้ขอ)──▶ cancelled
+ *      ├──reject──▶ rejected ◀──reject (ทำไม่ได้)──┤
+ *      └──cancel (ผู้ขอ)──▶ cancelled ◀──cancel (ผู้ขอ)──┘
  *
  * "อนุมัติ" and "กำลังจัดทำ" are the same state (in_progress): any admin who
  * approves a request also takes it on.
@@ -25,14 +25,15 @@ export type RequestStatus = (typeof REQUEST_STATUSES)[number]
 export const DATA_LEVELS = ['aggregate', 'identifiable'] as const
 export type DataLevel = (typeof DATA_LEVELS)[number]
 
-export const OUTPUT_FORMATS = ['xlsx', 'csv', 'pdf', 'any'] as const
+/** `report` = no file wanted: the requester gets a link to a report in the system. */
+export const OUTPUT_FORMATS = ['report', 'xlsx', 'csv', 'pdf', 'any'] as const
 export type OutputFormat = (typeof OUTPUT_FORMATS)[number]
 
 export const UPLOAD_EXTNAMES = ['xlsx', 'xls', 'csv', 'pdf']
 
 const TRANSITIONS: Record<RequestStatus, readonly RequestStatus[]> = {
   pending: ['in_progress', 'rejected', 'cancelled'],
-  in_progress: ['completed', 'rejected'],
+  in_progress: ['completed', 'rejected', 'cancelled'],
   completed: [],
   rejected: [],
   cancelled: [],
@@ -44,6 +45,42 @@ export function canTransition(from: RequestStatus, to: RequestStatus): boolean {
 
 export function isOpenStatus(status: RequestStatus): boolean {
   return status === 'pending' || status === 'in_progress'
+}
+
+/** The requester may withdraw a request until it is closed. */
+export function canRequesterCancel(status: string): boolean {
+  return canTransition(status as RequestStatus, 'cancelled')
+}
+
+/**
+ * A request can be closed once something was delivered: at least one result
+ * file, or a linked report in the system.
+ */
+export function hasDeliverable(files: number, resultReportId: number | null): boolean {
+  return files > 0 || !!resultReportId
+}
+
+/**
+ * Query string that opens a report with the request's date range filled in:
+ * the first date parameter gets `dateFrom`, the second `dateTo` (same rule the
+ * admin "generate" form uses).
+ */
+export function reportLinkQuery(
+  params: Array<{ paramName: string; paramType: string }>,
+  dateFrom: string | null,
+  dateTo: string | null
+): string {
+  const dates = [dateFrom, dateTo]
+  const qs = new URLSearchParams()
+  let i = 0
+  for (const p of params) {
+    if (p.paramType !== 'date') continue
+    const v = dates[i++]
+    if (v) qs.set(p.paramName, v)
+    if (i >= dates.length) break
+  }
+  const out = qs.toString()
+  return out ? `?${out}` : ''
 }
 
 /**
@@ -93,6 +130,9 @@ export const LOG_ACTION_LABELS: Record<string, string> = {
   delete_file: 'ลบไฟล์',
   complete: 'จัดทำเสร็จสิ้น',
   promote: 'บันทึกเป็นรายงานถาวร',
+  create_report: 'สร้างรายงานใหม่ในระบบ',
+  link_report: 'ส่งมอบเป็นรายงานในระบบ',
+  unlink_report: 'ยกเลิกการส่งมอบรายงาน',
   purge: 'ลบไฟล์ตามระยะเวลาจัดเก็บ (PDPA)',
 }
 
@@ -102,6 +142,7 @@ export const DATA_LEVEL_LABELS: Record<DataLevel, string> = {
 }
 
 export const OUTPUT_FORMAT_LABELS: Record<OutputFormat, string> = {
+  report: 'ดูเป็นรายงานในระบบ (ไม่ต้องการไฟล์)',
   xlsx: 'Excel (.xlsx)',
   csv: 'CSV',
   pdf: 'PDF',

@@ -4,6 +4,7 @@ import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import User from '#models/user'
 import ReportRequestFile from '#models/report_request_file'
 import ReportRequestLog from '#models/report_request_log'
+import ReportHeadDetail from '#models/report_head_detail'
 import type { DataLevel, OutputFormat, RequestStatus } from '#services/report_request_flow'
 
 /**
@@ -80,6 +81,10 @@ export default class ReportRequest extends BaseModel {
   @column()
   declare promotedReportId: number | null
 
+  /** Report in the system delivered to the requester (see `output_format = report`). */
+  @column()
+  declare resultReportId: number | null
+
   @column.dateTime()
   declare filesPurgedAt: DateTime | null
 
@@ -94,6 +99,9 @@ export default class ReportRequest extends BaseModel {
 
   @belongsTo(() => User, { foreignKey: 'assignedTo' })
   declare assignee: BelongsTo<typeof User>
+
+  @belongsTo(() => ReportHeadDetail, { foreignKey: 'resultReportId' })
+  declare resultReport: BelongsTo<typeof ReportHeadDetail>
 
   @hasMany(() => ReportRequestFile, { foreignKey: 'requestId' })
   declare files: HasMany<typeof ReportRequestFile>

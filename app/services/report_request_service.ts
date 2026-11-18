@@ -18,9 +18,17 @@ import ReportRequestLog from '#models/report_request_log'
 import type User from '#models/user'
 import { writeAudit } from '#services/audit'
 import { notifyRequestEvent } from '#services/notifier'
+import { assertReadOnlySql } from '#services/his_sql_guard'
+import {
+  loadEffectiveParameters,
+  syncReportParameters,
+  type ParamInput,
+} from '#services/report_params'
+import { stripTitleHtml } from '#services/title_html'
 import {
   canTransition,
   fiscalYearBE,
+  reportLinkQuery,
   formatReqNo,
   statusMeta,
   UPLOAD_EXTNAMES,
@@ -328,52 +336,130 @@ export async function recordDownload(
   })
 }
 
-/** Remember the ad-hoc SQL that produced a result so it can be re-run or promoted. */
-export async function saveWorkSql(
-  request: ReportRequest,
-  sql: string,
+export interface NewReportData {
+  headId: number
+  name: string
+  sql: string
   source: 'his' | 'system'
-): Promise<void> {
-  request.workSql = sql
-  request.workDbSource = source
-  await request.save()
+  /** From the "ตั้งค่าพารามิเตอร์" popup; null = auto-detect from @tokens */
+  params?: ParamInput | null
 }
 
 /**
- * Turn the request's ad-hoc SQL into a permanent report under `headId`, so the
- * requester (and everyone else) can run it themselves next time.
+ * The request needs a report the system doesn't have yet: create it under
+ * `headId` (same SQL guard as the report-settings page) and deliver it to the
+ * requester. Parameters are auto-detected from the @tokens in the SQL; the
+ * admin can fine-tune them later on the parameters page.
  */
-export async function promoteToReport(
+export async function createReportForRequest(
   ctx: HttpContext,
   request: ReportRequest,
-  headId: number,
-  name: string
+  data: NewReportData
 ): Promise<ReportHeadDetail> {
-  if (!request.workSql) throw new RequestFlowError('คำขอนี้ยังไม่มี SQL ที่จะบันทึกเป็นรายงาน')
-  if (request.promotedReportId) throw new RequestFlowError('คำขอนี้ถูกบันทึกเป็นรายงานแล้ว')
-  const head = await ReportHead.find(headId)
+  assertWorkable(request)
+  try {
+    assertReadOnlySql(data.sql)
+  } catch (e: any) {
+    throw new RequestFlowError(`SQL: ${e.message}`)
+  }
+  const head = await ReportHead.find(data.headId)
   if (!head) throw new RequestFlowError('ไม่พบหมวดหมู่รายงาน')
 
   const report = await ReportHeadDetail.create({
     headId: head.id,
-    detail: name,
-    sql1: request.workSql,
+    detail: data.name,
+    sql1: data.sql,
     sql2: null,
-    databaseSource: request.workDbSource ?? 'his',
+    databaseSource: data.source,
     sort: 1,
     status: 1,
   })
+  if (data.params) await syncReportParameters(report.id, report.sql1, data.params)
+  request.workSql = data.sql
+  request.workDbSource = data.source
   request.promotedReportId = report.id
+  request.resultReportId = report.id
   await request.save()
-  await addLog(actorOf(ctx), request.id, 'promote', { note: `${name} (รายงาน #${report.id})` })
+  await addLog(actorOf(ctx), request.id, 'create_report', {
+    note: `${data.name} (รายงาน #${report.id})`,
+  })
   await writeAudit(ctx, {
-    action: 'report_request.promote',
+    action: 'report_request.create_report',
     entity: 'report_request',
     entityId: request.id,
-    summary: `${request.reqNo} → report #${report.id} "${name}"`,
+    summary: `${request.reqNo} → report #${report.id} "${data.name}"`,
     meta: { reportId: report.id, headId: head.id },
   })
   return report
+}
+
+/** Deliver an existing, active report to the requester (replaces any earlier link). */
+export async function linkResultReport(
+  ctx: HttpContext,
+  request: ReportRequest,
+  reportId: number
+): Promise<ReportHeadDetail> {
+  assertWorkable(request)
+  const report = await ReportHeadDetail.query().where('id', reportId).where('status', 1).first()
+  if (!report) throw new RequestFlowError('ไม่พบรายงานที่เลือก')
+  request.resultReportId = report.id
+  await request.save()
+  const name = stripTitleHtml(report.detail) || `รายงาน #${report.id}`
+  await addLog(actorOf(ctx), request.id, 'link_report', { note: `${name} (รายงาน #${report.id})` })
+  await writeAudit(ctx, {
+    action: 'report_request.link_report',
+    entity: 'report_request',
+    entityId: request.id,
+    summary: `${request.reqNo} → report #${report.id}`,
+    meta: { reportId: report.id },
+  })
+  return report
+}
+
+export async function unlinkResultReport(ctx: HttpContext, request: ReportRequest) {
+  assertWorkable(request)
+  if (!request.resultReportId) throw new RequestFlowError('คำขอนี้ยังไม่ได้ส่งมอบรายงาน')
+  const old = request.resultReportId
+  request.resultReportId = null
+  await request.save()
+  await addLog(actorOf(ctx), request.id, 'unlink_report', { note: `รายงาน #${old}` })
+  await writeAudit(ctx, {
+    action: 'report_request.unlink_report',
+    entity: 'report_request',
+    entityId: request.id,
+    summary: `${request.reqNo} ✕ report #${old}`,
+  })
+}
+
+export interface ResultReportView {
+  id: number
+  name: string
+  url: string
+}
+
+/**
+ * The delivered report as the request page shows it: its name and a link
+ * that opens it with the request's date range filled in. Null when nothing
+ * is linked or the report was since disabled/deleted.
+ */
+export async function resultReportView(request: ReportRequest): Promise<ResultReportView | null> {
+  if (!request.resultReportId) return null
+  const report = await ReportHeadDetail.query()
+    .where('id', request.resultReportId)
+    .where('status', 1)
+    .first()
+  if (!report) return null
+  const params = await loadEffectiveParameters(report)
+  const qs = reportLinkQuery(
+    params,
+    request.dateFrom?.toISODate() ?? null,
+    request.dateTo?.toISODate() ?? null
+  )
+  return {
+    id: report.id,
+    name: stripTitleHtml(report.detail) || `รายงาน #${report.id}`,
+    url: `/reports/${report.id}${qs}`,
+  }
 }
 
 /** PDPA retention period (days), from the notification settings page or .env. */

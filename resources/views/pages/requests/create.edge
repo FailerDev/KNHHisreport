@@ -89,12 +89,26 @@
           </div>
 
           <div>
-            <label class="hic-label" for="output_format">รูปแบบไฟล์ที่ต้องการ <span class="hic-req">*</span></label>
-            <select name="output_format" id="output_format" class="hic-input">
-              @each(f in ['xlsx', 'csv', 'pdf', 'any'])
-                <option value="{{ f }}" {{ oldFormat === f ? 'selected' : '' }}>{{ outputFormatLabel(f) }}</option>
-              @end
-            </select>
+            <span class="hic-label">ต้องการผลลัพธ์แบบไหน <span class="hic-req">*</span></span>
+            <div class="flex flex-col gap-2 text-sm">
+              <label class="flex items-start gap-2 cursor-pointer">
+                <input type="radio" name="output_kind" value="report" {{ oldFormat === 'report' ? 'checked' : '' }} class="mt-1" />
+                <span><b>ดูเป็นรายงานในระบบ</b> — ไม่ต้องการไฟล์ เจ้าหน้าที่จะส่งลิงก์รายงานให้กดเปิดดูและเลือกช่วงวันที่เองได้ทุกเมื่อ</span>
+              </label>
+              <label class="flex items-start gap-2 cursor-pointer">
+                <input type="radio" name="output_kind" value="file" {{ oldFormat !== 'report' ? 'checked' : '' }} class="mt-1" />
+                <span><b>ต้องการไฟล์</b> — ดาวน์โหลดจากหน้าคำขอ</span>
+              </label>
+            </div>
+            <div id="fileFormatBox" class="mt-3 {{ oldFormat === 'report' ? 'hidden' : '' }}">
+              <label class="hic-label" for="file_format">รูปแบบไฟล์</label>
+              <select id="file_format" class="hic-input">
+                @each(f in ['xlsx', 'csv', 'pdf', 'any'])
+                  <option value="{{ f }}" {{ oldFormat === f ? 'selected' : '' }}>{{ outputFormatLabel(f) }}</option>
+                @end
+              </select>
+            </div>
+            <input type="hidden" name="output_format" id="output_format" value="{{ oldFormat }}" />
           </div>
         </div>
         <div class="hic-modal-foot">
@@ -120,6 +134,19 @@
         const to = document.getElementById('date_to')
         from.addEventListener('change', () => { to.min = from.value })
         sync()
+
+        // Report-in-system vs file: the server only sees output_format.
+        const fmt = document.getElementById('output_format')
+        const fileFmt = document.getElementById('file_format')
+        const fileBox = document.getElementById('fileFormatBox')
+        function syncFormat() {
+          const asReport = document.querySelector('input[name="output_kind"]:checked')?.value === 'report'
+          fileBox.classList.toggle('hidden', asReport)
+          fmt.value = asReport ? 'report' : fileFmt.value
+        }
+        document.querySelectorAll('input[name="output_kind"]').forEach((el) => el.addEventListener('change', syncFormat))
+        fileFmt.addEventListener('change', syncFormat)
+        syncFormat()
       })()
     </script>
   @end

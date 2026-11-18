@@ -36,8 +36,65 @@
 
       @include('partials/flash')
 
+      @if(resultReport)
+        <div class="hic-alert hic-alert-ok">
+          <i class="fas fa-chart-column"></i>
+          <span class="flex-1">ส่งมอบเป็นรายงานในระบบ: <b>{{ resultReport.name }}</b> —
+            <a href="{{ resultReport.url }}" class="underline">เปิดรายงาน</a> ·
+            <a href="/admin/reports/{{ resultReport.id }}/parameters" class="underline">ตั้งค่าพารามิเตอร์</a>
+          </span>
+          @if(req.status === 'in_progress')
+            <form method="POST" action="/admin/requests/{{ req.id }}/unlink-report" onsubmit="return confirm('ยกเลิกการส่งมอบรายงานนี้?')">
+              {{ csrfField() }}
+              <button type="submit" class="hic-btn hic-btn-ghost hic-btn-sm"><i class="fas fa-link-slash"></i>ยกเลิกการส่งมอบ</button>
+            </form>
+          @end
+        </div>
+      @end
+
       @if(req.status === 'in_progress')
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        @if(req.outputFormat === 'report' && !resultReport)
+          <div class="hic-alert hic-alert-info">
+            <i class="fas fa-circle-info"></i>
+            <span class="flex-1">ผู้ขอต้องการ <b>ดูเป็นรายงานในระบบ</b> (ไม่ต้องการไฟล์) — เลือกรายงานที่มีอยู่แล้วกด "ส่งเป็นรายงานนี้" หรือถ้ายังไม่มี ให้สร้างรายงานใหม่ด้านล่าง</span>
+          </div>
+        @end
+
+        <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6 items-start">
+          {{-- Pick an existing report: deliver it as a link, or run it into an Excel file --}}
+          <form method="POST" action="/admin/requests/{{ req.id }}/generate" class="hic-panel" id="generateForm">
+            {{ csrfField() }}
+            <div class="hic-panel-head">
+              <h2><i class="fas fa-chart-column" style="color:var(--heading)"></i>ใช้รายงานที่มีในระบบ</h2>
+            </div>
+            <div class="hic-panel-body flex flex-col gap-3">
+              <div>
+                <label class="hic-label" for="report_search">รายงาน</label>
+                <label class="hic-search" style="margin-bottom:8px">
+                  <i class="fas fa-magnifying-glass" style="font-size:13px"></i>
+                  <input type="search" id="report_search" placeholder="พิมพ์ค้นหาชื่อรายงานหรือหมวดหมู่…" autocomplete="off" style="font-size:14px" />
+                  <span id="report_hits" class="hic-badge hic-badge-brand">{{ reports.length }} รายการ</span>
+                </label>
+                <select name="report_id" id="report_id" required title="เลือกรายงานจากรายการ" size="8" class="hic-input" style="height:auto;padding:4px" aria-label="เลือกรายงาน">
+                  @each(r in reports)
+                    <option value="{{ r.id }}">{{ r.head ? stripTitleHtml(r.head.detail) + ' · ' : '' }}{{ stripTitleHtml(r.detail) }}</option>
+                  @end
+                </select>
+                <div id="report_none" class="hic-help hidden">ไม่พบรายงานที่ตรงกับคำค้น — <a href="#createReportPanel" class="underline">สร้างรายงานใหม่</a></div>
+              </div>
+              <div id="paramFields" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+              <div class="hic-help">
+                <b>ส่งเป็นรายงานนี้</b> — ผู้ขอได้ลิงก์ไปเปิดรายงานเอง (กรอกช่วงวันที่ตามคำขอไว้ให้) ·
+                <b>สร้างไฟล์ Excel</b> — รันด้วยพารามิเตอร์ด้านบนแล้วแนบเป็นไฟล์
+              </div>
+              <div class="flex gap-2 flex-wrap">
+                <button type="submit" formaction="/admin/requests/{{ req.id }}/link-report" formnovalidate
+                  class="hic-btn {{ req.outputFormat === 'report' ? 'hic-btn-primary' : 'hic-btn-secondary' }}"><i class="fas fa-link"></i>ส่งเป็นรายงานนี้</button>
+                <button type="submit" class="hic-btn {{ req.outputFormat === 'report' ? 'hic-btn-secondary' : 'hic-btn-primary' }}"><i class="fas fa-file-excel"></i>สร้างไฟล์ Excel แนบ</button>
+              </div>
+            </div>
+          </form>
+
           {{-- Upload --}}
           <form method="POST" action="/admin/requests/{{ req.id }}/upload" enctype="multipart/form-data" class="hic-panel">
             {{ csrfField() }}
@@ -50,86 +107,55 @@
               <div><button type="submit" class="hic-btn hic-btn-secondary"><i class="fas fa-paperclip"></i>แนบไฟล์</button></div>
             </div>
           </form>
-
-          {{-- Generate from an existing report --}}
-          <form method="POST" action="/admin/requests/{{ req.id }}/generate" class="hic-panel" id="generateForm">
-            {{ csrfField() }}
-            <div class="hic-panel-head">
-              <h2><i class="fas fa-wand-magic-sparkles" style="color:var(--heading)"></i>สร้างไฟล์จากรายงานในระบบ</h2>
-            </div>
-            <div class="hic-panel-body flex flex-col gap-3">
-              <div>
-                <label class="hic-label" for="report_search">รายงาน</label>
-                <label class="hic-search" style="margin-bottom:8px">
-                  <i class="fas fa-magnifying-glass" style="font-size:13px"></i>
-                  <input type="search" id="report_search" placeholder="พิมพ์ค้นหาชื่อรายงานหรือหมวดหมู่…" autocomplete="off" style="font-size:14px" />
-                  <span id="report_hits" class="hic-badge hic-badge-brand">{{ reports.length }} รายการ</span>
-                </label>
-                <select name="report_id" id="report_id" required size="8" class="hic-input" style="height:auto;padding:4px" aria-label="เลือกรายงาน">
-                  @each(r in reports)
-                    <option value="{{ r.id }}">{{ r.head ? stripTitleHtml(r.head.detail) + ' · ' : '' }}{{ stripTitleHtml(r.detail) }}</option>
-                  @end
-                </select>
-                <div id="report_none" class="hic-help hidden">ไม่พบรายงานที่ตรงกับคำค้น</div>
-              </div>
-              <div id="paramFields" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
-              <div class="hic-help">ระบบจะรันรายงานแล้วแนบเป็นไฟล์ Excel ให้ทันที (วันที่ตั้งต้นจากช่วงข้อมูลในคำขอ)</div>
-              <div><button type="submit" class="hic-btn hic-btn-secondary"><i class="fas fa-file-excel"></i>สร้างและแนบไฟล์</button></div>
-            </div>
-          </form>
         </div>
-      @end
 
-      @if(req.status === 'in_progress')
-        {{-- Ad-hoc SQL --}}
-        <form method="POST" action="/admin/requests/{{ req.id }}/run-sql" class="hic-panel">
+        {{-- No fitting report yet: create one here and deliver it --}}
+        <form method="POST" action="/admin/requests/{{ req.id }}/create-report" class="hic-panel" id="createReportPanel">
           {{ csrfField() }}
+          <input type="hidden" name="params_json" id="new_report_params_json" value="{{ flashMessages.get('createReportDraft.params_json', '') }}" />
           <div class="hic-panel-head">
-            <h2><i class="fas fa-code" style="color:var(--heading)"></i>เขียน SQL เอง</h2>
-            <select name="database_source" class="hic-input" style="width:auto" aria-label="ฐานข้อมูล">
-              <option value="his" {{ req.workDbSource !== 'system' ? 'selected' : '' }}>HIS Database</option>
-              <option value="system" {{ req.workDbSource === 'system' ? 'selected' : '' }}>ฐานข้อมูลระบบ</option>
-            </select>
+            <h2><i class="fas fa-file-circle-plus" style="color:var(--heading)"></i>ยังไม่มีในระบบ? สร้างรายงานใหม่</h2>
           </div>
           <div class="hic-panel-body flex flex-col gap-3">
-            <textarea name="sql" rows="8" required minlength="10" class="hic-code" style="min-height:160px" spellcheck="false"
-              placeholder="SELECT ... FROM ... WHERE vstdate BETWEEN @start_d AND @end_d">{{ req.workSql || '' }}</textarea>
-            <div class="hic-help">อนุญาตเฉพาะ SELECT คำสั่งเดียว · ใช้ <code>@start_d</code> / <code>@end_d</code> แทนช่วงวันที่ในคำขอได้ · ผลลัพธ์จะแนบเป็น Excel และจำ SQL ไว้เพื่อบันทึกเป็นรายงานถาวรภายหลัง</div>
-            <div><button type="submit" class="hic-btn hic-btn-secondary"><i class="fas fa-play"></i>รันและแนบไฟล์</button></div>
-          </div>
-        </form>
-      @end
-
-      @if(req.promotedReportId)
-        <div class="hic-alert hic-alert-ok">
-          <i class="fas fa-bookmark"></i>
-          <span class="flex-1">คำขอนี้ถูกบันทึกเป็นรายงานถาวรแล้ว —
-            <a href="/reports/{{ req.promotedReportId }}" class="underline">เปิดรายงาน</a> ·
-            <a href="/admin/reports/{{ req.promotedReportId }}/parameters" class="underline">ตั้งค่าพารามิเตอร์</a>
-          </span>
-        </div>
-      @elseif(req.workSql && heads.length > 0)
-        <form method="POST" action="/admin/requests/{{ req.id }}/promote" class="hic-panel">
-          {{ csrfField() }}
-          <div class="hic-panel-head">
-            <h2><i class="fas fa-bookmark" style="color:var(--heading)"></i>บันทึกเป็นรายงานถาวร</h2>
-          </div>
-          <div class="hic-panel-body flex flex-col gap-3">
-            <div class="hic-help">ถ้ามีคนขอข้อมูลนี้ซ้ำบ่อย ให้บันทึก SQL ล่าสุดเป็นรายงาน เพื่อให้ผู้ใช้รันเองได้ที่หน้ารายงาน</div>
-            <div class="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+            @if(heads.length === 0)
+              <div class="hic-alert hic-alert-bad"><i class="fas fa-circle-exclamation"></i><span>ยังไม่มีหมวดหมู่รายงาน — เพิ่มหมวดหมู่ที่ <a href="/admin/report-settings" class="underline">ตั้งค่ารายงาน</a> ก่อน</span></div>
+            @end
+            <div class="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
               <div>
-                <label class="hic-label" for="promote_head">หมวดหมู่</label>
-                <select name="head_id" id="promote_head" required class="hic-input">
+                <label class="hic-label" for="new_report_head">หมวดหมู่ <span class="hic-req">*</span></label>
+                <select name="head_id" id="new_report_head" required class="hic-input">
                   @each(h in heads)
-                    <option value="{{ h.id }}">{{ stripTitleHtml(h.detail) }}</option>
+                    <option value="{{ h.id }}" {{ String(flashMessages.get('createReportDraft.head_id', '')) === String(h.id) ? 'selected' : '' }}>{{ stripTitleHtml(h.detail) }}</option>
                   @end
                 </select>
               </div>
               <div>
-                <label class="hic-label" for="promote_name">ชื่อรายงาน</label>
-                <input name="name" id="promote_name" required minlength="3" maxlength="255" class="hic-input" value="{{ req.title }}" />
+                <label class="hic-label" for="new_report_name">ชื่อรายงาน <span class="hic-req">*</span></label>
+                <input name="name" id="new_report_name" required minlength="3" maxlength="255" class="hic-input" value="{{ flashMessages.get('createReportDraft.name', req.title) }}" />
               </div>
-              <button type="submit" class="hic-btn hic-btn-secondary"><i class="fas fa-bookmark"></i>บันทึก</button>
+              <div>
+                <label class="hic-label" for="new_report_db">ฐานข้อมูล</label>
+                <select name="database_source" id="new_report_db" class="hic-input">
+                  <option value="his" {{ flashMessages.get('createReportDraft.database_source', req.workDbSource || 'his') !== 'system' ? 'selected' : '' }}>HIS Database</option>
+                  <option value="system" {{ flashMessages.get('createReportDraft.database_source', req.workDbSource || 'his') === 'system' ? 'selected' : '' }}>ฐานข้อมูลระบบ</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="hic-label" for="new_report_sql">SQL <span class="hic-req">*</span></label>
+              <textarea name="sql" id="new_report_sql" rows="8" required minlength="10" class="hic-code" style="min-height:160px" spellcheck="false"
+                placeholder="SELECT ... FROM ... WHERE vstdate BETWEEN @start_d AND @end_d">{{ flashMessages.get('createReportDraft.sql', req.workSql || '') }}</textarea>
+            </div>
+            <div class="hic-help">อนุญาตเฉพาะ SELECT คำสั่งเดียว · ใส่ <code>@ชื่อ</code> เพื่อให้ผู้ใช้กรอกค่าเอง (เช่น <code>@start_d</code> / <code>@end_d</code> = ช่วงวันที่) ระบบสร้างช่องกรอกให้อัตโนมัติ · รายงานจะอยู่ในหน้ารายงานให้ทุกคนใช้ได้ และส่งมอบให้ผู้ขอทันที</div>
+            <div id="newReportTest" class="hidden"></div>
+            <div class="flex gap-2 flex-wrap">
+              <button type="button" id="newReportTestBtn" class="hic-btn hic-btn-warn"><i class="fas fa-vial"></i>ทดสอบ SQL</button>
+              <button type="button" onclick="openParamModal()" class="hic-btn hic-btn-secondary" title="ตั้งค่าช่องกรอกของ @token ใน SQL — บันทึกพร้อมรายงาน">
+                <i class="fas fa-list-check"></i>ตั้งค่าพารามิเตอร์
+                <span id="newReportParamBadge" class="hic-badge hic-badge-warn {{ flashMessages.get('createReportDraft.params_json') ? '' : 'hidden' }}" style="margin-left:2px">ยังไม่บันทึก</span>
+              </button>
+              <span class="flex-1"></span>
+              <button type="submit" class="hic-btn hic-btn-primary" {{ heads.length === 0 ? 'disabled' : '' }}><i class="fas fa-file-circle-plus"></i>สร้างรายงานและส่งมอบ</button>
             </div>
           </div>
         </form>
@@ -138,6 +164,14 @@
       @let(canDeleteFiles = req.status === 'in_progress')
       @include('partials/request_detail')
     </div>
+
+    @let(pmSqlId = 'new_report_sql')
+    @let(pmTitleId = 'new_report_name')
+    @let(pmJsonId = 'new_report_params_json')
+    @let(pmBadgeId = 'newReportParamBadge')
+    @if(req.status === 'in_progress')
+      @include('partials/report_param_modal')
+    @end
 
     {{-- Approve modal --}}
     <div id="approveModal" class="hic-modal hidden" role="dialog" aria-modal="true">
@@ -199,19 +233,22 @@
         <form method="POST" action="/admin/requests/{{ req.id }}/complete" enctype="multipart/form-data" class="contents">
           {{ csrfField() }}
           <div class="hic-modal-body">
+            @if(resultReport)
+              <div class="hic-alert hic-alert-info"><i class="fas fa-chart-column"></i><span>ส่งมอบรายงาน "{{ resultReport.name }}" แล้ว — ผู้ขอเปิดได้จากหน้าคำขอ</span></div>
+            @end
             @if(req.files.length > 0)
               <div class="hic-alert hic-alert-info"><i class="fas fa-circle-info"></i><span>แนบไฟล์แล้ว {{ req.files.length }} ไฟล์ — ผู้ขอจะดาวน์โหลดได้จากหน้าคำขอ</span></div>
             @end
             <div>
               <label class="hic-label" for="complete_file">
                 ไฟล์ผลลัพธ์
-                @if(req.files.length === 0)
+                @if(req.files.length === 0 && !req.resultReportId)
                   <span class="hic-req">*</span>
                 @else
                   <small>(แนบเพิ่มได้ ถ้ามี)</small>
                 @end
               </label>
-              <input type="file" name="file" id="complete_file" class="hic-input" accept="{{ uploadExtnames.map((e) => '.' + e).join(',') }}" {{ req.files.length === 0 ? 'required' : '' }} />
+              <input type="file" name="file" id="complete_file" class="hic-input" accept="{{ uploadExtnames.map((e) => '.' + e).join(',') }}" {{ req.files.length === 0 && !req.resultReportId ? 'required' : '' }} />
               <div class="hic-help">รองรับ {{ uploadExtnames.join(', ') }} ขนาดไม่เกิน 20MB — ระบบจะแนบไฟล์แล้วปิดงานในขั้นตอนเดียว</div>
             </div>
             <div>
@@ -233,7 +270,50 @@
       function show(id) { const m = document.getElementById(id); m.classList.remove('hidden'); m.classList.add('flex'); document.body.style.overflow = 'hidden' }
       function hide(id) { const m = document.getElementById(id); m.classList.add('hidden'); m.classList.remove('flex'); document.body.style.overflow = '' }
 
-      (function () {
+      // "ทดสอบ SQL" on the create-report form — same endpoint as report settings.
+      ;(function () {
+        const btn = document.getElementById('newReportTestBtn')
+        if (!btn) return
+        const out = document.getElementById('newReportTest')
+        const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+        btn.addEventListener('click', async () => {
+          const form = document.getElementById('createReportPanel')
+          const fd = new FormData()
+          fd.append('_csrf', form.querySelector('input[name="_csrf"]').value)
+          const sql = document.getElementById('new_report_sql').value.trim()
+          if (!sql) {
+            out.className = 'hic-alert hic-alert-bad'
+            out.innerHTML = '<i class="fas fa-circle-exclamation"></i><span>กรุณาพิมพ์ SQL ก่อนทดสอบ</span>'
+            document.getElementById('new_report_sql').focus()
+            return
+          }
+          fd.append('sql1', sql)
+          fd.append('database_source', document.getElementById('new_report_db').value)
+          out.className = 'hic-alert hic-alert-info'
+          out.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>กำลังทดสอบ…</span>'
+          btn.disabled = true
+          try {
+            const res = await fetch('/admin/report-settings/test-sql', { method: 'POST', body: fd, headers: { Accept: 'application/json' } })
+            const r = await res.json()
+            if (r.success) {
+              const cols = r.columns || []
+              out.className = 'hic-alert hic-alert-ok'
+              out.innerHTML = '<i class="fas fa-circle-check"></i><div><div class="font-bold">' + esc(r.message) + '</div>'
+                + '<div class="text-xs mt-1">เวลา ' + esc(r.execution_time) + 's · คอลัมน์: ' + esc(cols.slice(0, 8).join(', ')) + (cols.length > 8 ? '…' : '') + '</div></div>'
+            } else {
+              out.className = 'hic-alert hic-alert-bad'
+              out.innerHTML = '<i class="fas fa-circle-exclamation"></i><span class="break-all">' + esc(r.message) + '</span>'
+            }
+          } catch (e) {
+            out.className = 'hic-alert hic-alert-bad'
+            out.innerHTML = '<i class="fas fa-circle-exclamation"></i><span>' + esc(e.message || e) + '</span>'
+          } finally {
+            btn.disabled = false
+          }
+        })
+      })()
+
+      ;(function () {
         const select = document.getElementById('report_id')
         const box = document.getElementById('paramFields')
         if (!select || !box) return

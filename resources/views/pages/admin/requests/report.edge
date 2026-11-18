@@ -1,0 +1,178 @@
+@component('layouts/app', {
+  title: 'สรุปการขอรายงาน · HisReport',
+  showSidebar: true,
+  isAdmin: true,
+  fullname: auth.user.fullname || auth.user.username,
+  department: auth.user.department,
+  currentPage: 'admin-requests',
+})
+  @slot('main')
+    <div class="flex flex-col gap-6">
+      <div>
+        <nav class="hic-crumb" aria-label="breadcrumb">
+          <a href="/admin/requests">จัดการคำขอข้อมูล</a><i class="fas fa-chevron-right"></i><span>สรุปการขอรายงาน</span>
+        </nav>
+        <div class="hic-pagehead" style="margin-bottom:0">
+          <div class="hic-pagehead-title hic-tone-indigo">
+            <span class="hic-pagehead-icon"><i class="fas fa-chart-pie"></i></span>
+            <div>
+              <h1>สรุปการขอรายงาน</h1>
+              <p>คำขอที่ส่งระหว่าง {{ thaiDate(stats.range.from) }} – {{ thaiDate(stats.range.to) }}</p>
+            </div>
+          </div>
+          <a href="/admin/requests/report/export?from={{ from }}&to={{ to }}" class="hic-btn hic-btn-secondary"><i class="fas fa-file-excel"></i><span>ส่งออก Excel</span></a>
+        </div>
+      </div>
+
+      <form method="GET" action="/admin/requests/report" class="hic-panel">
+        <div class="hic-panel-body flex flex-wrap items-end gap-3">
+          <div>
+            <label class="hic-label" for="from">ส่งคำขอตั้งแต่</label>
+            <input type="date" name="from" id="from" value="{{ from }}" class="hic-input" />
+          </div>
+          <div>
+            <label class="hic-label" for="to">ถึง</label>
+            <input type="date" name="to" id="to" value="{{ to }}" class="hic-input" />
+          </div>
+          <button type="submit" class="hic-btn hic-btn-primary"><i class="fas fa-magnifying-glass"></i>แสดง</button>
+          <a href="/admin/requests/report" class="hic-btn hic-btn-ghost">ปีงบประมาณนี้</a>
+          @if(rangeError)
+            <span class="hic-badge hic-badge-bad"><i class="fas fa-circle-exclamation"></i>{{ rangeError }} — แสดงปีงบประมาณนี้แทน</span>
+          @end
+        </div>
+      </form>
+
+      <div class="hic-metrics">
+        <div class="hic-metric hic-tone-indigo hic-rise" style="--i:0">
+          <span class="hic-metric-icon"><i class="fas fa-inbox"></i></span>
+          <div><div class="hic-metric-label">คำขอทั้งหมด</div><div class="hic-metric-value">{{ stats.total }}</div></div>
+        </div>
+        <div class="hic-metric hic-tone-green hic-rise" style="--i:1">
+          <span class="hic-metric-icon"><i class="fas fa-circle-check"></i></span>
+          <div>
+            <div class="hic-metric-label">เสร็จสิ้น</div>
+            <div class="hic-metric-value">{{ stats.completed }}</div>
+            <div class="hic-help">{{ stats.completionRate === null ? 'ยังไม่มีคำขอที่ตัดสินแล้ว' : stats.completionRate + '% ของที่อนุมัติ/ไม่อนุมัติ' }}</div>
+          </div>
+        </div>
+        <div class="hic-metric hic-tone-blue hic-rise" style="--i:2">
+          <span class="hic-metric-icon"><i class="fas fa-stopwatch"></i></span>
+          <div>
+            <div class="hic-metric-label">เวลาเฉลี่ยส่ง → ปิดงาน</div>
+            <div class="hic-metric-value">{{ (stats.avgDays === null ? '—' : stats.avgDays + ' วัน') }}</div>
+            <div class="hic-help">ทันกำหนด {{ stats.onTime }}/{{ stats.dueTracked }} ({{ (stats.dueTracked > 0 ? Math.round((stats.onTime / stats.dueTracked) * 100) + '%' : '—') }})</div>
+          </div>
+        </div>
+        <div class="hic-metric hic-tone-red hic-rise" style="--i:3">
+          <span class="hic-metric-icon"><i class="fas fa-clock"></i></span>
+          <div>
+            <div class="hic-metric-label">ค้างและเกินกำหนด</div>
+            <div class="hic-metric-value">{{ stats.overdueOpen }}</div>
+            <div class="hic-help">ส่งมอบเป็นรายงาน {{ stats.deliveredAsReport }} · ไฟล์ {{ stats.deliveredAsFile }}</div>
+          </div>
+        </div>
+      </div>
+
+      @if(stats.total === 0)
+        <div class="hic-panel">
+          <div class="hic-empty">
+            <span class="hic-empty-icon"><i class="fas fa-chart-pie"></i></span>
+            <b>ไม่มีคำขอในช่วงวันที่นี้</b>
+            <span>ลองเลือกช่วงวันที่อื่น</span>
+          </div>
+        </div>
+      @else
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          <section class="hic-panel overflow-hidden">
+            <div class="hic-panel-head"><h2><i class="fas fa-signal" style="color:var(--heading)"></i>ตามสถานะ</h2></div>
+            <div class="hic-table-wrap" style="max-height:none">
+              <table class="hic-table">
+                <tbody>
+                  @each(s in stats.byStatus)
+                    <tr>
+                      <td><a href="/admin/requests?status={{ s.status }}" class="hic-badge {{ s.badge }}">{{ s.label }}</a></td>
+                      <td style="text-align:right" class="hic-mono">{{ s.total }}</td>
+                      <td style="text-align:right;color:var(--ink-subtle)">{{ (stats.total > 0 ? Math.round((s.total / stats.total) * 100) + '%' : '—') }}</td>
+                    </tr>
+                  @end
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="hic-panel overflow-hidden">
+            <div class="hic-panel-head"><h2><i class="fas fa-file-export" style="color:var(--heading)"></i>รูปแบบผลลัพธ์ที่ขอ</h2></div>
+            <div class="hic-table-wrap" style="max-height:none">
+              <table class="hic-table">
+                <tbody>
+                  @each(o in stats.byOutput)
+                    <tr>
+                      <td>{{ o.label }}</td>
+                      <td style="text-align:right" class="hic-mono">{{ o.total }}</td>
+                      <td style="text-align:right;color:var(--ink-subtle)">{{ (stats.total > 0 ? Math.round((o.total / stats.total) * 100) + '%' : '—') }}</td>
+                    </tr>
+                  @end
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="hic-panel overflow-hidden">
+            <div class="hic-panel-head"><h2><i class="fas fa-user-lock" style="color:var(--heading)"></i>ระดับข้อมูล</h2></div>
+            <div class="hic-table-wrap" style="max-height:none">
+              <table class="hic-table">
+                <tbody>
+                  @each(l in stats.byDataLevel)
+                    <tr>
+                      <td>{{ l.label }}</td>
+                      <td style="text-align:right" class="hic-mono">{{ l.total }}</td>
+                      <td style="text-align:right;color:var(--ink-subtle)">{{ (stats.total > 0 ? Math.round((l.total / stats.total) * 100) + '%' : '—') }}</td>
+                    </tr>
+                  @end
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        @each(group in [
+          { title: 'รายเดือน', icon: 'fa-calendar-days', first: 'เดือน', rows: stats.monthly.map((m) => ({ ...m, label: m.month })) },
+          { title: 'ตามหน่วยงานผู้ขอ', icon: 'fa-building', first: 'หน่วยงาน', rows: stats.byDepartment },
+          { title: 'ตามผู้รับผิดชอบ', icon: 'fa-user-gear', first: 'ผู้รับผิดชอบ', rows: stats.byAssignee },
+        ])
+          <section class="hic-panel overflow-hidden">
+            <div class="hic-panel-head"><h2><i class="fas {{ group.icon }}" style="color:var(--heading)"></i>{{ group.title }}</h2></div>
+            @if(group.rows.length === 0)
+              <div class="hic-empty"><b>ยังไม่มีข้อมูล</b></div>
+            @else
+              <div class="hic-table-wrap" style="max-height:none">
+                <table class="hic-table">
+                  <thead>
+                    <tr>
+                      <th>{{ group.first }}</th>
+                      <th style="text-align:right">คำขอ</th>
+                      <th style="text-align:right">เสร็จสิ้น</th>
+                      <th style="text-align:right">ค้างอยู่</th>
+                      <th style="text-align:right">เวลาเฉลี่ย</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @each(row in group.rows)
+                      <tr>
+                        <td>{{ row.label }}</td>
+                        <td style="text-align:right" class="hic-mono">{{ row.total }}</td>
+                        <td style="text-align:right" class="hic-mono">{{ row.completed }}</td>
+                        <td style="text-align:right" class="hic-mono">{{ row.open || '—' }}</td>
+                        <td style="text-align:right;white-space:nowrap">{{ (row.avgDays === null ? '—' : row.avgDays + ' วัน') }}</td>
+                      </tr>
+                    @end
+                  </tbody>
+                </table>
+              </div>
+            @end
+          </section>
+        @end
+      @end
+    </div>
+  @end
+@end

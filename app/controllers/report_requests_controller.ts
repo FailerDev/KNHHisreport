@@ -11,6 +11,7 @@ import {
   createRequest,
   recordDownload,
   requestFilePath,
+  resultReportView,
   retentionDays,
   statusCounts,
   transition,
@@ -18,7 +19,8 @@ import {
 
 /**
  * Requester side of the data/report request module: submit a request, follow
- * its status, cancel while pending, download the result files.
+ * its status, cancel while still open, open the delivered report or download
+ * the result files.
  */
 export default class ReportRequestsController {
   async index({ view, auth, request, session }: HttpContext) {
@@ -98,6 +100,7 @@ export default class ReportRequestsController {
     return view.render('pages/requests/show', {
       req,
       isOwner: req.requesterId === user.id,
+      resultReport: await resultReportView(req),
       purgeDate: filePurgeDate(req, await retentionDays()),
       message: session.flashMessages.get('message'),
       messageType: session.flashMessages.get('messageType'),
@@ -118,7 +121,10 @@ export default class ReportRequestsController {
     } catch (err: any) {
       this.flashErr(session, err)
     }
-    return response.redirect(`/requests/${req.id}`)
+    // The list page cancels too — send the user back where they came from.
+    return request.input('back') === 'list'
+      ? response.redirect('/requests')
+      : response.redirect(`/requests/${req.id}`)
   }
 
   /** Files are only reachable here — owner or admin, never via public/. */

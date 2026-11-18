@@ -1,8 +1,11 @@
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 import {
+  canRequesterCancel,
   canTransition,
   filePurgeDate,
+  hasDeliverable,
+  reportLinkQuery,
   fiscalYearBE,
   formatReqNo,
   statusMeta,
@@ -42,11 +45,19 @@ test.group('report_request_flow.canTransition', () => {
     assert.isFalse(canTransition('pending', 'completed'))
   })
 
-  test('in_progress can be completed or rejected, not cancelled by requester', ({ assert }) => {
+  test('in_progress can be completed, rejected or cancelled by requester', ({ assert }) => {
     assert.isTrue(canTransition('in_progress', 'completed'))
     assert.isTrue(canTransition('in_progress', 'rejected'))
-    assert.isFalse(canTransition('in_progress', 'cancelled'))
+    assert.isTrue(canTransition('in_progress', 'cancelled'))
     assert.isFalse(canTransition('in_progress', 'pending'))
+  })
+
+  test('canRequesterCancel only while the request is open', ({ assert }) => {
+    assert.isTrue(canRequesterCancel('pending'))
+    assert.isTrue(canRequesterCancel('in_progress'))
+    assert.isFalse(canRequesterCancel('completed'))
+    assert.isFalse(canRequesterCancel('rejected'))
+    assert.isFalse(canRequesterCancel('cancelled'))
   })
 
   test('final states are terminal', ({ assert }) => {
@@ -77,5 +88,31 @@ test.group('report_request_flow.filePurgeDate', () => {
     assert.isNull(filePurgeDate({ ...base, dataLevel: 'aggregate' }, 30))
     assert.isNull(filePurgeDate({ ...base, status: 'in_progress' }, 30))
     assert.isNull(filePurgeDate({ ...base, filesPurgedAt: completedAt }, 30))
+  })
+})
+
+test.group('report_request_flow.hasDeliverable', () => {
+  test('a file or a linked report is enough to close', ({ assert }) => {
+    assert.isFalse(hasDeliverable(0, null))
+    assert.isTrue(hasDeliverable(1, null))
+    assert.isTrue(hasDeliverable(0, 12))
+  })
+})
+
+test.group('report_request_flow.reportLinkQuery', () => {
+  const p = (paramName: string, paramType: string) => ({ paramName, paramType })
+
+  test('fills the first two date params with the request range', ({ assert }) => {
+    const q = reportLinkQuery(
+      [p('hcode', 'text'), p('start_d', 'date'), p('end_d', 'date'), p('x', 'date')],
+      '2026-10-01',
+      '2026-10-31'
+    )
+    assert.equal(q, '?start_d=2026-10-01&end_d=2026-10-31')
+  })
+
+  test('empty when the request has no range or the report no date params', ({ assert }) => {
+    assert.equal(reportLinkQuery([p('start_d', 'date')], null, null), '')
+    assert.equal(reportLinkQuery([p('hcode', 'text')], '2026-10-01', '2026-10-31'), '')
   })
 })

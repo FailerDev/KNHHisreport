@@ -4,8 +4,10 @@
   Expects locals:
     - req (ReportRequest with requester, assignee, files, logs loaded)
     - canDeleteFiles (boolean) — admin while the request is in_progress
+    - resultReport ({ id, name, url } | null) — delivered report in the system
 --}}
 @let(rdMeta = requestStatusMeta(req.status))
+@let(rdReport = (typeof resultReport !== 'undefined' && resultReport) ? resultReport : null)
 @let(rdCanDelete = (typeof canDeleteFiles !== 'undefined' && canDeleteFiles) ? true : false)
 
 <div class="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
@@ -28,7 +30,7 @@
             </span>
           </dd>
           <dt>ช่วงข้อมูล</dt><dd>{{ req.dateFrom || req.dateTo ? thaiDate(req.dateFrom) + ' – ' + thaiDate(req.dateTo) : 'ไม่ระบุ' }}</dd>
-          <dt>รูปแบบไฟล์</dt><dd>{{ outputFormatLabel(req.outputFormat) }}</dd>
+          <dt>รูปแบบผลลัพธ์</dt><dd>{{ outputFormatLabel(req.outputFormat) }}</dd>
           <dt>ต้องการภายใน</dt>
           <dd>
             {{ req.dueDate ? thaiDate(req.dueDate) : 'ไม่ระบุ' }}
@@ -65,6 +67,30 @@
       </div>
     </section>
 
+    @if(rdReport || (req.outputFormat === 'report' && requestIsOpen(req.status)))
+      <section class="hic-panel">
+        <div class="hic-panel-head">
+          <h2><i class="fas fa-chart-column" style="color:var(--heading)"></i>รายงานในระบบ</h2>
+        </div>
+        @if(rdReport)
+          <div class="hic-panel-body flex flex-wrap items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="font-semibold" style="color:var(--ink-strong)">{{ rdReport.name }}</div>
+              <div class="hic-help">เปิดแล้วระบบจะกรอกช่วงวันที่ตามคำขอไว้ให้ เปลี่ยนวันที่แล้วรันใหม่ได้ทุกเมื่อ</div>
+            </div>
+            <a href="{{ rdReport.url }}" class="hic-btn hic-btn-primary"><i class="fas fa-arrow-up-right-from-square"></i>เปิดรายงาน</a>
+          </div>
+        @else
+          <div class="hic-empty">
+            <span class="hic-empty-icon"><i class="fas fa-chart-column"></i></span>
+            <b>ยังไม่มีรายงาน</b>
+            <span>ลิงก์รายงานจะปรากฏที่นี่เมื่อเจ้าหน้าที่จัดทำเสร็จ</span>
+          </div>
+        @end
+      </section>
+    @end
+
+    @if(!(rdReport && req.files.length === 0 && !req.filesPurgedAt))
     <section class="hic-panel overflow-hidden">
       <div class="hic-panel-head">
         <h2><i class="fas fa-paperclip" style="color:var(--heading)"></i>ไฟล์ผลลัพธ์ <span class="hic-pill">{{ req.files.length }}</span></h2>
@@ -129,6 +155,7 @@
         </div>
       @end
     </section>
+    @end
   </div>
 
   <section class="hic-panel">
@@ -140,7 +167,7 @@
         @let(logMeta = log.toStatus ? requestStatusMeta(log.toStatus) : null)
         <li class="flex gap-3">
           <span class="hic-badge {{ logMeta ? logMeta.badge : 'hic-badge-muted' }}" style="height:28px;width:28px;justify-content:center;padding:0;flex:none">
-            <i class="fas {{ logMeta ? logMeta.icon : ({ delete_file: 'fa-trash', purge: 'fa-shield-halved', promote: 'fa-bookmark', generate: 'fa-file-excel' }[log.action] || 'fa-paperclip') }}"></i>
+            <i class="fas {{ logMeta ? logMeta.icon : ({ delete_file: 'fa-trash', purge: 'fa-shield-halved', promote: 'fa-bookmark', generate: 'fa-file-excel', create_report: 'fa-file-circle-plus', link_report: 'fa-chart-column', unlink_report: 'fa-link-slash' }[log.action] || 'fa-paperclip') }}"></i>
           </span>
           <div class="min-w-0">
             <div class="font-semibold text-sm" style="color:var(--ink-strong)">{{ requestLogLabel(log.action) }}</div>

@@ -1,0 +1,156 @@
+{{--
+  "ตั้งค่าพารามิเตอร์" popup: one row per @token in a report's SQL, written
+  as JSON into a hidden input and saved together with the report
+  (server: parseParamList + syncReportParameters).
+  Shared by pages/admin/report_settings and pages/admin/requests/show.
+
+  Expects locals (set with @let before the @include):
+    - paramPresets  { known, noInput } from #services/report_params
+    - pmSqlId       id of the SQL textarea
+    - pmTitleId     id of the report-name input (shown in the popup title)
+    - pmJsonId      id of the hidden `params_json` input
+    - pmBadgeId     id of the "ยังไม่บันทึก" badge on the opening button
+  Globals it defines: openParamModal(), closeParamModal(), applyParams(),
+  toggleParamOpts(sel), resetParamState(saved).
+--}}
+<style>
+  .pm-table td { vertical-align: top; }
+  .pm-table .hic-input { height: 36px; padding: 6px 10px; font-size: 13px; }
+  .pm-table .pm-opts { margin-top: 6px; }
+  .pm-table tr.is-new td:first-child .hic-mono::after { content: 'ใหม่'; margin-left: 6px; font: 600 10.5px var(--font-thai); color: var(--warn); }
+</style>
+
+<div id="paramModal" class="hic-modal hidden" role="dialog" aria-modal="true" style="z-index:70">
+  <div class="hic-modal-box is-lg hic-tone-yellow" style="max-width:1080px">
+    <div class="hic-modal-head">
+      <span class="hic-modal-icon"><i class="fas fa-list-check"></i></span>
+      <h3>ตั้งค่าพารามิเตอร์ <small id="paramModalSub" style="font-weight:400;color:var(--ink-muted);font-size:13px"></small></h3>
+      <button type="button" onclick="closeParamModal()" class="hic-iconbtn" aria-label="ปิด"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="hic-modal-body">
+      <div class="hic-help" style="margin:0">
+        สร้างจาก <code class="hic-mono">{{ '@' }}token</code> ใน SQL ตอนนี้ — แก้ SQL แล้วเปิดหน้านี้ใหม่ได้ ค่าที่ตั้งจะไม่หาย
+        · ข้อมูลจะถูกบันทึกจริงเมื่อบันทึกรายงาน
+      </div>
+      <div id="paramEmpty" class="hic-empty hidden" style="padding:32px 16px">
+        <span class="hic-empty-icon"><i class="fas fa-circle-info"></i></span>
+        <b>ไม่พบ {{ '@' }}token ใน SQL</b>
+        <span>รายงานนี้จะไม่มีช่องให้ผู้ใช้กรอก</span>
+      </div>
+      <div id="paramTableWrap" class="overflow-x-auto">
+        <table class="hic-table pm-table">
+          <thead>
+            <tr>
+              <th style="width:130px">Token</th>
+              <th>ชื่อที่แสดง <span class="hic-req">*</span></th>
+              <th style="width:130px">ชนิด</th>
+              <th>ค่าเริ่มต้น / ตัวเลือก</th>
+              <th style="width:64px;text-align:center">บังคับ</th>
+              <th style="width:78px">ลำดับ</th>
+            </tr>
+          </thead>
+          <tbody id="paramRows"></tbody>
+        </table>
+      </div>
+      <div id="paramStale" class="hic-alert hic-alert-warn hidden"></div>
+    </div>
+    <div class="hic-modal-foot">
+      <button type="button" onclick="closeParamModal()" class="hic-btn hic-btn-ghost">ยกเลิก</button>
+      <button type="button" onclick="applyParams()" class="hic-btn hic-btn-primary"><i class="fas fa-check"></i>ใช้ค่านี้</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const PARAM_PRESETS = {{{ JSON.stringify(paramPresets) }}}
+  const PARAM_IDS = {{{ JSON.stringify({ sql: pmSqlId, title: pmTitleId, json: pmJsonId, badge: pmBadgeId }) }}}
+  const PARAM_TYPES = [['text', 'ข้อความ'], ['number', 'ตัวเลข'], ['date', 'วันที่'], ['datetime', 'วันเวลา'], ['select', 'ตัวเลือก'], ['textarea', 'ข้อความยาว']]
+  let paramState = new Map() // name -> { name, label, type, default, required, options, sort, saved }
+
+  function pmEsc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+  }
+
+  /** Same rule as ReportRunner.detectParameters (server). */
+  function detectTokens(sql) {
+    const clean = String(sql || '').replace(/@@/g, '').replace(/'(?:[^'\\]|\\.)*'/g, '').replace(/"(?:[^"\\]|\\.)*"/g, '')
+    const out = []
+    for (const m of clean.matchAll(/@([a-zA-Z_][a-zA-Z0-9_]*)/g)) if (!out.includes(m[1])) out.push(m[1])
+    return out.filter(n => !PARAM_PRESETS.noInput.includes(n))
+  }
+
+  function resetParamState(saved) {
+    paramState = new Map((saved || []).map(p => [p.name, { ...p, saved: true }]))
+    document.getElementById(PARAM_IDS.json).value = ''
+    document.getElementById(PARAM_IDS.badge).classList.add('hidden')
+  }
+
+  function openParamModal() {
+    const tokens = detectTokens(document.getElementById(PARAM_IDS.sql).value)
+    let maxSort = 0
+    paramState.forEach(p => { maxSort = Math.max(maxSort, Number(p.sort) || 0) })
+    tokens.forEach(name => {
+      if (paramState.has(name)) return
+      const k = PARAM_PRESETS.known[name] || {}
+      paramState.set(name, { name, label: k.label || name, type: k.type || 'text', default: k.default || '', required: !!k.required, options: '', sort: ++maxSort, saved: false })
+    })
+    const rows = tokens.map(n => paramState.get(n)).sort((a, b) => (a.sort || 0) - (b.sort || 0))
+    const typeOpts = t => PARAM_TYPES.map(([v, l]) => '<option value="' + v + '"' + (v === t ? ' selected' : '') + '>' + l + '</option>').join('')
+    document.getElementById('paramRows').innerHTML = rows.map(p =>
+      '<tr data-name="' + pmEsc(p.name) + '" class="' + (p.saved ? '' : 'is-new') + '">'
+      + '<td><span class="hic-mono" style="font-size:12.5px">@' + pmEsc(p.name) + '</span></td>'
+      + '<td><input class="hic-input" data-f="label" maxlength="100" value="' + pmEsc(p.label) + '" /></td>'
+      + '<td><select class="hic-input" data-f="type" onchange="toggleParamOpts(this)">' + typeOpts(p.type) + '</select></td>'
+      + '<td><input class="hic-input" data-f="default" maxlength="255" placeholder="ค่าเริ่มต้น (ไม่บังคับ)" value="' + pmEsc(p.default) + '" />'
+      + '<input class="hic-input pm-opts' + (p.type === 'select' ? '' : ' hidden') + '" data-f="options" placeholder="ตัวเลือก คั่นด้วย , เช่น OPD, IPD" value="' + pmEsc(p.options) + '" /></td>'
+      + '<td style="text-align:center;padding-top:16px"><input type="checkbox" data-f="required"' + (p.required ? ' checked' : '') + ' /></td>'
+      + '<td><input class="hic-input" data-f="sort" type="number" min="1" value="' + pmEsc(p.sort) + '" /></td>'
+      + '</tr>').join('')
+    document.getElementById('paramEmpty').classList.toggle('hidden', rows.length > 0)
+    document.getElementById('paramTableWrap').classList.toggle('hidden', rows.length === 0)
+    const stale = [...paramState.values()].filter(p => p.saved && !tokens.includes(p.name))
+    const staleBox = document.getElementById('paramStale')
+    staleBox.classList.toggle('hidden', stale.length === 0)
+    staleBox.innerHTML = '<i class="fas fa-triangle-exclamation"></i><span>ไม่พบใน SQL แล้ว — จะถูกลบเมื่อบันทึก: <span class="hic-mono">'
+      + pmEsc(stale.map(p => '@' + p.name).join(', ')) + '</span></span>'
+    const title = document.getElementById(PARAM_IDS.title).value.trim()
+    document.getElementById('paramModalSub').textContent = title ? '· ' + title : ''
+    const m = document.getElementById('paramModal'); m.classList.remove('hidden'); m.classList.add('flex')
+    document.querySelector('#paramRows input[data-f="label"]')?.focus()
+  }
+
+  function toggleParamOpts(sel) {
+    sel.closest('tr').querySelector('[data-f="options"]').classList.toggle('hidden', sel.value !== 'select')
+  }
+
+  // Close only this popup — whatever is underneath stays open.
+  function closeParamModal() {
+    const m = document.getElementById('paramModal'); m.classList.add('hidden'); m.classList.remove('flex')
+  }
+
+  function applyParams() {
+    const rows = Array.from(document.querySelectorAll('#paramRows tr'))
+    for (const tr of rows) {
+      const label = tr.querySelector('[data-f="label"]')
+      if (!label.value.trim()) { label.focus(); label.reportValidity?.(); alert('กรุณากรอกชื่อที่แสดงของ @' + tr.dataset.name); return }
+    }
+    const list = rows.map(tr => {
+      const get = f => tr.querySelector('[data-f="' + f + '"]')
+      const p = paramState.get(tr.dataset.name)
+      Object.assign(p, {
+        label: get('label').value.trim(),
+        type: get('type').value,
+        default: get('default').value.trim(),
+        options: get('options').value.trim(),
+        required: get('required').checked,
+        sort: Math.max(1, Number(get('sort').value) || 1),
+      })
+      return { name: p.name, label: p.label, type: p.type, default: p.default || null, required: p.required, options: p.type === 'select' ? p.options : null, sort: p.sort }
+    })
+    document.getElementById(PARAM_IDS.json).value = JSON.stringify(list)
+    document.getElementById(PARAM_IDS.badge).classList.remove('hidden')
+    closeParamModal()
+  }
+
+  document.getElementById('paramModal').addEventListener('click', e => { if (e.target.id === 'paramModal') closeParamModal() })
+</script>

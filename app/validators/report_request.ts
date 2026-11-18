@@ -38,16 +38,20 @@ export const generateValidator = vine.compile(
   })
 )
 
-export const runSqlValidator = vine.compile(
+/** "สร้างรายงานใหม่" on the admin request page. */
+export const createReportValidator = vine.compile(
   vine.object({
+    head_id: vine.number().positive(),
+    name: vine.string().trim().minLength(3).maxLength(255),
     sql: vine.string().trim().minLength(10).maxLength(20000),
     database_source: vine.enum(['his', 'system'] as const),
   })
 )
 
-export const promoteValidator = vine.compile(
+/** Admin request report (สรุปการขอรายงาน) date range. */
+export const requestStatsValidator = vine.compile(
   vine.object({
-    head_id: vine.number().positive(),
-    name: vine.string().trim().minLength(3).maxLength(255),
+    from: isoDate().optional(),
+    to: isoDate().optional(),
   })
 )

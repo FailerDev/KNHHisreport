@@ -1,4 +1,5 @@
 import { test } from '@japa/runner'
+import ReportRequest from '#models/report_request'
 import User from '#models/user'
 
 /**
@@ -38,5 +39,63 @@ test.group('Report requests — pages', () => {
     const admin = await User.findByOrFail('username', 'admin')
     const res = await client.get('/requests/files/99999999').loginAs(admin)
     res.assertStatus(404)
+  })
+
+  test('detail pages render for the latest request (if any)', async ({ client }) => {
+    const admin = await User.findByOrFail('username', 'admin')
+    const latest = await ReportRequest.query().orderBy('id', 'desc').first()
+    if (!latest) return
+    const adminPage = await client.get(`/admin/requests/${latest.id}`).loginAs(admin)
+    adminPage.assertStatus(200)
+    adminPage.assertTextIncludes(latest.reqNo)
+    const ownerPage = await client.get(`/requests/${latest.id}`).loginAs(admin)
+    ownerPage.assertStatus(200)
+    ownerPage.assertTextIncludes(latest.reqNo)
+  })
+
+  test('in-progress request offers create-report with a parameters popup', async ({ client }) => {
+    const admin = await User.findByOrFail('username', 'admin')
+    const working = await ReportRequest.query().where('status', 'in_progress').first()
+    if (!working) return
+    const res = await client.get(`/admin/requests/${working.id}`).loginAs(admin)
+    res.assertStatus(200)
+    res.assertTextIncludes('สร้างรายงานใหม่')
+    res.assertTextIncludes('id="paramModal"')
+    res.assertTextIncludes('new_report_params_json')
+  })
+
+  test('request form offers "report in the system" as a result', async ({ client }) => {
+    const admin = await User.findByOrFail('username', 'admin')
+    const res = await client.get('/requests/create').loginAs(admin)
+    res.assertStatus(200)
+    res.assertTextIncludes('ดูเป็นรายงานในระบบ')
+  })
+})
+
+test.group('Report requests — summary report (สรุปการขอรายงาน)', () => {
+  test('GET /admin/requests/report renders for the current fiscal year', async ({ client }) => {
+    const admin = await User.findByOrFail('username', 'admin')
+    const res = await client.get('/admin/requests/report').loginAs(admin)
+    res.assertStatus(200)
+    res.assertTextIncludes('สรุปการขอรายงาน')
+  })
+
+  test('an inverted range falls back with a message', async ({ client }) => {
+    const admin = await User.findByOrFail('username', 'admin')
+    const res = await client
+      .get('/admin/requests/report?from=2026-10-31&to=2026-10-01')
+      .loginAs(admin)
+    res.assertStatus(200)
+    res.assertTextIncludes('วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น')
+  })
+
+  test('export returns an xlsx file', async ({ client }) => {
+    const admin = await User.findByOrFail('username', 'admin')
+    const res = await client.get('/admin/requests/report/export').loginAs(admin)
+    res.assertStatus(200)
+    res.assertHeader(
+      'content-type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
   })
 })

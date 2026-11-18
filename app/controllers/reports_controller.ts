@@ -35,16 +35,20 @@ export default class ReportsController {
     })
   }
 
-  async show({ params, view, response }: HttpContext) {
+  async show({ params, request, view, response }: HttpContext) {
     const id = Number(params.id)
     const report = await this.findActiveReport(id)
     if (!report) return response.redirect('/reports')
     const configured = await loadEffectiveParameters(report)
     const hasPlaceholders = configured.length > 0
 
+    // `?start_d=2026-10-01` pre-fills a parameter (links from a report request).
+    const qs = request.qs()
     const values: Record<string, string> = {}
     for (const p of configured) {
-      let def = p.paramDefault ?? ''
+      const fromQuery = qs[p.paramName]
+      let def =
+        typeof fromQuery === 'string' && fromQuery !== '' ? fromQuery : (p.paramDefault ?? '')
       if (!def) {
         if (p.paramType === 'date') def = DateTime.now().toFormat('yyyy-MM-dd')
         if (p.paramType === 'datetime') def = DateTime.now().toFormat("yyyy-MM-dd'T'HH:mm")
@@ -142,10 +146,7 @@ export default class ReportsController {
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-    response.header(
-      'Content-Disposition',
-      `attachment; filename="${encodeURIComponent(filename)}"`
-    )
+    response.header('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`)
     return response.send(buf)
   }
 

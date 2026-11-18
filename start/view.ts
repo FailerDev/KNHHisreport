@@ -15,6 +15,8 @@ import {
   DATA_LEVEL_LABELS,
   LOG_ACTION_LABELS,
   OUTPUT_FORMAT_LABELS,
+  canRequesterCancel,
+  isOpenStatus,
   statusMeta,
   type DataLevel,
   type OutputFormat,
@@ -26,6 +28,8 @@ edge.global('reportTitleParts', reportTitleParts)
 
 // Report-request module labels / formatting
 edge.global('requestStatusMeta', statusMeta)
+edge.global('requestCanCancel', canRequesterCancel)
+edge.global('requestIsOpen', (s: string) => isOpenStatus(s as any))
 edge.global('requestLogLabel', (action: string) => LOG_ACTION_LABELS[action] ?? action)
 edge.global('dataLevelLabel', (v: string) => DATA_LEVEL_LABELS[v as DataLevel] ?? v)
 edge.global('outputFormatLabel', (v: string) => OUTPUT_FORMAT_LABELS[v as OutputFormat] ?? v)

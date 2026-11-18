@@ -24,11 +24,9 @@
             @if(auth.user.userLevel === 'admin')
               <a href="/admin/requests/{{ req.id }}" class="hic-btn hic-btn-secondary"><i class="fas fa-screwdriver-wrench"></i><span>จัดการคำขอนี้</span></a>
             @end
-            @if(isOwner && req.status === 'pending')
-              <form method="POST" action="/requests/{{ req.id }}/cancel" onsubmit="return confirm('ยืนยันยกเลิกคำขอ {{ req.reqNo }}?')">
-                {{ csrfField() }}
-                <button type="submit" class="hic-btn hic-btn-ghost" style="color:var(--bad)"><i class="fas fa-ban"></i><span>ยกเลิกคำขอ</span></button>
-              </form>
+            @if(isOwner && requestCanCancel(req.status))
+              <button type="button" class="hic-btn hic-btn-ghost" style="color:var(--bad)"
+                onclick="openCancelRequest({{ req.id }}, '{{ req.reqNo }}', {{ req.status === 'in_progress' }})"><i class="fas fa-ban"></i><span>ยกเลิกคำขอ</span></button>
             @end
           </div>
         </div>
@@ -38,5 +36,10 @@
 
       @include('partials/request_detail')
     </div>
+
+    @if(isOwner && requestCanCancel(req.status))
+      @let(cancelBack = 'detail')
+      @include('partials/request_cancel_modal')
+    @end
   @end
 @end

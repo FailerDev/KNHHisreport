@@ -1,0 +1,47 @@
+{{--
+  Requester "cancel request" dialog, shared by the request list and detail
+  pages. Open it with openCancelRequest(id, reqNo, isInProgress).
+  Expects local: cancelBack ('list' | 'detail') — where to land after cancelling.
+--}}
+<div id="cancelRequestModal" class="hic-modal hidden" role="dialog" aria-modal="true" aria-labelledby="cancelRequestTitle">
+  <div class="hic-modal-box is-sm hic-tone-red">
+    <div class="hic-modal-head">
+      <span class="hic-modal-icon"><i class="fas fa-ban"></i></span>
+      <h3 id="cancelRequestTitle">ยกเลิกคำขอ</h3>
+      <button type="button" onclick="closeCancelRequest()" class="hic-iconbtn" aria-label="ปิด"><i class="fas fa-xmark"></i></button>
+    </div>
+    <form method="POST" id="cancelRequestForm" class="contents">
+      {{ csrfField() }}
+      <input type="hidden" name="back" value="{{ cancelBack }}" />
+      <div class="hic-modal-body">
+        <div id="cancelRequestBusy" class="hic-alert hic-alert-info hidden">
+          <i class="fas fa-circle-info"></i><span>เจ้าหน้าที่กำลังจัดทำคำขอนี้อยู่ ระบบจะแจ้งผู้รับผิดชอบว่าคุณยกเลิกแล้ว</span>
+        </div>
+        <div>
+          <label class="hic-label" for="cancel_note">เหตุผลการยกเลิก (ถ้ามี)</label>
+          <textarea name="note" id="cancel_note" rows="3" maxlength="2000" class="hic-input" placeholder="เช่น ได้ข้อมูลจากแหล่งอื่นแล้ว / ขอผิดเรื่อง"></textarea>
+        </div>
+      </div>
+      <div class="hic-modal-foot">
+        <button type="button" onclick="closeCancelRequest()" class="hic-btn hic-btn-ghost">ไม่ยกเลิก</button>
+        <button type="submit" class="hic-btn hic-btn-primary" style="background:var(--bad)"><i class="fas fa-ban"></i>ยืนยันยกเลิกคำขอ</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+  function openCancelRequest(id, reqNo, inProgress) {
+    const m = document.getElementById('cancelRequestModal')
+    document.getElementById('cancelRequestForm').action = '/requests/' + id + '/cancel'
+    document.getElementById('cancelRequestTitle').textContent = 'ยกเลิกคำขอ ' + reqNo
+    document.getElementById('cancelRequestBusy').classList.toggle('hidden', !inProgress)
+    m.classList.remove('hidden'); m.classList.add('flex'); document.body.style.overflow = 'hidden'
+    document.getElementById('cancel_note').focus()
+  }
+  function closeCancelRequest() {
+    const m = document.getElementById('cancelRequestModal')
+    m.classList.add('hidden'); m.classList.remove('flex'); document.body.style.overflow = ''
+  }
+  document.getElementById('cancelRequestModal').addEventListener('click', (e) => { if (e.target.id === 'cancelRequestModal') closeCancelRequest() })
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCancelRequest() })
+</script>

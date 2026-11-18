@@ -6,32 +6,39 @@ import ReportRequestFile from '#models/report_request_file'
 import type User from '#models/user'
 import ReportRunner, { ReportRunnerError } from '#services/report_runner'
 import { buildReportXlsx, collectReportParams, reportXlsxFilename } from '#services/report_excel'
-import { loadEffectiveParameters } from '#services/report_params'
+import { KNOWN, NO_INPUT, loadEffectiveParameters, parseParamList } from '#services/report_params'
 import { stripTitleHtml } from '#services/title_html'
 import ReportHead from '#models/report_head'
-import { REQUEST_STATUSES, UPLOAD_EXTNAMES, filePurgeDate } from '#services/report_request_flow'
+import {
+  REQUEST_STATUSES,
+  UPLOAD_EXTNAMES,
+  filePurgeDate,
+  hasDeliverable,
+} from '#services/report_request_flow'
 import {
   RequestFlowError,
   attachGenerated,
   attachUpload,
-  promoteToReport,
+  createReportForRequest,
+  linkResultReport,
   removeFile,
+  resultReportView,
   retentionDays,
-  saveWorkSql,
   statusCounts,
   transition,
+  unlinkResultReport,
 } from '#services/report_request_service'
 import {
+  createReportValidator,
   generateValidator,
   noteValidator,
-  promoteValidator,
   rejectValidator,
-  runSqlValidator,
 } from '#validators/report_request'
 
 /**
  * Admin / งานสารสนเทศ side: review, approve (= take on the job), reject,
- * attach result files (upload or generate from an existing report), complete.
+ * deliver the result — files (upload / generate from a report) and/or a link
+ * to a report in the system (existing, or created here) — then complete.
  */
 export default class AdminReportRequestsController {
   async index({ view, request, session }: HttpContext) {
@@ -77,7 +84,7 @@ export default class AdminReportRequestsController {
             .orderBy('sort', 'asc')
         : []
     const heads =
-      req.workSql && !req.promotedReportId
+      req.status === 'in_progress'
         ? await ReportHead.query().where('status', 1).orderBy('sort', 'asc')
         : []
 
@@ -85,6 +92,8 @@ export default class AdminReportRequestsController {
       req,
       reports,
       heads,
+      paramPresets: { known: KNOWN, noInput: [...NO_INPUT] },
+      resultReport: await resultReportView(req),
       purgeDate: filePurgeDate(req, await retentionDays()),
       uploadExtnames: UPLOAD_EXTNAMES,
       message: session.flashMessages.get('message'),
@@ -167,50 +176,50 @@ export default class AdminReportRequestsController {
     })
   }
 
-  /**
-   * Run admin-written SQL (read-only, single statement — enforced by
-   * ReportRunner) and attach the result. `@start_d` / `@end_d` are filled
-   * from the request's date range.
-   */
-  async runSql(ctx: HttpContext) {
+  /** Deliver an existing report: the requester opens it from the request page. */
+  async linkReport(ctx: HttpContext) {
     const { params, request } = ctx
     return this.act(ctx, async () => {
       const req = await this.findOrFail(params.id)
-      const { sql, database_source: source } = await runSqlValidator.validate(request.all())
-
-      const adhoc = new ReportHeadDetail()
-      adhoc.sql1 = sql
-      adhoc.databaseSource = source
-      const raw = {
-        start_d: req.dateFrom?.toISODate() ?? undefined,
-        end_d: req.dateTo?.toISODate() ?? undefined,
-      }
-
-      let runResult
-      try {
-        runResult = await ReportRunner.runReport(adhoc, raw)
-      } catch (e: any) {
-        const msg = e instanceof ReportRunnerError ? e.message : String(e?.message ?? e)
-        throw new RequestFlowError(`รัน SQL ไม่สำเร็จ: ${msg}`)
-      }
-
-      const buffer = await buildReportXlsx(req.title, runResult, raw, [])
-      const filename = `${req.reqNo}_${reportXlsxFilename(req.title)}`
-      await attachGenerated(ctx, req, buffer, filename, `SQL เขียนเอง (${runResult.count} แถว)`)
-      await saveWorkSql(req, sql, source)
-      return `รัน SQL แล้วแนบไฟล์ ${filename} (${runResult.count} แถว)`
+      const { report_id: reportId } = await generateValidator.validate(request.all())
+      const report = await linkResultReport(ctx, req, reportId)
+      return `ส่งมอบรายงาน "${stripTitleHtml(report.detail)}" ให้ผู้ขอแล้ว — กดปิดงานเมื่อพร้อม`
     })
   }
 
-  /** Save the request's ad-hoc SQL as a permanent report in report_head_detail. */
-  async promote(ctx: HttpContext) {
-    const { params, request } = ctx
+  async unlinkReport(ctx: HttpContext) {
+    const { params } = ctx
     return this.act(ctx, async () => {
-      const req = await this.findOrFail(params.id)
-      const { head_id: headId, name } = await promoteValidator.validate(request.all())
-      const report = await promoteToReport(ctx, req, headId, name)
-      return `บันทึกเป็นรายงาน "${name}" แล้ว (รายงาน #${report.id}) — ตั้งค่าพารามิเตอร์เพิ่มได้ที่หน้าตั้งค่ารายงาน`
+      await unlinkResultReport(ctx, await this.findOrFail(params.id))
+      return 'ยกเลิกการส่งมอบรายงานแล้ว'
     })
+  }
+
+  /** No report fits the request yet: create one from SQL and deliver it. */
+  async createReport(ctx: HttpContext) {
+    const { params, request, session } = ctx
+    let created = false
+    const res = await this.act(ctx, async () => {
+      const req = await this.findOrFail(params.id)
+      const payload = await createReportValidator.validate(request.all())
+      const report = await createReportForRequest(ctx, req, {
+        headId: payload.head_id,
+        name: payload.name,
+        sql: payload.sql,
+        source: payload.database_source,
+        params: await this.paramList(request.input('params_json')),
+      })
+      created = true
+      return `สร้างรายงาน "${payload.name}" (#${report.id}) และส่งมอบให้ผู้ขอแล้ว — กดปิดงานเมื่อพร้อม`
+    })
+    // Keep what the admin typed so a failed SQL check doesn't lose it.
+    if (!created) {
+      session.flash(
+        'createReportDraft',
+        request.only(['head_id', 'name', 'sql', 'database_source', 'params_json'])
+      )
+    }
+    return res
   }
 
   async destroyFile(ctx: HttpContext) {
@@ -241,8 +250,10 @@ export default class AdminReportRequestsController {
           const files = await ReportRequestFile.query({ client: row.$trx })
             .where('requestId', row.id)
             .count('* as total')
-          if (Number(files[0].$extras.total) === 0) {
-            throw new RequestFlowError('ต้องแนบไฟล์ผลลัพธ์อย่างน้อย 1 ไฟล์ก่อนปิดงาน')
+          if (!hasDeliverable(Number(files[0].$extras.total), row.resultReportId)) {
+            throw new RequestFlowError(
+              'ต้องแนบไฟล์ผลลัพธ์ หรือส่งมอบรายงานในระบบ อย่างน้อย 1 อย่างก่อนปิดงาน'
+            )
           }
           row.completedAt = DateTime.now()
           row.completionNote = note ?? null
@@ -272,6 +283,15 @@ export default class AdminReportRequestsController {
         options: p.parsedOptions,
       })),
     })
+  }
+
+  /** Parameter list from the "ตั้งค่าพารามิเตอร์" popup; flow-safe error message. */
+  private async paramList(raw: unknown) {
+    try {
+      return await parseParamList(raw)
+    } catch (e: any) {
+      throw new RequestFlowError(e?.message ?? 'ข้อมูลพารามิเตอร์ไม่ถูกต้อง')
+    }
   }
 
   private async findOrFail(id: unknown): Promise<ReportRequest> {

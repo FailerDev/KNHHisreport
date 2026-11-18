@@ -69,7 +69,8 @@
                   <th>วันที่ส่ง</th>
                   <th>ต้องการภายใน</th>
                   <th>สถานะ</th>
-                  <th style="text-align:center">ไฟล์</th>
+                  <th style="text-align:center">ผลลัพธ์</th>
+                  <th style="text-align:right"><span class="sr-only">จัดการ</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -86,7 +87,22 @@
                       @end
                     </td>
                     <td><span class="hic-badge {{ meta.badge }}"><i class="fas {{ meta.icon }}"></i>{{ meta.label }}</span></td>
-                    <td style="text-align:center">{{ r.$extras.files_count || '—' }}</td>
+                    <td style="text-align:center;white-space:nowrap">
+                      @if(r.resultReportId)
+                        <span class="hic-badge hic-badge-violet" title="ส่งมอบเป็นรายงานในระบบ"><i class="fas fa-chart-column"></i>รายงาน</span>
+                      @end
+                      @if(r.$extras.files_count)
+                        <span class="hic-badge hic-badge-muted" title="ไฟล์"><i class="fas fa-paperclip"></i>{{ r.$extras.files_count }}</span>
+                      @elseif(!r.resultReportId)
+                        —
+                      @end
+                    </td>
+                    <td style="text-align:right">
+                      @if(requestCanCancel(r.status))
+                        <button type="button" class="hic-act is-bad" title="ยกเลิกคำขอ" aria-label="ยกเลิกคำขอ {{ r.reqNo }}"
+                          onclick="event.stopPropagation(); openCancelRequest({{ r.id }}, '{{ r.reqNo }}', {{ r.status === 'in_progress' }})"><i class="fas fa-ban"></i></button>
+                      @end
+                    </td>
                   </tr>
                 @end
               </tbody>
@@ -95,5 +111,8 @@
         @end
       </div>
     </div>
+
+    @let(cancelBack = 'list')
+    @include('partials/request_cancel_modal')
   @end
 @end

@@ -509,6 +509,14 @@ html.dark .hic-badge-brand { color: var(--heading); }
 textarea.hic-input { height: auto; min-height: 90px; padding: 10px 14px; }
 .hic-input::placeholder { color: var(--ink-muted); }
 .hic-input:focus { border-color: var(--brand-from); box-shadow: 0 0 0 4px rgba(var(--brand-rgb), 0.12); }
+/* File picker: the native "Choose File" button restyled as a hic-btn-secondary-sm */
+input[type="file"].hic-input { padding: 5px 6px; line-height: 32px; color: var(--ink-muted); font-size: 14px; cursor: pointer; }
+input[type="file"].hic-input::file-selector-button {
+  height: 32px; margin-right: 12px; padding: 0 12px; border: 0; border-radius: 10px; cursor: pointer;
+  color: var(--ink-strong); background: var(--surface-sunken); box-shadow: inset 0 0 0 1px var(--border-strong);
+  font: 700 13px/20px var(--font-thai); transition: background-color .15s ease;
+}
+input[type="file"].hic-input:hover::file-selector-button { background: var(--surface); }
 .hic-field-icon { position: relative; }
 .hic-field-icon > i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--ink-muted); font-size: 14px; pointer-events: none; }
 .hic-field-icon > .hic-input { padding-left: 40px; }

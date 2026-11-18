@@ -183,7 +183,9 @@ export async function notifyRequestEvent(
     case 'complete':
       await toRequester({
         title: `${req.reqNo} จัดทำเสร็จแล้ว`,
-        body: 'ดาวน์โหลดไฟล์ได้ที่หน้าคำขอ',
+        body: req.resultReportId
+          ? 'เปิดดูรายงานได้ที่หน้าคำขอ'
+          : 'ดาวน์โหลดไฟล์ได้ที่หน้าคำขอ',
         link: own,
       })
       if (events.lineCompleted) {
@@ -203,11 +205,12 @@ export async function notifyRequestEvent(
       if (req.assignedTo) {
         await notifyUsers([req.assignedTo], {
           title: `${req.reqNo} ถูกยกเลิกโดยผู้ขอ`,
+          body: note ?? null,
           link: adminLink,
         })
       } else {
         await notifyAdmins(
-          { title: `${req.reqNo} ถูกยกเลิกโดยผู้ขอ`, link: adminLink },
+          { title: `${req.reqNo} ถูกยกเลิกโดยผู้ขอ`, body: note ?? null, link: adminLink },
           actorId ?? undefined
         )
       }

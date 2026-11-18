@@ -12,6 +12,7 @@ const DashboardSettingsController = () => import('#controllers/dashboard_setting
 const HealthController = () => import('#controllers/health_controller')
 const ReportRequestsController = () => import('#controllers/report_requests_controller')
 const AdminReportRequestsController = () => import('#controllers/admin_report_requests_controller')
+const AdminRequestStatsController = () => import('#controllers/admin_request_stats_controller')
 const NotificationsController = () => import('#controllers/notifications_controller')
 const SettingsController = () => import('#controllers/settings_controller')
 const NotificationSettingsController = () => import('#controllers/notification_settings_controller')
@@ -135,6 +136,8 @@ router
     router.post('/admin/notification-settings/test-line', [NotificationSettingsController, 'testLine'])
 
     router.get('/admin/requests', [AdminReportRequestsController, 'index']).as('admin.requests.index')
+    router.get('/admin/requests/report', [AdminRequestStatsController, 'index']).as('admin.requests.report')
+    router.get('/admin/requests/report/export', [AdminRequestStatsController, 'export']).as('admin.requests.reportExport')
     router.get('/admin/requests/report-params/:reportId', [AdminReportRequestsController, 'reportParams']).where('reportId', router.matchers.number())
     router
       .group(() => {
@@ -143,8 +146,9 @@ router
         router.post('/reject', [AdminReportRequestsController, 'reject'])
         router.post('/upload', [AdminReportRequestsController, 'upload'])
         router.post('/generate', [AdminReportRequestsController, 'generate'])
-        router.post('/run-sql', [AdminReportRequestsController, 'runSql'])
-        router.post('/promote', [AdminReportRequestsController, 'promote'])
+        router.post('/link-report', [AdminReportRequestsController, 'linkReport'])
+        router.post('/unlink-report', [AdminReportRequestsController, 'unlinkReport'])
+        router.post('/create-report', [AdminReportRequestsController, 'createReport'])
         router.post('/complete', [AdminReportRequestsController, 'complete'])
         router.post('/files/:fileId/delete', [AdminReportRequestsController, 'destroyFile'])
       })
