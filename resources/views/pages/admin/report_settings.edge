@@ -446,8 +446,6 @@
         }
       }
 
-      document.getElementById('headModal').addEventListener('click', e => { if (e.target.id === 'headModal') hide('headModal') })
-      document.getElementById('reportModal').addEventListener('click', e => { if (e.target.id === 'reportModal') hide('reportModal') })
       document.addEventListener('keydown', e => {
         if (e.key !== 'Escape') return
         if (!document.getElementById('paramModal').classList.contains('hidden')) { closeParamModal(); return }

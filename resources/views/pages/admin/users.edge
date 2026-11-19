@@ -382,13 +382,7 @@
         document.getElementById('deleteForm').submit()
       }
 
-      // Close modal on backdrop click / Escape
-      document.getElementById('userModal').addEventListener('click', e => {
-        if (e.target.id === 'userModal') closeUserModal()
-      })
-      document.getElementById('resetModal').addEventListener('click', e => {
-        if (e.target.id === 'resetModal') closeResetModal()
-      })
+      // Close modal on Escape (not on backdrop click — avoids losing typed data)
       document.addEventListener('keydown', e => {
         if (e.key === 'Escape') { closeUserModal(); closeResetModal(); closeTwofaModal() }
       })
