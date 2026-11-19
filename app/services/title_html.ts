@@ -83,7 +83,6 @@ export function stripTitleHtml(input: unknown): string {
 
 export type TitleNoteTone = 'bad' | 'info' | 'muted'
 export interface ReportTitleParts {
-  no: string | null
   title: string
   notes: { text: string; tone: TitleNoteTone }[]
 }
@@ -97,9 +96,10 @@ function noteTone(color: string): TitleNoteTone {
 
 /**
  * Splits a legacy report title like
- * `01.รายชื่อผู้ป่วย OPD <font color=blue>(ระบุวันได้)</font>` into its running
- * number, plain-text title and coloured parenthetical notes so the list can
- * render them as a badge + tags instead of inline red/blue text.
+ * `01.รายชื่อผู้ป่วย OPD <font color=blue>(ระบุวันได้)</font>` into its
+ * plain-text title (kept as written, leading number included) and coloured
+ * parenthetical notes so the list can render them as tags instead of inline
+ * red/blue text.
  */
 export function reportTitleParts(input: unknown): ReportTitleParts {
   const notes: ReportTitleParts['notes'] = []
@@ -116,12 +116,5 @@ export function reportTitleParts(input: unknown): ReportTitleParts {
     }
   )
 
-  let title = stripTitleHtml(html)
-  let no: string | null = null
-  const m = /^(\d{1,3})\s*[.)\-:]\s*(?=\S)/.exec(title)
-  if (m) {
-    no = m[1].padStart(2, '0')
-    title = title.slice(m[0].length)
-  }
-  return { no, title, notes: notes.filter((n) => n.text) }
+  return { title: stripTitleHtml(html), notes: notes.filter((n) => n.text) }
 }

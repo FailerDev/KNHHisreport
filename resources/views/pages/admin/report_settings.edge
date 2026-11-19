@@ -126,10 +126,9 @@
                 <table class="hic-table rs-table">
                   <thead>
                     <tr>
-                      <th style="width:64px"></th>
+                      <th style="width:64px">ลำดับ</th>
                       <th>รายงาน</th>
                       <th style="width:96px">ฐานข้อมูล</th>
-                      <th style="width:70px;text-align:center">ลำดับ</th>
                       <th style="width:132px;text-align:right">จัดการ</th>
                     </tr>
                   </thead>
@@ -140,11 +139,7 @@
                       <tr id="report-row-{{ r.id }}" class="rs-row" data-report-id="{{ r.id }}" data-name="{{ stripTitleHtml(r.detail).toLowerCase() }}"
                         data-report="{{ JSON.stringify({ id: r.id, head_id: r.headId, detail: r.detail, sql1: r.sql1, sql2: r.sql2, database_source: src, sort: r.sort, params: paramsByReport[r.id] || [] }) }}">
                         <td>
-                          @if(t.no)
-                            <span class="rp-num">{{ t.no }}</span>
-                          @else
-                            <span class="rp-num rp-num-none"><i class="fas fa-file-lines"></i></span>
-                          @end
+                          <span class="rp-num" title="ลำดับ">{{ String(r.sort ?? '').padStart(2, '0') }}</span>
                         </td>
                         <td>
                           <div class="rp-body">
@@ -164,7 +159,6 @@
                             <i class="fas fa-database"></i>{{ src === 'his' ? 'HIS' : 'ระบบ' }}
                           </span>
                         </td>
-                        <td style="text-align:center;font-variant-numeric:tabular-nums">{{ r.sort }}</td>
                         <td>
                           <div class="flex justify-end gap-1">
                             <a href="/admin/reports/{{ r.id }}/parameters" title="พารามิเตอร์" class="hic-act is-warn"><i class="fas fa-list-check"></i></a>

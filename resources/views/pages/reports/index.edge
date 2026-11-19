@@ -105,11 +105,7 @@
                       <li>
                         <a href="/reports/{{ r.id }}" class="report-item" data-id="{{ r.id }}" data-name="{{ stripTitleHtml(r.detail).toLowerCase() }}"
                           title="{{ stripTitleHtml(r.detail) }}">
-                          @if(t.no)
-                            <span class="rp-num">{{ t.no }}</span>
-                          @else
-                            <span class="rp-num rp-num-none"><i class="fas fa-file-lines"></i></span>
-                          @end
+                          <span class="rp-num">{{ String(r.sort ?? '').padStart(2, '0') }}</span>
                           <span class="rp-body">
                             <span class="rp-title">{{ t.title }}</span>
                             @if(t.notes.length || src !== 'his')
