@@ -129,7 +129,7 @@
                       <th style="width:64px">ลำดับ</th>
                       <th>รายงาน</th>
                       <th style="width:96px">ฐานข้อมูล</th>
-                      <th style="width:132px;text-align:right">จัดการ</th>
+                      <th style="width:168px;text-align:right">จัดการ</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -161,6 +161,8 @@
                         </td>
                         <td>
                           <div class="flex justify-end gap-1">
+                            <button type="button" title="คัดลอกรายงาน" class="hic-act is-brand"
+                              onclick="copyReport(JSON.parse(this.closest('tr').dataset.report))"><i class="fas fa-copy"></i></button>
                             <a href="/admin/reports/{{ r.id }}/parameters" title="พารามิเตอร์" class="hic-act is-warn"><i class="fas fa-list-check"></i></a>
                             <button type="button" title="แก้ไข" data-edit-report="{{ r.id }}" class="hic-act is-brand"
                               onclick="openReportModal(JSON.parse(this.closest('tr').dataset.report))"><i class="fas fa-pen"></i></button>
@@ -400,6 +402,28 @@
         resetParamState(r && r.id ? r.params : [])
         renderDbDefault()
         show('reportModal')
+      }
+
+      /** Open the add-report modal pre-filled from an existing report (incl. its parameters). */
+      function copyReport(r) {
+        openReportModal({ head_id: r.head_id })
+        document.getElementById('reportModalTitle').textContent = 'คัดลอกรายงาน'
+        document.getElementById('report_detail').value = ((r.detail || '') + ' (สำเนา)').slice(0, 255)
+        document.getElementById('report_db').value = r.database_source || 'system'
+        document.getElementById('report_sort').value = r.sort || 1
+        document.getElementById('report_sql1').value = r.sql1 || ''
+        document.getElementById('report_sql2').value = r.sql2 || ''
+        const params = r.params || []
+        resetParamState(params)
+        // Submit the source report's parameters with the new one (the popup can still change them).
+        if (params.length) {
+          document.getElementById(PARAM_IDS.json).value = JSON.stringify(params.map(p => ({
+            name: p.name, label: p.label, type: p.type, default: p.default || null,
+            required: !!p.required, options: p.type === 'select' ? p.options : null, sort: p.sort,
+          })))
+        }
+        renderDbDefault()
+        document.getElementById('report_detail').focus()
       }
 
       function confirmDeleteHead(id, name) {
